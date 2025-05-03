@@ -1,10 +1,11 @@
 import streamlit as st
 import pandas as pd
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
 from dateutil import parser
 from streamlit_autorefresh import st_autorefresh  # Importar o streamlit_autorefresh
+
 
 # --- CONFIGURAÇÕES ---
 st.set_page_config(page_title="Gestão de Ocorrências", layout="wide")
@@ -116,10 +117,10 @@ with aba1:
                 # Exibe o sucesso
                 sucesso = st.empty()
                 sucesso.success("✅ Ocorrência aberta com sucesso!")
-
-                # Aguarda um tempo e limpa a mensagem de sucesso
-                time.sleep(2)
+                time.sleep(2) 
                 sucesso.empty()
+                # Aguarda um tempo e limpa a mensagem de sucesso
+                
 
 # =========================
 #    FUNÇÃO CLASSIFICAÇÃO
@@ -172,7 +173,10 @@ with aba2:
 
     # Exibe mensagem de sucesso, se existir
     if st.session_state.get("mensagem_sucesso_finalizacao"):
-        st.success("✅ Ocorrência finalizada com sucesso!")
+        sucesso = st.empty()
+        sucesso.success("✅ Ocorrência finalizada com sucesso!")  # Exibe a mensagem de sucesso
+        time.sleep(2)  # Espera por 2 segundos
+        sucesso.empty()  # Remove a mensagem após 2 segundos 
         del st.session_state["mensagem_sucesso_finalizacao"]
 
     def salvar_ocorrencia_finalizada(ocorr, status):
@@ -246,8 +250,6 @@ with aba2:
                                 st.rerun()  # Substituto oficial para experimental_rerun()
 
 
-
-
                             
 
 # =========================
@@ -273,7 +275,7 @@ with aba3:
 
     # Caso não existam ocorrências finalizadas
     if not ocorrencias_filtradas:
-        st.info("Nenhuma ocorrência finalizada encontrada.")
+        st.info("ℹ️ Nenhuma ocorrência finalizada encontrada.")
     else:
         # Divide o layout em 4 colunas
         colunas = st.columns(4)
