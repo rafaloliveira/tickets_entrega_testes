@@ -1,0 +1,255 @@
+import streamlit as st
+import pandas as pd
+from datetime import datetime
+import time
+from dateutil import parser
+import os
+
+# --- CONFIGURAÇÕES ---
+st.set_page_config(page_title="Gestão de Ocorrências", layout="wide")
+
+# --- TEMA ESCURO PERSONALIZADO ---
+st.markdown("""
+<style>
+    body {
+        background-color: #121212;
+        color: #FFFFFF;
+    }
+    .stTabs [role="tab"] {
+        background-color: #1e1e1e;
+        padding: 8px;
+        border-radius: 5px;
+        color: #ffffff;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: #057a55 !important;
+        color: white !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# --- CARREGAMENTO DE DADOS ---
+clientes = pd.read_csv("data/clientes.csv")["Cliente"].dropna().tolist()
+motoristas = pd.read_csv("data/motoristas.csv")["Motorista"].dropna().tolist()
+
+# --- INICIALIZAÇÃO DE SESSÃO ---
+if "ocorrencias_abertas" not in st.session_state:
+    st.session_state.ocorrencias_abertas = []
+
+if "ocorrencias_finalizadas" not in st.session_state:
+    st.session_state.ocorrencias_finalizadas = []
+
+# --- ABAS ---
+aba1, aba2, aba3 = st.tabs(["📝 Nova Ocorrência", "📌 Ocorrências em Aberto", "✅ Ocorrências Finalizadas"])
+
+# =========================
+#       ABA 1 - NOVA
+# =========================
+with aba1:
+    st.header("Nova Ocorrência")
+
+    with st.form("form_nova_ocorrencia",clear_on_submit=True):
+        col1, col2 = st.columns(2)
+
+        with col1:
+            nf = st.text_input("Nota Fiscal", key="nf")
+            cliente_opcao = st.selectbox("Cliente", options=clientes + ["Outro (digitar manualmente)"], index=None, key="cliente_opcao")
+            cliente = st.text_input("Digite o nome do cliente", key="cliente_manual") if cliente_opcao == "Outro (digitar manualmente)" else cliente_opcao
+            destinatario = st.text_input("Destinatário", key="destinatario")
+            cidade = st.text_input("Cidade", key="cidade")
+
+        with col2:
+            motorista_opcao = st.selectbox("Motorista", options=motoristas + ["Outro (digitar manualmente)"], index=None, key="motorista_opcao")
+            motorista = st.text_input("Digite o nome do motorista", key="motorista_manual") if motorista_opcao == "Outro (digitar manualmente)" else motorista_opcao
+            tipo = st.multiselect("Tipo de Ocorrência", options=["Chegada no Local", "Pedido Bloqueado", "Demora", "Divergência"], key="tipo_ocorrencia")
+            obs = st.text_area("Observações", key="observacoes")
+            responsavel = st.text_input("Quem está abrindo o ticket", key="responsavel")
+
+        enviar = st.form_submit_button("Adicionar Ocorrência")
+
+        if enviar:
+            campos_obrigatorios = {
+                "Nota Fiscal": nf,
+                "Cliente": cliente,
+                "Destinatário": destinatario,
+                "Cidade": cidade,
+                "Motorista": motorista,
+                "Tipo de Ocorrência": tipo,
+                "Responsável": responsavel
+            }
+
+            faltando = [campo for campo, valor in campos_obrigatorios.items() if not valor]
+
+            if faltando:
+                st.error(f"❌ Preencha todos os campos obrigatórios: {', '.join(faltando)}")
+            else:
+                nova_ocorrencia = {
+                    "Nota Fiscal": nf,
+                    "Cliente": cliente,
+                    "Destinatario": destinatario,
+                    "Cidade": cidade,
+                    "Motorista": motorista,
+                    "Tipo de Ocorrência": ", ".join(tipo),
+                    "Observações": obs,
+                    "Responsável": responsavel,
+                    "Data/Hora Abertura": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+                    "Abertura Timestamp": datetime.now(),
+                    "Complementar": "",
+                    "Data/Hora Finalização": ""
+                }
+                st.session_state.ocorrencias_abertas.append(nova_ocorrencia)
+
+                sucesso = st.empty()
+                sucesso.success("✅ Ocorrência aberta com sucesso!")
+                time.sleep(2)
+                sucesso.empty()
+                
+
+# =========================
+#    FUNÇÃO CLASSIFICAÇÃO
+# =========================
+# Função para classificar a ocorrência com base no tempo decorrido entre abertura e finalização
+# Função para classificar a ocorrência com base no tempo decorrido entre abertura e a hora atual
+# Função para classificar a ocorrência com tratamento robusto
+def classificar_ocorrencia_por_tempo(data_abertura_str):
+    # Converte a string para datetime
+    try:
+        data_abertura = datetime.strptime(data_abertura_str, "%d/%m/%Y %H:%M:%S")
+    except Exception as e:
+        return "Erro", "gray"
+
+    # Pega o momento atual
+    agora = datetime.now()
+
+    # Calcula o tempo decorrido em minutos
+    tempo_decorrido = (agora - data_abertura).total_seconds() / 60
+
+    # Define o status e a cor com base no tempo decorrido
+    if tempo_decorrido < 15:
+        return "🟢 Até 15 min", "#2ecc71"
+    elif tempo_decorrido < 30:
+        return "🟡 15 a 30 min", "#f1c40f"
+    elif tempo_decorrido < 45:
+        return "🟠 30 a 45 min", "#e67e22"
+    elif tempo_decorrido < 60:
+        return "🔴 45 a 60 min", "#e74c3c"
+    else:
+        return "🚨 +60 min", "#c0392b"
+
+# =========================
+#     ABA 2 - EM ABERTO
+# =========================
+with aba2:
+    st.header("Ocorrências em Aberto")
+
+    def salvar_ocorrencia_finalizada(ocorr, status):
+        pasta = os.path.join("data", "relatorio_de_tickets")
+        caminho = os.path.join(pasta, "relatorio_ocorrencias.xlsx")
+        os.makedirs(pasta, exist_ok=True)
+
+        ocorr["Estágio"] = status
+        df_nova = pd.DataFrame([ocorr])
+
+        if not os.path.exists(caminho):
+            df_nova.to_excel(caminho, index=False)
+        else:
+            df_existente = pd.read_excel(caminho)
+            df_final = pd.concat([df_existente, df_nova], ignore_index=True)
+            df_final.to_excel(caminho, index=False)
+
+    if not st.session_state.ocorrencias_abertas:
+        st.info("Nenhuma ocorrência aberta no momento.")
+    else:
+        colunas = st.columns(4)
+        for idx, ocorr in list(enumerate(st.session_state.ocorrencias_abertas)):
+            data_abertura = ocorr.get("Data/Hora Abertura") or ocorr.get("Abertura Timestamp")
+
+            try:
+                # Parse explícito usando o formato conhecido
+                if isinstance(data_abertura, str):
+                    data_abertura = datetime.strptime(data_abertura, "%d/%m/%Y %H:%M:%S")
+                elif not isinstance(data_abertura, datetime):
+                    raise ValueError(f"Formato de data inválido: {data_abertura}")
+
+                status, cor = classificar_ocorrencia_por_tempo(ocorr.get("Data/Hora Abertura"))
+
+            except Exception as e:
+                st.error(f"Erro ao processar ocorrência (NF: {ocorr.get('Nota Fiscal', '-')}) — {e}")
+                continue
+
+            with colunas[idx % 4]:
+                st.markdown(f"### ⏱️ {status}")
+                st.markdown(
+                    f"<div style='background-color:{cor};padding:10px;border-radius:10px'>", 
+                    unsafe_allow_html=True
+                )
+                st.write(f"**NF:** {ocorr.get('Nota Fiscal', '-')}")
+                st.write(f"**Cliente:** {ocorr.get('Cliente', '-')}")
+                st.write(f"**Cidade:** {ocorr.get('Cidade', '-')}")
+                st.write(f"**Motorista:** {ocorr.get('Motorista', '-')}")
+                st.write(f"**Tipo:** {ocorr.get('Tipo de Ocorrência', '-')}")
+                st.write(f"**Aberto por:** {ocorr.get('Responsável', '-')}")
+                st.write(f"**Data/Hora Abertura:** {data_abertura.strftime('%d/%m/%Y %H:%M:%S')}")
+                st.markdown("</div>", unsafe_allow_html=True)
+
+                with st.expander("Finalizar Ocorrência"):
+                    complemento = st.text_area("Complemento", key=f"complemento_final_{idx}")
+                    if st.button("Finalizar", key=f"finalizar_{idx}"):
+                        if not complemento.strip():
+                            st.error("❌ O campo 'Complementar' é obrigatório para finalizar a ocorrência.")
+                        else:
+                            ocorr["Complementar"] = complemento
+                            ocorr["Data/Hora Finalização"] = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+                            salvar_ocorrencia_finalizada(ocorr, status)
+                            st.session_state.ocorrencias_finalizadas.append(ocorr)
+                            st.session_state.ocorrencias_abertas.pop(idx)
+                            st.success("✅ Ocorrência finalizada!")
+                            st.rerun()
+
+                            
+
+# =========================
+#     ABA 3 - FINALIZADAS
+# =========================
+with aba3:
+    st.markdown("### 🔎 Filtro por Nota Fiscal")
+
+    col_filtro, _ = st.columns([1, 5])  # Campo no canto esquerdo
+    with col_filtro:
+        nf_busca = st.text_input("Nota Fiscal", placeholder="Nota Fiscal")
+
+    # Usa somente ocorrências finalizadas
+    ocorrencias = st.session_state.get("ocorrencias_finalizadas", [])
+
+    # Se houver algo digitado, aplica o filtro
+    if nf_busca:
+        ocorrencias_filtradas = [
+            ocorr for ocorr in ocorrencias
+            if nf_busca.strip() in str(ocorr.get("Nota Fiscal", ""))
+        ]
+    else:
+        ocorrencias_filtradas = ocorrencias
+
+    if not ocorrencias_filtradas:
+        st.info("Nenhuma ocorrência finalizada encontrada.")
+    else:
+        colunas = st.columns(4)
+        for idx, ocorr in enumerate(ocorrencias_filtradas):
+            # Classifica com base na data/hora da abertura
+            status, cor = classificar_ocorrencia_por_tempo(ocorr["Data/Hora Abertura"])
+            
+            with colunas[idx % 4]:
+                st.markdown(f"### ⏱️ {status}")
+                st.markdown(f"<div style='background-color:{cor};padding:10px;border-radius:10px'>", unsafe_allow_html=True)
+                st.write(f"**NF:** {ocorr['Nota Fiscal']}")
+                st.write(f"**Cliente:** {ocorr['Cliente']}")
+                st.write(f"**Cidade:** {ocorr['Cidade']}")
+                st.write(f"**Motorista:** {ocorr['Motorista']}")
+                st.write(f"**Tipo:** {ocorr['Tipo de Ocorrência']}")
+                st.write(f"**Aberto por:** {ocorr['Responsável']}")
+                st.write(f"**Data/Hora:** {ocorr['Data/Hora Abertura']}")
+                st.write(f"**Finalizado em:** {ocorr['Data/Hora Finalização']}")
+                st.write(f"**Complementar:** {ocorr['Complementar']}")
+                st.markdown("</div>", unsafe_allow_html=True)
+
+
