@@ -5,6 +5,36 @@ from datetime import datetime, timedelta
 import time
 from dateutil import parser
 from streamlit_autorefresh import st_autorefresh  # Importar o streamlit_autorefresh
+from login import autenticar_usuario
+import pytz
+
+
+
+# Definindo o fuso horário para o Brasil
+timezone = pytz.timezone('America/Sao_Paulo')
+
+# Obtendo o horário atual em São Paulo
+hora_brasil = datetime.now(timezone)
+# Exibindo o horário ajustado
+st.write(f'Horário atual no Brasil: {hora_brasil.strftime("%Y-%m-%d %H:%M:%S")}')
+
+
+# Realiza a autenticação ao carregar o app
+nome, usuario = autenticar_usuario()
+
+# Se o usuário não estiver autenticado, bloqueia o acesso
+if not nome:
+    st.stop()
+
+# Se autenticado, carrega o restante do app
+st.title("Bem-vindo ao Sistema de Ocorrências")
+
+# Aqui vai o conteúdo do seu app
+st.write("Conteúdo da aplicação...")
+
+# Exemplo de uma aba para adicionar ocorrências
+if st.button("Adicionar Ocorrência"):
+    st.write("Formulário para adicionar ocorrência...")
 
 
 # --- CONFIGURAÇÕES ---
