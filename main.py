@@ -183,7 +183,7 @@ def classificar_ocorrencia_por_tempo(data_abertura_str):
     except Exception as e:
         return "Erro", "gray"
 
-    agora = datetime.now()
+    agora = datetime.now(pytz.timezone("America/Sao_Paulo"))
     tempo_decorrido = (agora - data_abertura).total_seconds() / 60
 
     if tempo_decorrido < 15:
