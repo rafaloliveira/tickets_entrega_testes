@@ -7,7 +7,8 @@ from dateutil import parser
 from streamlit_autorefresh import st_autorefresh
 import yaml
 import streamlit_authenticator as stauth
-
+import pytz
+import uuid
 
 # --- DEVE SER A PRIMEIRA CHAMADA ---
 st.set_page_config(page_title="Gestão de Ocorrências", layout="wide")
@@ -139,8 +140,13 @@ with aba1:
             elif faltando:
                 st.error(f"❌ Preencha todos os campos obrigatórios: {', '.join(faltando)}")
             else:
+                # Define fuso horário de São Paulo
+                fuso_sp = pytz.timezone("America/Sao_Paulo")
+                agora_sp = datetime.now(fuso_sp)
+
                 # Adiciona a nova ocorrência
                 nova_ocorrencia = {
+                    "ID": str(uuid.uuid4()),  # ID único
                     "Nota Fiscal": nf,
                     "Cliente": cliente,
                     "Destinatario": destinatario,
@@ -149,8 +155,8 @@ with aba1:
                     "Tipo de Ocorrência": ", ".join(tipo),
                     "Observações": obs,
                     "Responsável": responsavel,
-                    "Data/Hora Abertura": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
-                    "Abertura Timestamp": datetime.now(),
+                    "Data/Hora Abertura": agora_sp.strftime("%d/%m/%Y %H:%M:%S"),
+                    "Abertura Timestamp": agora_sp.replace(tzinfo=None),  # sem timezone para salvar no Excel
                     "Complementar": "",
                     "Data/Hora Finalização": ""
                 }
@@ -191,34 +197,20 @@ def classificar_ocorrencia_por_tempo(data_abertura_str):
     else:
         return "🚨 +60 min", "#c0392b"
 
-# Função para salvar ocorrência finalizada em Excel
-def salvar_ocorrencia_finalizada(ocorr, status):
-    pasta = os.path.join("data", "relatorio_de_tickets")
-    caminho = os.path.join(pasta, "relatorio_ocorrencias.xlsx")
-    os.makedirs(pasta, exist_ok=True)
+# ----------------------------------------------------------------Função para salvar ocorrência finalizada em Excel---------------------------------
 
-    ocorr["Estágio"] = status
-    df_nova = pd.DataFrame([ocorr])
-
-    if not os.path.exists(caminho):
-        df_nova.to_excel(caminho, index=False)
-    else:
-        df_existente = pd.read_excel(caminho)
-        df_final = pd.concat([df_existente, df_nova], ignore_index=True)
-        df_final.to_excel(caminho, index=False)
-
+# -------------------------------------------------------------------AINDA FUNÇÃO -----------------------------------------------------------
 # =========================
 #     ABA 2 - EM ABERTO
 # =========================
 with aba2:
     st.header("Ocorrências em Aberto")
-
     # Exibe mensagem de sucesso, se existir
     if st.session_state.get("mensagem_sucesso_finalizacao"):
         st.success("✅ Ocorrência finalizada com sucesso!")
         del st.session_state["mensagem_sucesso_finalizacao"]
-
-    def salvar_ocorrencia_finalizada(ocorr, status):
+#-------------------------------------------------------------------------------------------------------------------------------
+    def salvar_ocorrencia_finalizada(ocorr, status): ### função salva ocorrencia finalizada Excel
         pasta = os.path.join("data", "relatorio_de_tickets")
         caminho = os.path.join(pasta, "relatorio_ocorrencias.xlsx")
         os.makedirs(pasta, exist_ok=True)
@@ -230,9 +222,21 @@ with aba2:
             df_nova.to_excel(caminho, index=False)
         else:
             df_existente = pd.read_excel(caminho)
-            df_final = pd.concat([df_existente, df_nova], ignore_index=True)
-            df_final.to_excel(caminho, index=False)
 
+            # Junta e remove duplicatas com base no ID exclusivo
+            # Remover qualquer ocorrência com o mesmo ID antes de salvar
+            df_existente = df_existente[df_existente["ID"] != ocorr["ID"]]
+            # Concatenar a nova ocorrência
+            df_final = pd.concat([df_existente, df_nova], ignore_index=True)
+
+            
+
+        # Remove timezone de todas as colunas datetimetz (caso existam)
+        for col in df_final.select_dtypes(include=["datetimetz"]).columns:
+            df_final[col] = df_final[col].dt.tz_localize(None)
+
+        df_final.to_excel(caminho, index=False)
+#------------------------------------------------------------------------
     if not st.session_state.ocorrencias_abertas:
         st.info("Nenhuma ocorrência aberta no momento.")
     else:
@@ -276,10 +280,18 @@ with aba2:
                                 st.error("❌ O campo 'Complementar' é obrigatório para finalizar a ocorrência.")
                             else:
                                 ocorr["Complementar"] = complemento
-                                ocorr["Data/Hora Finalização"] = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+                                agora_sp = datetime.now(pytz.timezone("America/Sao_Paulo"))
+                                ocorr["Data/Hora Finalização"] = agora_sp.strftime("%d/%m/%Y %H:%M:%S")
                                 ocorr["Status"] = status
                                 ocorr["Cor"] = cor
                                 ocorr["Finalizada"] = True
+                                 # 🕒 Calcula o tempo de permanência
+                                try:
+                                    dt_abertura = datetime.strptime(ocorr["Data/Hora Abertura"], "%d/%m/%Y %H:%M:%S")
+                                    dt_fim = datetime.strptime(ocorr["Data/Hora Finalização"], "%d/%m/%Y %H:%M:%S")
+                                    ocorr["Tempo de Permanência"] = str(dt_fim - dt_abertura)
+                                except Exception as e:
+                                    ocorr["Tempo de Permanência"] = "Erro ao calcular"
 
                                 salvar_ocorrencia_finalizada(ocorr, status)
 
@@ -391,26 +403,6 @@ with aba3:
 
             # Salvando o tempo de permanência no relatório Excel
             ocorr["Tempo de Permanência"] = tempo_permanencia_str  # Adiciona o tempo de permanência à ocorrência
-
-            # Função para salvar a ocorrência finalizada no Excel
-            def salvar_ocorrencia_finalizada(ocorr, status):
-                pasta = os.path.join("data", "relatorio_de_tickets")
-                caminho = os.path.join(pasta, "relatorio_ocorrencias.xlsx")
-                os.makedirs(pasta, exist_ok=True)
-
-                ocorr["Estágio"] = status
-                df_nova = pd.DataFrame([ocorr])
-
-                if not os.path.exists(caminho):
-                    df_nova.to_excel(caminho, index=False)
-                else:
-                    df_existente = pd.read_excel(caminho)
-                    df_final = pd.concat([df_existente, df_nova], ignore_index=True)
-                    df_final.to_excel(caminho, index=False)
-
-            # Chama a função para salvar a ocorrência
-            salvar_ocorrencia_finalizada(ocorr, status)
-
 
 
 
