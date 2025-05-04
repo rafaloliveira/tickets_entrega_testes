@@ -179,11 +179,13 @@ with aba1:
 # Função para classificar a ocorrência de acordo com o tempo decorrido
 def classificar_ocorrencia_por_tempo(data_abertura_str):
     try:
+        tz_sp = pytz.timezone("America/Sao_Paulo")
         data_abertura = datetime.strptime(data_abertura_str, "%d/%m/%Y %H:%M:%S")
+        data_abertura = tz_sp.localize(data_abertura)  # Torna data_abertura "aware"
     except Exception as e:
         return "Erro", "gray"
 
-    agora = datetime.now(pytz.timezone("America/Sao_Paulo"))
+    agora = datetime.now(tz_sp)
     tempo_decorrido = (agora - data_abertura).total_seconds() / 60
 
     if tempo_decorrido < 15:
