@@ -25,7 +25,10 @@ def autenticar(username, senha):
 
 # --- Interface de Login ---
 def login():
-    st.title("📝 Gestão de Ocorrências")
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.markdown("<h1 style='text-align: center;'>📝 Gestão de Ocorrências</h1>", unsafe_allow_html=True)
+
 
     if "login" not in st.session_state:
         st.session_state.login = False
@@ -253,8 +256,8 @@ with aba2:
                 with st.container():
                     st.markdown(
                         f"<div style='background-color:{cor};padding:10px;border-radius:10px;color:white;"
-                        f"box-shadow: 0 4px 12px rgba(0,0,0,0.3);margin-bottom:10px;min-height: 250px;font-size:13px;'>"
-                        f"<strong>Status:</strong> <span style='background-color:#2c3e50;padding:4px 8px;border-radius:5px;color:white;'>{status}</span><br>"
+                        f"box-shadow: 0 4px 10px rgba(0,0,0,0.3);margin-bottom:5px;min-height:250px;font-size:15px;'>"
+                        f"<strong>Status:</strong> <span style='background-color:#2c3e50;padding:4px 8px;border-radius:1px;color:white;'>{status}</span><br>"
                         f"<strong>NF:</strong> {ocorr.get('Nota Fiscal', '-')}<br>"
                         f"<strong>Cliente:</strong> {ocorr.get('Cliente', '-')}<br>"
                         f"<strong>Cidade:</strong> {ocorr.get('Cidade', '-')}<br>"
