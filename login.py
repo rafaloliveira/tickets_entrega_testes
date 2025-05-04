@@ -1,32 +1,43 @@
 import streamlit as st
-import streamlit_authenticator as stauth
 
-def autenticar_usuario():
-    # Informações dos usuários
-    nomes = ["Admin", "João", "Maria", "Pedro"]
-    usernames = ["admin", "joao", "maria", "pedro"]
-    hashed_senhas = [
-        '$2b$12$3y7V6dRIWTq9elK1SfjB2.xMyV3Yrb3Hd8LxXnIsy0m9XaaYdZBvy', # admin
-        '$2b$12$K8gNBLP/q/TVhBvE2mJvZOrR7kMEyLM0GOBv3jEtxNzEwSgWyMJw6', # joao
-        '$2b$12$wlCTW9GLBQa3VxgfNNDlae3PTU1vN3MieTzmn5g1cfwA7UpFOF1jq', # maria
-        '$2b$12$U3jboG0eRO/yvEMRxCKtce1ATDKXrH0Ce/WSF1vMEz3z50fj0A8E6'  # pedro
-    ]
+# Usuários e senhas pré-definidos (não use isso em produção)
+USERS = {
+    "user1": "senha123",
+    "user2": "senha456"
+}
 
-    # Criando a instância de autenticação
-    autenticar = stauth.Authenticate(
-        credentials={"usernames": {usernames[i]: {"name": nomes[i], "password": hashed_senhas[i]} for i in range(len(usernames))}},
-        cookie_name="ticket_app_cookie",
-        key="ticket_app_chave",
-        cookie_expiry_days=30
-    )
+# Função de autenticação
+def autenticar(username, senha):
+    return USERS.get(username) == senha
 
-    # Realizando o login com 'location' especificado
-    nome, autenticado, username = autenticar.login("Login", location="main")  # Adicionando 'location="main"'
+def main():
+    st.title("🔐 Tela de Login")
 
-    if autenticado:
-        autenticar.logout("Sair", location="sidebar")
-        st.sidebar.success(f"Bem-vindo, {nome}")
-        return nome, username
+    # Sessão para controle de login
+    if 'login' not in st.session_state:
+        st.session_state.login = False
+    if 'username' not in st.session_state:
+        st.session_state.username = ""
+
+    if not st.session_state.login:
+        st.subheader("Faça login para acessar o app")
+        username = st.text_input("Usuário")
+        senha = st.text_input("Senha", type="password")
+        if st.button("Entrar"):
+            if autenticar(username, senha):
+                st.session_state.login = True
+                st.session_state.username = username  # ✅ Salva o nome de usuário
+                st.success("Login realizado com sucesso!")
+                st.rerun()
+            else:
+                st.error("Usuário ou senha inválidos")
     else:
-        st.warning("Por favor, faça login.")
-        return None, None
+        st.success(f"Bem-vindo, {st.session_state.username}!")  # ✅ Usa o valor salvo
+        st.write("🎉 Aqui está o conteúdo do seu app!")
+        if st.button("Sair"):
+            st.session_state.login = False
+            st.session_state.username = ""  # Limpa o usuário
+            st.rerun()
+
+if __name__ == "__main__":
+    main()

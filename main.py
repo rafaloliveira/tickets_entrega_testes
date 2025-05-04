@@ -4,63 +4,72 @@ import os
 from datetime import datetime, timedelta
 import time
 from dateutil import parser
-from streamlit_autorefresh import st_autorefresh  # Importar o streamlit_autorefresh
-from login import autenticar_usuario
-import pytz
+from streamlit_autorefresh import st_autorefresh
+import yaml
+import streamlit_authenticator as stauth
 
 
-
-# Definindo o fuso horário para o Brasil
-timezone = pytz.timezone('America/Sao_Paulo')
-
-# Obtendo o horário atual em São Paulo
-hora_brasil = datetime.now(timezone)
-# Exibindo o horário ajustado
-st.write(f'Horário atual no Brasil: {hora_brasil.strftime("%Y-%m-%d %H:%M:%S")}')
-
-
-# Realiza a autenticação ao carregar o app
-nome, usuario = autenticar_usuario()
-
-# Se o usuário não estiver autenticado, bloqueia o acesso
-if not nome:
-    st.stop()
-
-# Se autenticado, carrega o restante do app
-st.title("Bem-vindo ao Sistema de Ocorrências")
-
-# Aqui vai o conteúdo do seu app
-st.write("Conteúdo da aplicação...")
-
-# Exemplo de uma aba para adicionar ocorrências
-if st.button("Adicionar Ocorrência"):
-    st.write("Formulário para adicionar ocorrência...")
-
-
-# --- CONFIGURAÇÕES ---
+# --- DEVE SER A PRIMEIRA CHAMADA ---
 st.set_page_config(page_title="Gestão de Ocorrências", layout="wide")
 
-# --- TEMA ESCURO PERSONALIZADO ---
-st.markdown("""
-<style>
-    body {
-        background-color: #121212;
-        color: #FFFFFF;
-    }
-    .stTabs [role="tab"] {
-        background-color: #1e1e1e;
-        padding: 8px;
-        border-radius: 5px;
-        color: #ffffff;
-    }
-    .stTabs [aria-selected="true"] {
-        background-color: #057a55 !important;
-        color: white !important;
-    }
-</style>
-""", unsafe_allow_html=True)
+# ------------------------------------------------------TELA DE LOGIN --------------------------------------------------------
+# --- USUÁRIOS E SENHAS (simples, não para produção) ---
+USERS = {
+    "rafael": "1234",
+    "user2": "senha456"
+}
 
-# --- CARREGAMENTO DE DADOS Tabelas com nomes de motorista e clientes---
+# --- Função de autenticação ---
+def autenticar(username, senha):
+    return USERS.get(username) == senha
+
+# --- Interface de Login ---
+def login():
+    st.title("📝 Gestão de Ocorrências")
+
+    if "login" not in st.session_state:
+        st.session_state.login = False
+    if "username" not in st.session_state:
+        st.session_state.username = ""
+
+    if not st.session_state.login:
+        # Centralizar com colunas
+        col1, col2, col3 = st.columns([1, 2, 1])
+
+        with col2:
+            st.markdown("##### Login")
+            username = st.text_input("Usuário")
+            senha = st.text_input("Senha", type="password")
+            if st.button("Entrar"):
+                if autenticar(username, senha):
+                    st.session_state.login = True
+                    st.session_state.username = username
+                    st.rerun()
+                else:
+                    st.error("Usuário ou senha inválidos")
+            st.markdown(" ")
+
+        st.stop()  # Impede que o app continue carregando sem login
+
+    else:
+        # Saudação no topo
+        st.markdown(f"👋 **Bem-vindo, {st.session_state.username}!**")
+
+        # Botão de sair alinhado à direita
+        col1, col2, col3 = st.columns([6, 1, 1])  # Ajuste os pesos conforme preferir
+        with col3:
+            if st.button("🔒 Sair"):
+                st.session_state.login = False
+                st.session_state.username = ""
+                st.rerun()
+
+
+# --- Chama login antes de qualquer coisa ---
+login()
+
+# --- SE CHEGOU AQUI, USUÁRIO ESTÁ AUTENTICADO ---
+#--------------------------------------------------------------------------INICIO APP --------------------------------------------------------------
+# --- CARREGAMENTO DE DADOS Tabelas com nomes de motorista e clientes ---
 clientes = pd.read_csv("data/clientes.csv")["Cliente"].dropna().tolist()
 motoristas = pd.read_csv("data/motoristas.csv")["Motorista"].dropna().tolist()
 
@@ -92,7 +101,7 @@ with aba1:
             if nf_invalida:
                 st.error("Por favor, insira apenas números na Nota Fiscal.")
 
-            cliente_opcao = st.selectbox("Cliente", options=clientes + ["Outro (digitar manualmente)"], index=None, key="cliente_opcao")
+            cliente_opcao = st.selectbox("Cliente", options=clientes + ["Outro ()"], index=None, key="cliente_opcao")
             cliente = st.text_input("Digite o nome do cliente", key="cliente_manual") if cliente_opcao == "Outro (digitar manualmente)" else cliente_opcao
             destinatario = st.text_input("Destinatário", key="destinatario")
             cidade = st.text_input("Cidade", key="cidade")
@@ -203,10 +212,7 @@ with aba2:
 
     # Exibe mensagem de sucesso, se existir
     if st.session_state.get("mensagem_sucesso_finalizacao"):
-        sucesso = st.empty()
-        sucesso.success("✅ Ocorrência finalizada com sucesso!")  # Exibe a mensagem de sucesso
-        time.sleep(2)  # Espera por 2 segundos
-        sucesso.empty()  # Remove a mensagem após 2 segundos 
+        st.success("✅ Ocorrência finalizada com sucesso!")
         del st.session_state["mensagem_sucesso_finalizacao"]
 
     def salvar_ocorrencia_finalizada(ocorr, status):
@@ -278,6 +284,7 @@ with aba2:
                                 st.session_state.ocorrencias_abertas.pop(idx)
                                 st.session_state["mensagem_sucesso_finalizacao"] = True
                                 st.rerun()  # Substituto oficial para experimental_rerun()
+
 
 
                             
