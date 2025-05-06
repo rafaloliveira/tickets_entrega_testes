@@ -352,6 +352,7 @@ with aba2:
 # =========================
 with aba3:
     #st.markdown("### 🔎 Filtro por Nota Fiscal")
+    st.header("Ocorrências Finalizadas")
 
     col_filtro, _ = st.columns([1, 5])  # Campo no canto esquerdo
     with col_filtro:
