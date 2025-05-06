@@ -353,9 +353,9 @@ with aba2:
 with aba3:
     #st.markdown("### 🔎 Filtro por Nota Fiscal")
 
-    col_filtro = st.columns([5, 1])  # Campo no canto direito
-with col_filtro:
-    nf_busca = st.text_input("Buscar", placeholder="Nota Fiscal")
+    col_filtro, _ = st.columns([1, 5])  # Campo no canto esquerdo
+    with col_filtro:
+        nf_busca = st.text_input("Buscar", placeholder="Nota Fiscal")
 
     # Usa somente ocorrências finalizadas
     ocorrencias = st.session_state.get("ocorrencias_finalizadas", [])
