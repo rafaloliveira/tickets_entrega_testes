@@ -353,7 +353,7 @@ with aba2:
 with aba3:
     #st.markdown("### 🔎 Filtro por Nota Fiscal")
 
-    col_filtro, _ = st.columns([1, 5])  # Campo no canto esquerdo
+    col_filtro, _ = st.columns([5, 5])  # Campo no canto esquerdo
     with col_filtro:
         nf_busca = st.text_input("Buscar", placeholder="Nota Fiscal")
 
