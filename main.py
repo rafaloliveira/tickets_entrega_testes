@@ -74,8 +74,33 @@ login()
 # --- SE CHEGOU AQUI, USUÁRIO ESTÁ AUTENTICADO ---
 #--------------------------------------------------------------------------INICIO APP --------------------------------------------------------------
 # --- CARREGAMENTO DE DADOS Tabelas com nomes de motorista e clientes ---
-clientes = pd.read_csv("data/clientes.csv")["Cliente"].dropna().tolist()
-motoristas = pd.read_csv("data/motoristas.csv")["Motorista"].dropna().tolist()
+
+# --- CARREGAMENTO DE DADOS Tabelas com nomes de motorista e clientes ---
+
+import pandas as pd
+
+# --- CARREGAMENTO DE DADOS Tabelas com nomes de motorista e clientes ---
+
+import pandas as pd
+
+# --- CARREGAMENTO DE DADOS Tabelas com nomes de motorista e clientes ---
+
+# Carrega a aba "clientes" do arquivo clientes.xlsx
+df_clientes = pd.read_excel("data/clientes.xlsx", sheet_name="clientes")
+df_clientes.columns = df_clientes.columns.str.strip()  # Remove espaços extras nas colunas
+df_clientes = df_clientes[["Cliente", "Focal"]].dropna(subset=["Cliente"])
+
+# Cria dicionário Cliente -> Focal e lista de clientes
+cliente_to_focal = dict(zip(df_clientes["Cliente"], df_clientes["Focal"]))
+clientes = df_clientes["Cliente"].tolist()
+
+# Carrega a aba "motoristas" do arquivo motoristas.xlsx
+df_motoristas = pd.read_excel("data/motoristas.xlsx", sheet_name="motoristas")
+df_motoristas.columns = df_motoristas.columns.str.strip()
+motoristas = df_motoristas["Motorista"].dropna().tolist()
+
+
+
 
 # --- INICIALIZAÇÃO DE SESSÃO ---
 if "ocorrencias_abertas" not in st.session_state:
@@ -93,21 +118,32 @@ aba1, aba2, aba3 = st.tabs(["📝 Nova Ocorrência", "📌 Ocorrências em Abert
 with aba1:
     st.header("Nova Ocorrência")
 
+    # Reset do campo Focal após envio bem-sucedido
+    if "focal_responsavel" not in st.session_state:
+        st.session_state["focal_responsavel"] = ""
+
     with st.form("form_nova_ocorrencia", clear_on_submit=True):
         col1, col2 = st.columns(2)
 
         with col1:
-            # Campo de Nota Fiscal - Apenas números
             nf = st.text_input("Nota Fiscal", key="nf")
-
-            # Verifica se a entrada da Nota Fiscal é válida
             nf_invalida = nf != "" and not nf.isdigit()
             if nf_invalida:
                 st.error("Por favor, insira apenas números na Nota Fiscal.")
 
-            cliente_opcao = st.selectbox("Cliente", options=clientes + ["Outro ()"], index=None, key="cliente_opcao")
-            cliente = st.text_input("Digite o nome do cliente", key="cliente_manual") if cliente_opcao == "Outro (digitar manualmente)" else cliente_opcao
             destinatario = st.text_input("Destinatário", key="destinatario")
+
+            cliente_opcao = st.selectbox("Cliente", options=clientes + ["Outro ()"], index=None, key="cliente_opcao")
+            cliente = st.text_input("Digite o nome do cliente", key="cliente_manual") if cliente_opcao == "Outro ()" else cliente_opcao
+
+            # Atualiza automaticamente o campo Focal ao selecionar Cliente
+            if cliente_opcao and cliente_opcao in cliente_to_focal:
+                st.session_state["focal_responsavel"] = cliente_to_focal[cliente_opcao]
+            elif cliente_opcao:
+                st.session_state["focal_responsavel"] = ""
+            
+            #st.text_input("Focal Responsável", value=st.session_state["focal_responsavel"], key="focal_visivel", disabled=True)
+
             cidade = st.text_input("Cidade", key="cidade")
 
         with col2:
@@ -115,16 +151,16 @@ with aba1:
             motorista = st.text_input("Digite o nome do motorista", key="motorista_manual") if motorista_opcao == "Outro (digitar manualmente)" else motorista_opcao
             tipo = st.multiselect("Tipo de Ocorrência", options=["Chegada no Local", "Pedido Bloqueado", "Demora", "Divergência"], key="tipo_ocorrencia")
             obs = st.text_area("Observações", key="observacoes")
-            responsavel = st.text_input("Quem está abrindo o ticket", key="responsavel")
+            responsavel = st.session_state.username
+            st.text_input("Quem está abrindo o ticket", value=responsavel, disabled=True)
 
-        # Botão para enviar
         enviar = st.form_submit_button("Adicionar Ocorrência")
 
         if enviar:
-            # Verifica se algum campo obrigatório está vazio
             campos_obrigatorios = {
                 "Nota Fiscal": nf,
                 "Cliente": cliente,
+                "Focal Responsável": st.session_state["focal_responsavel"],
                 "Destinatário": destinatario,
                 "Cidade": cidade,
                 "Motorista": motorista,
@@ -134,21 +170,19 @@ with aba1:
 
             faltando = [campo for campo, valor in campos_obrigatorios.items() if not valor]
 
-            # Caso a Nota Fiscal seja inválida ou algum campo obrigatório esteja vazio
             if nf_invalida:
                 st.error("Ocorrência não adicionada: Nota Fiscal deve conter apenas números.")
             elif faltando:
                 st.error(f"❌ Preencha todos os campos obrigatórios: {', '.join(faltando)}")
             else:
-                # Define fuso horário de São Paulo
                 fuso_sp = pytz.timezone("America/Sao_Paulo")
                 agora_sp = datetime.now(fuso_sp)
 
-                # Adiciona a nova ocorrência
                 nova_ocorrencia = {
-                    "ID": str(uuid.uuid4()),  # ID único
+                    "ID": str(uuid.uuid4()),
                     "Nota Fiscal": nf,
                     "Cliente": cliente,
+                    "Focal": st.session_state["focal_responsavel"],
                     "Destinatario": destinatario,
                     "Cidade": cidade,
                     "Motorista": motorista,
@@ -156,19 +190,20 @@ with aba1:
                     "Observações": obs,
                     "Responsável": responsavel,
                     "Data/Hora Abertura": agora_sp.strftime("%d/%m/%Y %H:%M:%S"),
-                    "Abertura Timestamp": agora_sp.replace(tzinfo=None),  # sem timezone para salvar no Excel
+                    "Abertura Timestamp": agora_sp.replace(tzinfo=None),
                     "Complementar": "",
                     "Data/Hora Finalização": ""
                 }
+
                 st.session_state.ocorrencias_abertas.append(nova_ocorrencia)
 
-                # Exibe o sucesso
+                # Reset do Focal após salvar
+                st.session_state["focal_responsavel"] = ""
+
                 sucesso = st.empty()
                 sucesso.success("✅ Ocorrência aberta com sucesso!")
-                time.sleep(2) 
+                time.sleep(2)
                 sucesso.empty()
-                # Aguarda um tempo e limpa a mensagem de sucesso
-                
 
 # =========================
 #    FUNÇÃO CLASSIFICAÇÃO
@@ -209,8 +244,12 @@ with aba2:
     st.header("Ocorrências em Aberto")
     # Exibe mensagem de sucesso, se existir
     if st.session_state.get("mensagem_sucesso_finalizacao"):
-        st.success("✅ Ocorrência finalizada com sucesso!")
+        sucesso_msg = st.empty()
+        sucesso_msg.success("✅ Ocorrência finalizada com sucesso!")
+        time.sleep(2)
+        sucesso_msg.empty()
         del st.session_state["mensagem_sucesso_finalizacao"]
+
 #-------------------------------------------------------------------------------------------------------------------------------
     def salvar_ocorrencia_finalizada(ocorr, status): ### função salva ocorrencia finalizada Excel
         pasta = os.path.join("data", "relatorio_de_tickets")
@@ -240,7 +279,7 @@ with aba2:
         df_final.to_excel(caminho, index=False)
 #------------------------------------------------------------------------
     if not st.session_state.ocorrencias_abertas:
-        st.info("Nenhuma ocorrência aberta no momento.")
+        st.info("ℹ️ Nenhuma ocorrência aberta no momento.")
     else:
         colunas = st.columns(4)
         st_autorefresh(interval=10000, key="ocorrencias_abertas_refresh")
@@ -266,6 +305,7 @@ with aba2:
                         f"<strong>Status:</strong> <span style='background-color:#2c3e50;padding:4px 8px;border-radius:1px;color:white;'>{status}</span><br>"
                         f"<strong>NF:</strong> {ocorr.get('Nota Fiscal', '-')}<br>"
                         f"<strong>Cliente:</strong> {ocorr.get('Cliente', '-')}<br>"
+                        f"<strong>Focal:</strong> {ocorr.get('Focal', '-')}<br>"
                         f"<strong>Cidade:</strong> {ocorr.get('Cidade', '-')}<br>"
                         f"<strong>Motorista:</strong> {ocorr.get('Motorista', '-')}<br>"
                         f"<strong>Tipo:</strong> {ocorr.get('Tipo de Ocorrência', '-')}<br>"
@@ -287,6 +327,7 @@ with aba2:
                                 ocorr["Status"] = status
                                 ocorr["Cor"] = cor
                                 ocorr["Finalizada"] = True
+                                ocorr["Finalizado por"] = st.session_state.username
                                  # 🕒 Calcula o tempo de permanência
                                 try:
                                     dt_abertura = datetime.strptime(ocorr["Data/Hora Abertura"], "%d/%m/%Y %H:%M:%S")
@@ -375,6 +416,9 @@ with aba3:
                         # Exibe o nome do cliente
                         f"<strong>Cliente:</strong> {ocorr.get('Cliente', '-')}<br>"
 
+                        # Exibe o nome Focal
+                        f"<strong>Focal:</strong> {ocorr.get('Focal', '-')}<br>"
+                        
                         # Exibe a cidade da ocorrência
                         f"<strong>Cidade:</strong> {ocorr.get('Cidade', '-')}<br>"
 
@@ -392,6 +436,9 @@ with aba3:
 
                         # Exibe a data/hora de finalização
                         f"<strong>Finalizado em:</strong> {ocorr.get('Data/Hora Finalização', '-')}<br>"
+
+                        # Exibe quem finalizou
+                        f"<strong>Finalizado por:</strong> {ocorr.get('Finalizado por', '-') }<br>"
 
                         # Exibe o campo complementar
                         f"<strong>Complementar:</strong> {ocorr.get('Complementar', '-')}<br>"
