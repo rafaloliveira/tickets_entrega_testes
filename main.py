@@ -5,24 +5,44 @@ from datetime import datetime, timedelta
 import time
 from dateutil import parser
 from streamlit_autorefresh import st_autorefresh
-import yaml
 import streamlit_authenticator as stauth
 import pytz
 import uuid
+from supabase import create_client, Client
+import hashlib
+import uuid
 
-# --- DEVE SER A PRIMEIRA CHAMADA ---
+
+# --- CONEXÃO COM O SUPABASE ---
+url = "https://vismjxhlsctehpvgmata.supabase.co"  # ✅ sua URL real, já sem o '>' no meio
+key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpc21qeGhsc2N0ZWhwdmdtYXRhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY1NzA4NTIsImV4cCI6MjA2MjE0Njg1Mn0.zTjSWenfuVJTIixq2RThSUpqcHGfZWP2xkFDU3USPb0"  # ✅ sua chave real (evite expor em público!)
+supabase: Client = create_client(url, key)
+
+# --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Gestão de Ocorrências", layout="wide")
 
-# ------------------------------------------------------TELA DE LOGIN --------------------------------------------------------
-# --- USUÁRIOS E SENHAS (simples, não para produção) ---
-USERS = {
-    "rafael": "1234",
-    "user2": "senha456"
-}
+# --- Função de hash da senha ---
+def hash_senha(senha):
+    return hashlib.sha256(senha.encode()).hexdigest()
 
-# --- Função de autenticação ---
-def autenticar(username, senha):
-    return USERS.get(username) == senha
+
+# --- Autenticação com Supabase ---
+def autenticar_usuario(usuario, senha):
+    senha_hashed = hash_senha(senha)
+    print("Hash gerado:", senha_hashed)
+    print("Nome de usuário enviado para consulta:", repr(usuario.strip()))
+
+    dados = supabase.table("usuarios").select("*") \
+        .eq("nome_usuario", usuario.strip()) \
+        .eq("senha_hash", senha_hashed) \
+        .execute()
+
+    print("Dados retornados:", dados.data)
+
+    if dados.data:
+        return dados.data[0]
+    return None
+
 
 # --- Interface de Login ---
 def login():
@@ -30,42 +50,41 @@ def login():
     with col2:
         st.markdown("<h1 style='text-align: center;'>📝 Gestão de Ocorrências</h1>", unsafe_allow_html=True)
 
-
     if "login" not in st.session_state:
         st.session_state.login = False
     if "username" not in st.session_state:
         st.session_state.username = ""
+    if "is_admin" not in st.session_state:
+        st.session_state.is_admin = False
 
     if not st.session_state.login:
-        # Centralizar com colunas
         col1, col2, col3 = st.columns([1, 2, 1])
-
         with col2:
             st.markdown("##### Login")
             username = st.text_input("Usuário")
             senha = st.text_input("Senha", type="password")
+
             if st.button("Entrar"):
-                if autenticar(username, senha):
+                usuario = autenticar_usuario(username, senha)
+                if usuario:
                     st.session_state.login = True
-                    st.session_state.username = username
+                    st.session_state.username = usuario["nome_usuario"]
+                    st.session_state.is_admin = usuario.get("is_admin", False)
                     st.rerun()
                 else:
                     st.error("Usuário ou senha inválidos")
-            st.markdown(" ")
-
-        st.stop()  # Impede que o app continue carregando sem login
-
+        st.stop()
     else:
-        # Saudação no topo
         st.markdown(f"👋 **Bem-vindo, {st.session_state.username}!**")
 
-        # Botão de sair alinhado à direita
-        col1, col2, col3 = st.columns([6, 1, 1])  # Ajuste os pesos conforme preferir
+        col1, col2, col3 = st.columns([6, 1, 1])
         with col3:
             if st.button("🔒 Sair"):
                 st.session_state.login = False
                 st.session_state.username = ""
+                st.session_state.is_admin = False
                 st.rerun()
+
 
 
 # --- Chama login antes de qualquer coisa ---
@@ -73,15 +92,6 @@ login()
 
 # --- SE CHEGOU AQUI, USUÁRIO ESTÁ AUTENTICADO ---
 #--------------------------------------------------------------------------INICIO APP --------------------------------------------------------------
-# --- CARREGAMENTO DE DADOS Tabelas com nomes de motorista e clientes ---
-
-# --- CARREGAMENTO DE DADOS Tabelas com nomes de motorista e clientes ---
-
-import pandas as pd
-
-# --- CARREGAMENTO DE DADOS Tabelas com nomes de motorista e clientes ---
-
-import pandas as pd
 
 # --- CARREGAMENTO DE DADOS Tabelas com nomes de motorista e clientes ---
 
@@ -110,7 +120,7 @@ if "ocorrencias_finalizadas" not in st.session_state:
     st.session_state.ocorrencias_finalizadas = []
 
 # --- ABAS ---
-aba1, aba2, aba3 = st.tabs(["📝 Nova Ocorrência", "📌 Ocorrências em Aberto", "✅ Ocorrências Finalizadas"])
+aba1, aba2, aba3, aba4 = st.tabs(["📝 Nova Ocorrência", "📌 Ocorrências em Aberto", "✅ Ocorrências Finalizadas", "📊 Configurações"])
 
 # =========================
 #       ABA 1 - NOVA
@@ -453,6 +463,112 @@ with aba3:
 
             # Salvando o tempo de permanência no relatório Excel
             ocorr["Tempo de Permanência"] = tempo_permanencia_str  # Adiciona o tempo de permanência à ocorrência
+
+
+
+
+
+# ======================
+#     ABA 4 - USUÁRIOS
+# ======================
+with aba4:
+    st.header("🔐 Gestão de Usuários")
+
+    usuario_logado = st.session_state.username
+    dados_usuario = supabase.table("usuarios").select("*").eq("nome_usuario", usuario_logado).execute().data[0]
+    admin = dados_usuario["is_admin"]
+
+    if admin:
+        st.subheader("👤 Criar Novo Usuário")
+        novo_usuario = st.text_input("Nome do novo usuário")
+        nova_senha = st.text_input("Senha do novo usuário", type="password")
+        admin_checkbox = st.checkbox("É administrador?")
+
+        if st.button("Criar usuário"):
+            if not novo_usuario or not nova_senha:
+                st.error("Preencha todos os campos.")
+            else:
+                senha_hashed = hash_senha(nova_senha)
+                try:
+                    supabase.table("usuarios").insert({
+                        "nome_usuario": novo_usuario,
+                        "senha_hash": senha_hashed,
+                        "is_admin": admin_checkbox
+                    }).execute()
+                    msg = st.empty()
+                    msg.success("✅ Usuário criado com sucesso!")
+                    time.sleep(2)
+                    msg.empty()
+                except Exception as e:
+                    st.error(f"Erro ao criar usuário: {e}")
+
+        # Excluir usuários - Usando Selectbox para listar os usuários existentes
+        st.subheader("🗑️ Deletar Usuário")
+
+        usuarios = supabase.table("usuarios").select("nome_usuario").execute().data
+        lista_usuarios = [usuario['nome_usuario'] for usuario in usuarios if usuario['nome_usuario'] != usuario_logado]
+
+        selectbox_key = str(uuid.uuid4())
+        usuario_para_deletar = st.selectbox("Selecione o usuário para excluir", lista_usuarios, key=selectbox_key)
+
+        if st.button("Deletar Usuário"):
+            if not usuario_para_deletar:
+                st.error("Selecione um usuário para excluir.")
+            else:
+                try:
+                    # Buscar ID do usuário a ser deletado
+                    resultado = supabase.table("usuarios").select("id").eq("nome_usuario", usuario_para_deletar).execute()
+                    dados_usuario_para_deletar = resultado.data
+
+                    if not dados_usuario_para_deletar:
+                        st.error(f"Erro: usuário '{usuario_para_deletar}' não encontrado.")
+                    else:
+                        usuario_id = dados_usuario_para_deletar[0]["id"]
+
+                        # Deletar o usuário
+                        response = supabase.table("usuarios").delete().eq("id", usuario_id).execute()
+                        print("Resposta da exclusão:", response)
+
+                        time.sleep(1)  # Delay para garantir sincronização
+
+                        # Verificar se foi excluído
+                        usuario_excluido = supabase.table("usuarios").select("id").eq("id", usuario_id).execute().data
+                        msg = st.empty()
+                        if usuario_excluido:
+                            msg.error(f"Erro ao deletar usuário: O usuário '{usuario_para_deletar}' ainda existe na base.")
+                        else:
+                            msg.success(f"✅ O usuário '{usuario_para_deletar}' foi excluído com sucesso!")
+                            time.sleep(2)
+                            msg.empty()
+
+                except Exception as e:
+                    st.error(f"Erro ao deletar usuário: {e}")
+
+    # Alterar senha do próprio usuário
+    st.subheader("🔒 Alterar Minha Senha")
+    senha_atual = st.text_input("Senha atual", type="password")
+    nova_senha1 = st.text_input("Nova senha", type="password")
+    nova_senha2 = st.text_input("Confirme a nova senha", type="password")
+
+    if st.button("Atualizar Senha"):
+        if not senha_atual or not nova_senha1 or not nova_senha2:
+            st.error("Todos os campos são obrigatórios.")
+        elif nova_senha1 != nova_senha2:
+            st.error("As novas senhas não coincidem.")
+        elif hash_senha(senha_atual) != dados_usuario["senha_hash"]:
+            st.error("Senha atual incorreta.")
+        else:
+            nova_senha_hash = hash_senha(nova_senha1)
+            supabase.table("usuarios").update({"senha_hash": nova_senha_hash}).eq("nome_usuario", usuario_logado).execute()
+            msg = st.empty()
+            msg.success("🔐 Senha atualizada com sucesso.")
+            time.sleep(2)
+            msg.empty()
+
+
+
+
+
 
 
 
