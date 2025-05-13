@@ -365,7 +365,7 @@ def classificar_ocorrencia_por_tempo(data_abertura_str):
     elif tempo_decorrido < 30:
         return "🟡 Alerta", "#f1c40f"
     elif tempo_decorrido < 45:
-        return "🟠 Urgente", "#e67e22"
+        return "🔴 Crítico", "#e74c3c"
     elif tempo_decorrido < 60:
         return "🔴 Crítico", "#e74c3c"
     else:
