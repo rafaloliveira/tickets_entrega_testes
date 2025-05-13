@@ -2,7 +2,7 @@
 
 
 import streamlit as st
-st.set_page_config(page_title="Gestão de Ocorrências", layout="wide")
+st.set_page_config(page_title="Entregas - Tempo de Permanência", layout="wide")
 
 import pandas as pd
 import os
