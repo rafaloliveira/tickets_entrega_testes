@@ -769,6 +769,8 @@ with aba4:
                                 "is_admin": is_admin
                             }).execute()
                             st.success("✅ Usuário criado com sucesso!")
+                            time.sleep(2)
+                            st.rerun()  
                         except Exception as e:
                             st.error(f"Erro ao criar usuário: {e}")
 
