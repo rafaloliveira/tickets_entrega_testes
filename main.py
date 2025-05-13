@@ -15,6 +15,7 @@ import psycopg2
 from datetime import datetime, timedelta, timezone
 from dateutil import parser
 from psycopg2 import sql
+from io import BytesIO
 
 from streamlit_autorefresh import st_autorefresh
 import streamlit_authenticator as stauth
@@ -77,17 +78,21 @@ dados_usuario = {
     "senha_hash": "$2b$12$OqjiW19Pjd9.eGnFfmJSrW.TqX/pq6RmPjbsHbuZ56MzeP3dNKuyq"  # Exemplo de senha já hashada (gerada com bcrypt)
 }
     
-#Função de autenticaçãodef autenticar_usuario(nome_usuario, senha):
+# Função de autenticação simples com mensagens
 def autenticar_usuario(nome_usuario, senha):
     try:
-        dados_usuario = supabase.table("usuarios").select("*").eq("nome_usuario", nome_usuario).execute()
+        dados = supabase.table("usuarios").select("*").eq("nome_usuario", nome_usuario).execute()
 
-        if dados_usuario.data:
-            usuario = dados_usuario.data[0]
+        if dados.data:
+            usuario = dados.data[0]
             if verificar_senha(senha, usuario["senha_hash"]):
+                st.success("✅ Logado com sucesso!")
                 return usuario
+        st.error("🛑 Usuário ou senha incorretos.")
         return None
-    except Exception:
+
+    except Exception as e:
+        st.error("Erro ao autenticar.")
         return None
 
     # --- Interface de Login ---
@@ -282,6 +287,9 @@ with aba1:
                 st.error("❌ O campo 'Cliente' é obrigatório.")
         
             else:
+                # Gera número de ticket único baseado em data/hora
+                numero_ticket = datetime.now().strftime("%Y%m%d%H%M%S%f")  # Ex: 20250513151230543210
+
                 # Validando os valores antes de enviar para o Supabase
                 fuso_sp = pytz.timezone("America/Sao_Paulo")
                 agora_sp = datetime.now(fuso_sp)
@@ -290,6 +298,7 @@ with aba1:
                 # Montagem do dicionário de nova ocorrência
                 nova_ocorrencia = {
                     "id": str(uuid.uuid4()),
+                    "numero_ticket": numero_ticket, #numero ticket
                     "nota_fiscal": nf,
                     "cliente": cliente,
                     "focal": st.session_state["focal_responsavel"],
@@ -501,6 +510,7 @@ with aba2:
                     # Card com estilo fixo
                     st.markdown(
                         f"<div style='background-color:{cor};padding:10px;border-radius:10px;color:white;box-shadow: 0 4px 10px rgba(0,0,0,0.3);margin-bottom:5px;min-height:250px;font-size:15px;'>"
+                        f"<strong>Ticket #:</strong> {ocorr.get('numero_ticket') if ocorr.get('numero_ticket') else 'N/A'}<br>"
                         f"<strong>Status:</strong> <span style='background-color:#2c3e50;padding:4px 8px;border-radius:1px;color:white;'>{status}</span><br>"
                         f"<strong>NF:</strong> {ocorr.get('nota_fiscal', '-')}<br>"
                         f"<strong>Cliente:</strong> {ocorr.get('cliente', '-')}<br>"
@@ -611,12 +621,43 @@ with aba3:
     if not ocorrencias_finalizadas:
         st.info("ℹ️ Nenhuma ocorrência finalizada.")
     else:
+        # --- Linha com campo de pesquisa e botão de exportação ---
+        col1, col2 = st.columns([1, 2])  # Definindo as colunas com o botão de exportação mais largo
+
+        with col1:
+            filtro_nf = st.text_input("🔎 Pesquisar por NF:", "", max_chars=10)
+
+        with col2:
+            if st.button("📤 Exportar Excel"):
+                try:
+                    df = pd.DataFrame(ocorrencias_finalizadas)
+                    output = BytesIO()
+                    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                        df.to_excel(writer, index=False, sheet_name='Finalizadas')
+                    st.download_button(
+                        label="⬇️ Baixar Relatório Excel",
+                        data=output.getvalue(),
+                        file_name="ocorrencias_finalizadas.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    )
+                except Exception as e:
+                    st.error(f"Erro ao exportar para Excel: {e}")
+
+        # --- Filtrar ocorrências finalizadas pela NF (caso o usuário digite algo) ---
+        if filtro_nf:
+            ocorrencias_filtradas = [
+                ocorr for ocorr in ocorrencias_finalizadas
+                if filtro_nf.lower() in str(ocorr.get("nota_fiscal", "")).lower()
+            ]
+        else:
+            ocorrencias_filtradas = ocorrencias_finalizadas
+
+        # Exibir cards em colunas
         num_colunas = 4
         colunas = st.columns(num_colunas)
 
-        for idx, ocorr in enumerate(ocorrencias_finalizadas):
+        for idx, ocorr in enumerate(ocorrencias_filtradas):
             try:
-                # Obtém os dados de finalização
                 data_finalizacao_raw = ocorr.get("data_hora_finalizacao")
                 data_abertura_raw = ocorr.get("abertura_ticket") or ocorr.get("abertura_timestamp")
 
@@ -633,10 +674,10 @@ with aba3:
                     tempo_permanencia_formatado = "Não disponível"
 
                 status = ocorr.get("Status", "Finalizada")
-                cor = ocorr.get("Cor", "#34495e")  # Usa a cor salva, não recalcula
+                cor = ocorr.get("Cor", "#34495e")
 
             except Exception as e:
-                st.error(f"Erro ao processar dados da ocorrência (NF {ocorr.get('nota_fiscal', '-')}) — {e}")
+                st.error(f"Erro ao processar ocorrência (NF {ocorr.get('nota_fiscal', '-')}) — {e}")
                 data_abertura_formatada = data_finalizacao_formatada = tempo_permanencia_formatado = "-"
                 status = "Erro"
                 cor = "#7f8c8d"
@@ -646,6 +687,7 @@ with aba3:
                     st.markdown(
                         f"<div style='background-color:{cor};padding:10px;border-radius:10px;color:white;"
                         f"box-shadow: 0 4px 10px rgba(0,0,0,0.3);margin-bottom:5px;min-height:250px;font-size:15px;'>"
+                        f"<strong>Ticket #:</strong> {ocorr.get('numero_ticket') or 'N/A'}<br>"
                         f"<strong>Status:</strong> <span style='background-color:#2c3e50;padding:4px 8px;border-radius:1px;color:white;'>{status}</span><br>"
                         f"<strong>NF:</strong> {ocorr.get('nota_fiscal', '-')}<br>"
                         f"<strong>Cliente:</strong> {ocorr.get('cliente', '-')}<br>"
