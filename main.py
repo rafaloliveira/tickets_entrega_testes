@@ -57,7 +57,7 @@ def autenticar_usuario(nome_usuario, senha):
 # --- CONEXÃO COM O SUPABASE ---
 url = "https://vismjxhlsctehpvgmata.supabase.co"  # ✅ sua URL real, já sem o '>' no meio
 key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpc21qeGhsc2N0ZWhwdmdtYXRhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY1NzA4NTIsImV4cCI6MjA2MjE0Njg1Mn0.zTjSWenfuVJTIixq2RThSUpqcHGfZWP2xkFDU3USPb0"  # ✅ sua chave real (evite expor em público!)
-supabase: SupabaseClient = create_client(url, key)
+supabase = create_client = create_client(url, key)
 
 
 # Função para hash de senha
