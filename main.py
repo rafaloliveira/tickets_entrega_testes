@@ -3,29 +3,24 @@
 
 import streamlit as st
 st.set_page_config(page_title="Gestão de Ocorrências", layout="wide")
+
 import pandas as pd
 import os
-from datetime import datetime, timedelta, timezone
 import time
+import uuid
+import pytz
+import bcrypt
+import hashlib
+import psycopg2
+from datetime import datetime, timedelta, timezone
 from dateutil import parser
+from psycopg2 import sql
+
 from streamlit_autorefresh import st_autorefresh
 import streamlit_authenticator as stauth
-import pytz
-import uuid
-from supabase import create_client, Client
-import hashlib
 from streamlit_cookies_manager import EncryptedCookieManager
-import psycopg2
-import bcrypt
-from psycopg2 import sql
-import streamlit as st
-import uuid
-import pytz
-from datetime import datetime
-import time
-import psycopg2
-from postgrest import Client
-from dateutil import parser
+
+from supabase import create_client, Client as SupabaseClient
 
 # --- SETUP DO COOKIE MANAGER ---
 cookies = EncryptedCookieManager(
@@ -62,7 +57,7 @@ def autenticar_usuario(nome_usuario, senha):
 # --- CONEXÃO COM O SUPABASE ---
 url = "https://vismjxhlsctehpvgmata.supabase.co"  # ✅ sua URL real, já sem o '>' no meio
 key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpc21qeGhsc2N0ZWhwdmdtYXRhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY1NzA4NTIsImV4cCI6MjA2MjE0Njg1Mn0.zTjSWenfuVJTIixq2RThSUpqcHGfZWP2xkFDU3USPb0"  # ✅ sua chave real (evite expor em público!)
-supabase: Client = create_client(url, key)
+supabase: SupabaseClient = create_client(url, key)
 
 
 # Função para hash de senha
