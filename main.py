@@ -784,10 +784,13 @@ if admin:
                         time.sleep(2)
 
                         # Resetar os campos
-                        st.session_state["novo_usuario"] = ""
-                        st.session_state["nova_senha"] = ""
-                        st.session_state["confirmar_senha"] = ""
-                        st.session_state["is_admin"] = False
+                        # Limpa apenas os campos necessários de forma segura
+                        st.session_state.update({
+                            "novo_usuario": "",
+                            "nova_senha": "",
+                            "confirmar_senha": "",
+                            "is_admin": False
+                        })
 
                         st.rerun()
 
