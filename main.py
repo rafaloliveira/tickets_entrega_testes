@@ -732,71 +732,45 @@ with aba4:
     dados_usuario = supabase.table("usuarios").select("*").eq("nome_usuario", usuario_logado).execute().data[0]
     admin = dados_usuario["is_admin"]
 
-# ===============================
-#  AÇÕES ADMINISTRATIVAS (ADMIN)
-# ===============================
-if admin:
-    st.subheader("🛠️ Administração de Usuários")
+    # ===============================
+    #  AÇÕES ADMINISTRATIVAS (ADMIN)
+    # ===============================
+    if admin:
+        st.subheader("🛠️ Administração de Usuários")
 
-    aba_admin = st.radio("Escolha uma ação", ["Criar Usuário", "Alterar Senha de Usuário", "Deletar Usuário"], horizontal=True)
+        aba_admin = st.radio("Escolha uma ação", ["Criar Usuário", "Alterar Senha de Usuário", "Deletar Usuário"], horizontal=True)
 
-    # --- Inicialização dos valores (evita KeyError) ---
-    if "novo_usuario" not in st.session_state:
-        st.session_state["novo_usuario"] = ""
-    if "nova_senha" not in st.session_state:
-        st.session_state["nova_senha"] = ""
-    if "confirmar_senha" not in st.session_state:
-        st.session_state["confirmar_senha"] = ""
-    if "is_admin" not in st.session_state:
-        st.session_state["is_admin"] = False
+        # --- CRIAR USUÁRIO ---
+        if aba_admin == "Criar Usuário":
+            st.subheader("➕ Criar novo usuário")
 
-    # --- CRIAR USUÁRIO ---
-    if aba_admin == "Criar Usuário":
-        st.subheader("➕ Criar novo usuário")
+            novo_usuario = st.text_input("Nome de usuário")
+            nova_senha = st.text_input("Senha", type="password")
+            confirmar_senha = st.text_input("Confirmar senha", type="password")
+            is_admin = st.checkbox("Conceder privilégios de administrador")
 
-        novo_usuario = st.text_input("Nome de usuário", key="novo_usuario")
-        nova_senha = st.text_input("Senha", type="password", key="nova_senha")
-        confirmar_senha = st.text_input("Confirmar senha", type="password", key="confirmar_senha")
-        is_admin = st.checkbox("Conceder privilégios de administrador", key="is_admin")
-
-        if st.button("Criar"):
-            if not novo_usuario or not nova_senha or not confirmar_senha:
-                st.warning("Preencha todos os campos.")
-            elif nova_senha != confirmar_senha:
-                st.error("As senhas não coincidem.")
-            else:
-                # Verificar se já existe
-                usuario_existente = supabase.table("usuarios").select("nome_usuario").eq("nome_usuario", novo_usuario).execute().data
-                if usuario_existente:
-                    st.error(f"O usuário '{novo_usuario}' já existe.")
+            if st.button("Criar"):
+                if not novo_usuario or not nova_senha or not confirmar_senha:
+                    st.warning("Preencha todos os campos.")
+                elif nova_senha != confirmar_senha:
+                    st.error("As senhas não coincidem.")
                 else:
-                    try:
-                        senha_hashed = hash_senha(nova_senha)
-
-                        # Insere o novo usuário
-                        supabase.table("usuarios").insert({
-                            "nome_usuario": novo_usuario,
-                            "senha_hash": senha_hashed,
-                            "is_admin": is_admin
-                        }).execute()
-
-                        st.success("✅ Usuário criado com sucesso!")
-                        time.sleep(2)
-
-                        # Resetar os campos
-                        # Limpa apenas os campos necessários de forma segura
-                        st.session_state.update({
-                            "novo_usuario": "",
-                            "nova_senha": "",
-                            "confirmar_senha": "",
-                            "is_admin": False
-                        })
-
-                        st.rerun()
-
-                    except Exception as e:
-                        st.error(f"Erro ao criar usuário: {e}")
-
+                    # Verificar se já existe
+                    usuario_existente = supabase.table("usuarios").select("nome_usuario").eq("nome_usuario", novo_usuario).execute().data
+                    if usuario_existente:
+                        st.error(f"O usuário '{novo_usuario}' já existe.")
+                    else:
+                        try:
+                            senha_hashed = hash_senha(nova_senha)
+                            # Insira o novo usuário sem especificar o user_id, assumindo que ele é gerado automaticamente
+                            supabase.table("usuarios").insert({
+                                "nome_usuario": novo_usuario,
+                                "senha_hash": senha_hashed,
+                                "is_admin": is_admin
+                            }).execute()
+                            st.success("✅ Usuário criado com sucesso!")
+                        except Exception as e:
+                            st.error(f"Erro ao criar usuário: {e}")
 
         # --- ALTERAR SENHA DE OUTRO USUÁRIO ---
         elif aba_admin == "Alterar Senha de Usuário":
