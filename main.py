@@ -1,7 +1,11 @@
+# falta ajustar fuso horário, cores, relatório emm excel das finalizadas, quantidade de tickets por focal
+
+
 import streamlit as st
+st.set_page_config(page_title="Gestão de Ocorrências", layout="wide")
 import pandas as pd
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import time
 from dateutil import parser
 from streamlit_autorefresh import st_autorefresh
@@ -10,90 +14,197 @@ import pytz
 import uuid
 from supabase import create_client, Client
 import hashlib
+from streamlit_cookies_manager import EncryptedCookieManager
+import psycopg2
+import bcrypt
+from psycopg2 import sql
+import streamlit as st
 import uuid
+import pytz
+from datetime import datetime
+import time
+import psycopg2
+from postgrest import Client
+from dateutil import parser
 
+# --- SETUP DO COOKIE MANAGER ---
+cookies = EncryptedCookieManager(
+    prefix="meu_app_",  # Prefixo dos cookies
+    password="chave-muito-secreta-para-cookies"  # Troque por uma senha forte
+)
+if not cookies.ready():
+    st.stop()
+
+
+    # --- Função para verificar se o cookie expirou ---
+def is_cookie_expired(expiry_time_str):
+    try:
+        expiry_time = datetime.strptime(expiry_time_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+    except ValueError:
+        # Caso o formato da data não seja o esperado, lança erro
+        return False
+    return datetime.now(timezone.utc) > expiry_time
+
+
+# --- Função de autenticação ---
+def autenticar_usuario(nome_usuario, senha):
+    try:
+        dados_usuario = supabase.table("usuarios").select("*").eq("nome_usuario", nome_usuario).execute()
+
+        if dados_usuario.data:
+            usuario = dados_usuario.data[0]
+            if verificar_senha(senha, usuario["senha_hash"]):
+                return usuario
+        return None
+    except Exception:
+        return None
 
 # --- CONEXÃO COM O SUPABASE ---
 url = "https://vismjxhlsctehpvgmata.supabase.co"  # ✅ sua URL real, já sem o '>' no meio
 key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpc21qeGhsc2N0ZWhwdmdtYXRhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY1NzA4NTIsImV4cCI6MjA2MjE0Njg1Mn0.zTjSWenfuVJTIixq2RThSUpqcHGfZWP2xkFDU3USPb0"  # ✅ sua chave real (evite expor em público!)
 supabase: Client = create_client(url, key)
 
-# --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="Gestão de Ocorrências", layout="wide")
 
-# --- Função de hash da senha ---
+# Função para hash de senha
 def hash_senha(senha):
-    return hashlib.sha256(senha.encode()).hexdigest()
+    return bcrypt.hashpw(senha.encode(), bcrypt.gensalt()).decode()
 
+# Criar usuário via Supabase Auth e tabela `usuarios`
+# Criar usuário direto na tabela 'usuarios' (sem Supabase Auth)
 
-# --- Autenticação com Supabase ---
-def autenticar_usuario(usuario, senha):
-    senha_hashed = hash_senha(senha)
-    print("Hash gerado:", senha_hashed)
-    print("Nome de usuário enviado para consulta:", repr(usuario.strip()))
+# Função para verificar se a senha fornecida corresponde ao hash
+def verificar_senha(senha_fornecida, senha_hash):
+    return bcrypt.checkpw(senha_fornecida.encode(), senha_hash.encode())
+    
+usuario_logado = "admin"  # Exemplo de nome de usuário do admin logado
+dados_usuario = {
+    "nome_usuario": "admin",
+    "senha_hash": "$2b$12$OqjiW19Pjd9.eGnFfmJSrW.TqX/pq6RmPjbsHbuZ56MzeP3dNKuyq"  # Exemplo de senha já hashada (gerada com bcrypt)
+}
+    
+#Função de autenticaçãodef autenticar_usuario(nome_usuario, senha):
+def autenticar_usuario(nome_usuario, senha):
+    try:
+        dados_usuario = supabase.table("usuarios").select("*").eq("nome_usuario", nome_usuario).execute()
 
-    dados = supabase.table("usuarios").select("*") \
-        .eq("nome_usuario", usuario.strip()) \
-        .eq("senha_hash", senha_hashed) \
-        .execute()
+        if dados_usuario.data:
+            usuario = dados_usuario.data[0]
+            if verificar_senha(senha, usuario["senha_hash"]):
+                return usuario
+        return None
+    except Exception:
+        return None
 
-    print("Dados retornados:", dados.data)
-
-    if dados.data:
-        return dados.data[0]
-    return None
-
-
-# --- Interface de Login ---
+    # --- Interface de Login ---
 def login():
+    login_cookie = cookies.get("login")
+    username_cookie = cookies.get("username")
+    is_admin_cookie = cookies.get("is_admin")
+    expiry_time_cookie = cookies.get("expiry_time")
+
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.markdown("<h1 style='text-align: center;'>📝 Gestão de Ocorrências</h1>", unsafe_allow_html=True)
 
-    if "login" not in st.session_state:
-        st.session_state.login = False
-    if "username" not in st.session_state:
-        st.session_state.username = ""
-    if "is_admin" not in st.session_state:
-        st.session_state.is_admin = False
+    # Se o login já foi feito e o cookie não expirou, configura a sessão
+    if login_cookie and username_cookie and not is_cookie_expired(expiry_time_cookie):
+        st.session_state.login = True
+        st.session_state.username = username_cookie
+        st.session_state.is_admin = is_admin_cookie == "True"
+        st.markdown(f"👋 **Bem-vindo, {st.session_state.username}!**")
 
-    if not st.session_state.login:
-        col1, col2, col3 = st.columns([1, 2, 1])
+        # Opção de logout
+        col1, col2, col3 = st.columns([6, 1, 1])
+        with col3:
+            if st.button("🔒 Sair", key="logout_button"):
+                # Limpa os cookies e faz logout
+                cookies["login"] = ""
+                cookies["username"] = ""
+                cookies["is_admin"] = ""
+                cookies["expiry_time"] = ""
+                cookies.save()  # Salva a remoção dos cookies
+                st.session_state.login = False  # Atualiza a sessão para refletir o logout
+                st.rerun()  # Redireciona para a página inicial
+    else:
+        # Se o usuário não estiver logado, exibe o formulário de login
         with col2:
             st.markdown("##### Login")
             username = st.text_input("Usuário")
             senha = st.text_input("Senha", type="password")
 
-            if st.button("Entrar"):
+            if st.button("Entrar", key="login_button"):
                 usuario = autenticar_usuario(username, senha)
                 if usuario:
-                    st.session_state.login = True
-                    st.session_state.username = usuario["nome_usuario"]
-                    st.session_state.is_admin = usuario.get("is_admin", False)
-                    st.rerun()
-                else:
-                    st.error("Usuário ou senha inválidos")
-        st.stop()
-    else:
-        st.markdown(f"👋 **Bem-vindo, {st.session_state.username}!**")
+                    # Armazena as informações de login nos cookies
+                    cookies["login"] = str(True)
+                    cookies["username"] = usuario["nome_usuario"]
+                    cookies["is_admin"] = str(usuario.get("is_admin", False))
+                    expiry_time = datetime.now(timezone.utc) + timedelta(hours=24)
+                    cookies["expiry_time"] = expiry_time.strftime("%d-%m-%Y %H:%M:%S")
+                    cookies.save()
+                    st.session_state.login = True  # Atualiza a sessão para indicar que o login foi bem-sucedido
+                    st.rerun()  # Recarga a página após login
 
-        col1, col2, col3 = st.columns([6, 1, 1])
-        with col3:
-            if st.button("🔒 Sair"):
-                st.session_state.login = False
-                st.session_state.username = ""
-                st.session_state.is_admin = False
-                st.rerun()
-
+        st.stop()  # Impede que o código continue sendo executado após login falhar
 
 
 # --- Chama login antes de qualquer coisa ---
 login()
 
+
 # --- SE CHEGOU AQUI, USUÁRIO ESTÁ AUTENTICADO ---
-#--------------------------------------------------------------------------INICIO APP --------------------------------------------------------------
+#--------------------------------------------------------------------------INICIO APP -------------------------------------------------------------
+
+
+#- -- INICIALIZAÇÃO DE SESSÃO ---
+if "ocorrencias_abertas" not in st.session_state:
+    st.session_state.ocorrencias_abertas = []
+
+if "ocorrencias_finalizadas" not in st.session_state:
+    st.session_state.ocorrencias_finalizadas = []
+
+# --- ABA NOVA OCORRÊNCIA ---
+aba1, aba2, aba3, aba4 = st.tabs(["📝 Nova Ocorrência", "📌 Ocorrências em Aberto", "✅ Ocorrências Finalizadas", "📊 Configurações"])
+
+# Definindo a conexão com o banco de dados (ajuste com as suas credenciais)
+def get_db_connection():
+    try:
+        conn = psycopg2.connect(
+            dbname="nome_do_banco",
+            user="usuario",
+            password="senha",
+            host="host_do_banco",
+            port="porta"
+        )
+        return conn
+    except Exception as e:
+        st.error(f"Erro ao conectar ao banco de dados: {e}")
+        return None
+
+# Função de inserção no Supabase
+def inserir_ocorrencia_supabase(dados):
+    response = supabase.table("ocorrencias").insert([{
+        "id": dados["id"],
+        "nota_fiscal": dados["nota_fiscal"],
+        "cliente": dados["cliente"],
+        "focal": dados["focal"],
+        "destinatario": dados["destinatario"],
+        "cidade": dados["cidade"],
+        "motorista": dados["motorista"],
+        "tipo_de_ocorrencia": dados["tipo_de_ocorrencia"],
+        "observacoes": dados["observacoes"],
+        "responsavel": dados["responsavel"],
+        "status": "Aberta",
+        "data_hora_abertura": dados["data_hora_abertura"],
+        "abertura_timestamp": dados["abertura_timestamp"],
+        "permanencia": dados["permanencia"],
+        "complementar": dados["complementar"]
+    }]).execute()
+    return response
+
 
 # --- CARREGAMENTO DE DADOS Tabelas com nomes de motorista e clientes ---
+import pandas as pd
 
 # Carrega a aba "clientes" do arquivo clientes.xlsx
 df_clientes = pd.read_excel("data/clientes.xlsx", sheet_name="clientes")
@@ -109,29 +220,19 @@ df_motoristas = pd.read_excel("data/motoristas.xlsx", sheet_name="motoristas")
 df_motoristas.columns = df_motoristas.columns.str.strip()
 motoristas = df_motoristas["Motorista"].dropna().tolist()
 
-
-
-
-# --- INICIALIZAÇÃO DE SESSÃO ---
-if "ocorrencias_abertas" not in st.session_state:
-    st.session_state.ocorrencias_abertas = []
-
-if "ocorrencias_finalizadas" not in st.session_state:
-    st.session_state.ocorrencias_finalizadas = []
-
-# --- ABAS ---
-aba1, aba2, aba3, aba4 = st.tabs(["📝 Nova Ocorrência", "📌 Ocorrências em Aberto", "✅ Ocorrências Finalizadas", "📊 Configurações"])
+# --- FORMULÁRIO PARA NOVA OCORRÊNCIA ---
 
 # =========================
-#       ABA 1 - NOVA
+#     ABA 1 - NOVA OCORRENCIA
 # =========================
 with aba1:
     st.header("Nova Ocorrência")
 
-    # Reset do campo Focal após envio bem-sucedido
+    # Definindo sessão focal_responsavel
     if "focal_responsavel" not in st.session_state:
         st.session_state["focal_responsavel"] = ""
 
+    # Formulário para nova ocorrência
     with st.form("form_nova_ocorrencia", clear_on_submit=True):
         col1, col2 = st.columns(2)
 
@@ -146,13 +247,10 @@ with aba1:
             cliente_opcao = st.selectbox("Cliente", options=clientes + ["Outro ()"], index=None, key="cliente_opcao")
             cliente = st.text_input("Digite o nome do cliente", key="cliente_manual") if cliente_opcao == "Outro ()" else cliente_opcao
 
-            # Atualiza automaticamente o campo Focal ao selecionar Cliente
             if cliente_opcao and cliente_opcao in cliente_to_focal:
                 st.session_state["focal_responsavel"] = cliente_to_focal[cliente_opcao]
             elif cliente_opcao:
                 st.session_state["focal_responsavel"] = ""
-            
-            #st.text_input("Focal Responsável", value=st.session_state["focal_responsavel"], key="focal_visivel", disabled=True)
 
             cidade = st.text_input("Cidade", key="cidade")
 
@@ -166,6 +264,7 @@ with aba1:
 
         enviar = st.form_submit_button("Adicionar Ocorrência")
 
+        # Validações
         if enviar:
             campos_obrigatorios = {
                 "Nota Fiscal": nf,
@@ -184,54 +283,78 @@ with aba1:
                 st.error("Ocorrência não adicionada: Nota Fiscal deve conter apenas números.")
             elif faltando:
                 st.error(f"❌ Preencha todos os campos obrigatórios: {', '.join(faltando)}")
+            elif not cliente:  # Verificação adicional para o campo "Cliente"
+                st.error("❌ O campo 'Cliente' é obrigatório.")
+        
             else:
+                # Validando os valores antes de enviar para o Supabase
                 fuso_sp = pytz.timezone("America/Sao_Paulo")
                 agora_sp = datetime.now(fuso_sp)
+                abertura_sem_fuso = agora_sp.replace(tzinfo=None)  # Remove o fuso horário para formato sem TZ
 
+                # Montagem do dicionário de nova ocorrência
                 nova_ocorrencia = {
-                    "ID": str(uuid.uuid4()),
-                    "Nota Fiscal": nf,
-                    "Cliente": cliente,
-                    "Focal": st.session_state["focal_responsavel"],
-                    "Destinatario": destinatario,
-                    "Cidade": cidade,
-                    "Motorista": motorista,
-                    "Tipo de Ocorrência": ", ".join(tipo),
-                    "Observações": obs,
-                    "Responsável": responsavel,
-                    "Data/Hora Abertura": agora_sp.strftime("%d/%m/%Y %H:%M:%S"),
-                    "Abertura Timestamp": agora_sp.replace(tzinfo=None),
-                    "Complementar": "",
-                    "Data/Hora Finalização": ""
+                    "id": str(uuid.uuid4()),
+                    "nota_fiscal": nf,
+                    "cliente": cliente,
+                    "focal": st.session_state["focal_responsavel"],
+                    "destinatario": destinatario,
+                    "cidade": cidade,
+                    "motorista": motorista,
+                    "tipo_de_ocorrencia": ", ".join(tipo),
+                    "observacoes": obs,
+                    "responsavel": responsavel,
+                    "data_hora_abertura": abertura_sem_fuso.strftime("%Y-%m-%d %H:%M:%S"),   # Para exibição (com TZ)
+                    "abertura_timestamp": abertura_sem_fuso.isoformat(),            # ISO sem fuso (para cálculos)
+                    "abertura_datetime_obj": abertura_sem_fuso,                     # Objeto datetime sem TZ (para cálculos)
+                    "abertura_ticket": abertura_sem_fuso.strftime("%Y-%m-%d %H:%M:%S"),      # Novo campo para cálculo na finalização
+                     "complementar": "",
+                     "permanencia": ""
                 }
 
-                st.session_state.ocorrencias_abertas.append(nova_ocorrencia)
+                # Inserção no banco de dados
+                response = inserir_ocorrencia_supabase(nova_ocorrencia)
+                
+                if response.data:
+                    # Adiciona localmente para exibição imediata
+                    nova_ocorrencia_local = nova_ocorrencia.copy()
+                    nova_ocorrencia_local["Data/Hora Finalização"] = ""
+                    st.session_state.ocorrencias_abertas.append(nova_ocorrencia_local)
 
-                # Reset do Focal após salvar
-                st.session_state["focal_responsavel"] = ""
+                    st.session_state["focal_responsavel"] = ""
 
-                sucesso = st.empty()
-                sucesso.success("✅ Ocorrência aberta com sucesso!")
-                time.sleep(2)
-                sucesso.empty()
+                    sucesso = st.empty()
+                    sucesso.success("✅ Ocorrência aberta com sucesso!")
+                    time.sleep(2)
+                    sucesso.empty()
+                else:
+                    st.error(f"Erro ao salvar ocorrência no Supabase: {response.error}")
+
+
+# Função de classificação
+from datetime import datetime
+import pytz
 
 # =========================
 #    FUNÇÃO CLASSIFICAÇÃO
 # =========================
-# Função para classificar a ocorrência com base no tempo decorrido entre abertura e finalização
-# Função para classificar a ocorrência com base no tempo decorrido entre abertura e a hora atual
-# Função para classificar a ocorrência com tratamento robusto
-# Função para classificar a ocorrência de acordo com o tempo decorrido
 def classificar_ocorrencia_por_tempo(data_abertura_str):
+    tz_sp = pytz.timezone("America/Sao_Paulo")
+
     try:
-        tz_sp = pytz.timezone("America/Sao_Paulo")
-        data_abertura = datetime.strptime(data_abertura_str, "%d/%m/%Y %H:%M:%S")
-        data_abertura = tz_sp.localize(data_abertura)  # Torna data_abertura "aware"
+        # Garante que a string esteja no formato correto
+        data_abertura_str = data_abertura_str.replace('T', ' ')
+        data_abertura_naive = datetime.strptime(data_abertura_str, "%Y-%m-%d %H:%M:%S")
+
+        # Aplica o fuso horário de São Paulo
+        data_abertura = tz_sp.localize(data_abertura_naive)
+
     except Exception as e:
+        print(f"Erro ao converter data: {e}")
         return "Erro", "gray"
 
-    agora = datetime.now(tz_sp)
-    tempo_decorrido = (agora - data_abertura).total_seconds() / 60
+    agora = datetime.now(tz_sp)  # aware
+    tempo_decorrido = (agora - data_abertura).total_seconds() / 60  # minutos
 
     if tempo_decorrido < 15:
         return "🟢 Normal", "#2ecc71"
@@ -244,15 +367,81 @@ def classificar_ocorrencia_por_tempo(data_abertura_str):
     else:
         return "🚨 +60 min", "#c0392b"
 
-# ----------------------------------------------------------------Função para salvar ocorrência finalizada em Excel---------------------------------
 
-# -------------------------------------------------------------------AINDA FUNÇÃO -----------------------------------------------------------
+# Função para carregar ocorrências abertas
+def carregar_ocorrencias_abertas():
+    try:
+        response = supabase.table("ocorrencias").select("*").eq("status", "Aberta").order("data_hora_abertura", desc=True).execute()
+        return response.data
+    except Exception as e:
+        st.error(f"Erro ao carregar ocorrências abertas: {e}")
+        return []
+
+
+
+
+
 # =========================
-#     ABA 2 - EM ABERTO
+#    FUNÇÃO SALVAR FINALIZADA
 # =========================
-with aba2:
-    st.header("Ocorrências em Aberto")
-    # Exibe mensagem de sucesso, se existir
+def salvar_ocorrencia_finalizada(ocorr, status):
+    try:
+        # Garantir que as chaves existam e as datas sejam strings válidas
+        if isinstance(ocorr.get("Data/Hora Finalização"), str):
+            try:
+                data_hora_finalizacao = parser.parse(ocorr["Data/Hora Finalização"])
+            except ValueError:
+                st.error("Erro: Formato de 'Data/Hora Finalização' inválido!")
+                return
+        else:
+            data_hora_finalizacao = ocorr["Data/Hora Finalização"]
+
+        if isinstance(ocorr.get("Data/Hora Abertura"), str):
+            try:
+                data_hora_abertura = parser.parse(ocorr["Data/Hora Abertura"])
+            except ValueError:
+                st.error("Erro: Formato de 'Data/Hora Abertura' inválido!")
+                return
+        else:
+            data_hora_abertura = ocorr["Data/Hora Abertura"]
+
+           
+
+            # Certifique-se que essas datas existem e são datetime válidos
+            data_hora_abertura = parser.parse(ocorr["abertura_timestamp"]).replace(tzinfo=None)
+            agora_sp = datetime.now()
+
+            # Calcular permanência
+            permanencia_timedelta = agora_sp - data_hora_abertura
+            total_segundos = int(permanencia_timedelta.total_seconds())
+            dias = total_segundos // 86400
+            horas = (total_segundos % 86400) // 3600
+            minutos = (total_segundos % 3600) // 60
+            tempo_permanencia_formatado = f"{dias}d {horas}h {minutos}min"
+
+            # Atualiza no banco de dados
+            response = supabase.table("ocorrencias").update({
+                "data_hora_finalizacao": agora_sp.strftime("%Y-%m-%d %H:%M:%S"),
+                "finalizado_por": ocorr["Finalizado por"],
+                "complementar": ocorr["Complementar"],
+                "permanencia": tempo_permanencia_formatado,
+                "status": "Finalizada"
+            }).eq("id", ocorr["ID"]).execute()
+
+            # Debug opcional
+            st.write("Resposta Supabase:", response)
+
+
+
+
+        
+        st.session_state["mensagem_sucesso_finalizacao"] = True
+
+    except Exception as e:
+        st.error(f"Erro ao salvar no banco de dados: {e}")
+        st.session_state["mensagem_sucesso_finalizacao"] = False
+
+    # Exibe mensagem de sucesso se houver
     if st.session_state.get("mensagem_sucesso_finalizacao"):
         sucesso_msg = st.empty()
         sucesso_msg.success("✅ Ocorrência finalizada com sucesso!")
@@ -260,209 +449,223 @@ with aba2:
         sucesso_msg.empty()
         del st.session_state["mensagem_sucesso_finalizacao"]
 
-#-------------------------------------------------------------------------------------------------------------------------------
-    def salvar_ocorrencia_finalizada(ocorr, status): ### função salva ocorrencia finalizada Excel
-        pasta = os.path.join("data", "relatorio_de_tickets")
-        caminho = os.path.join(pasta, "relatorio_ocorrencias.xlsx")
-        os.makedirs(pasta, exist_ok=True)
+# =========================
+#     ABA 2 - EM ABERTO
+# =========================
+with aba2:
+    st.header("Ocorrências em Aberto")
 
-        ocorr["Estágio"] = status
-        df_nova = pd.DataFrame([ocorr])
+    ocorrencias_abertas = carregar_ocorrencias_abertas()
 
-        if not os.path.exists(caminho):
-            df_nova.to_excel(caminho, index=False)
-        else:
-            df_existente = pd.read_excel(caminho)
-
-            # Junta e remove duplicatas com base no ID exclusivo
-            # Remover qualquer ocorrência com o mesmo ID antes de salvar
-            df_existente = df_existente[df_existente["ID"] != ocorr["ID"]]
-            # Concatenar a nova ocorrência
-            df_final = pd.concat([df_existente, df_nova], ignore_index=True)
-
-            
-
-        # Remove timezone de todas as colunas datetimetz (caso existam)
-        for col in df_final.select_dtypes(include=["datetimetz"]).columns:
-            df_final[col] = df_final[col].dt.tz_localize(None)
-
-        df_final.to_excel(caminho, index=False)
-#------------------------------------------------------------------------
-    if not st.session_state.ocorrencias_abertas:
+    if not ocorrencias_abertas:
         st.info("ℹ️ Nenhuma ocorrência aberta no momento.")
     else:
-        colunas = st.columns(4)
-        st_autorefresh(interval=10000, key="ocorrencias_abertas_refresh")
+        num_colunas = 4  # Garante que sempre teremos 4 colunas
+        colunas = st.columns(num_colunas)
+        st_autorefresh(interval=30000, key="ocorrencias_abertas_refresh")
 
-        for idx, ocorr in list(enumerate(st.session_state.ocorrencias_abertas)):
-            data_abertura_str = ocorr.get("Data/Hora Abertura") or ocorr.get("Abertura Timestamp")
+        for idx, ocorr in enumerate(ocorrencias_abertas):
+            # Pegando a data diretamente do campo 'data_hora_abertura' retornado do Supabase
+            data_abertura_str = ocorr.get("data_hora_abertura")
 
             try:
-                status, cor = classificar_ocorrencia_por_tempo(data_abertura_str)
-                data_abertura = datetime.strptime(data_abertura_str, "%d/%m/%Y %H:%M:%S")
-                data_formatada = data_abertura.strftime('%d/%m/%Y %H:%M:%S')
+                if not data_abertura_str:
+                    raise ValueError("Data de abertura ausente.")
+                
+                # Converte string mm-dd-yyyy HH:MM:SS para datetime
+                data_abertura_str = data_abertura_str.replace('T', ' ')
+                data_abertura = parser.parse(data_abertura_str)
+                
+                # Converte para string no formato brasileiro dd-mm-yyyy HH:MM:SS
+                data_abertura_formatada = data_abertura.strftime("%d-%m-%Y %H:%M:%S")
+
             except Exception as e:
-                st.error(f"Erro ao processar ocorrência (NF: {ocorr.get('Nota Fiscal', '-')}) — {e}")
+                st.error(f"Erro ao processar a data de abertura: {e}")
+                data_abertura_formatada = "Data inválida"
+
+            # Classificando o status e a cor com base no tempo de abertura
+            status, cor = classificar_ocorrencia_por_tempo(data_abertura_str)
+
+            try:
+                data_abertura_str = data_abertura_str.replace('T', ' ')
+                data_abertura = parser.parse(data_abertura_str)
+                data_formatada = data_abertura.strftime('%d-%m-%Y %H:%M:%S')
+                print(f"Data processada corretamente: {data_formatada}")
+            except Exception as e:
+                st.error(f"Erro ao processar ocorrência (NF: {ocorr.get('nota_fiscal', '-')}) — {e}")
                 continue
 
-            with colunas[idx % 4]:
-                safe_idx = f"{idx}_{ocorr.get('Nota Fiscal', '')}"
+            # Agora, independentemente de erro, defina status e cor
+            status = status
+            cor = cor  # A cor é determinada pela classificação por tempo
+
+            with colunas[idx % num_colunas]:
+                safe_idx = f"{idx}_{ocorr.get('nota_fiscal', '')}"
 
                 with st.container():
+                    # Card com estilo fixo
                     st.markdown(
-                        f"<div style='background-color:{cor};padding:10px;border-radius:10px;color:white;"
-                        f"box-shadow: 0 4px 10px rgba(0,0,0,0.3);margin-bottom:5px;min-height:250px;font-size:15px;'>"
+                        f"<div style='background-color:{cor};padding:10px;border-radius:10px;color:white;box-shadow: 0 4px 10px rgba(0,0,0,0.3);margin-bottom:5px;min-height:250px;font-size:15px;'>"
                         f"<strong>Status:</strong> <span style='background-color:#2c3e50;padding:4px 8px;border-radius:1px;color:white;'>{status}</span><br>"
-                        f"<strong>NF:</strong> {ocorr.get('Nota Fiscal', '-')}<br>"
-                        f"<strong>Cliente:</strong> {ocorr.get('Cliente', '-')}<br>"
-                        f"<strong>Focal:</strong> {ocorr.get('Focal', '-')}<br>"
-                        f"<strong>Cidade:</strong> {ocorr.get('Cidade', '-')}<br>"
-                        f"<strong>Motorista:</strong> {ocorr.get('Motorista', '-')}<br>"
-                        f"<strong>Tipo:</strong> {ocorr.get('Tipo de Ocorrência', '-')}<br>"
-                        f"<strong>Aberto por:</strong> {ocorr.get('Responsável', '-')}<br>"
+                        f"<strong>NF:</strong> {ocorr.get('nota_fiscal', '-')}<br>"
+                        f"<strong>Cliente:</strong> {ocorr.get('cliente', '-')}<br>"
+                        f"<strong>Focal:</strong> {ocorr.get('focal', '-')}<br>"
+                        f"<strong>Cidade:</strong> {ocorr.get('cidade', '-')}<br>"
+                        f"<strong>Motorista:</strong> {ocorr.get('motorista', '-')}<br>"
+                        f"<strong>Tipo:</strong> {ocorr.get('tipo_de_ocorrencia', '-')}<br>"
+                        f"<strong>Aberto por:</strong> {ocorr.get('responsavel', '-')}<br>"
                         f"<strong>Data/Hora Abertura:</strong> {data_formatada}<br>"
                         "</div>",
                         unsafe_allow_html=True
                     )
 
-                    with st.expander("Finalizar Ocorrência"):  # ❌ Sem controle de estado expandido
-                        complemento = st.text_area("Complemento", key=f"complemento_final_{safe_idx}")
-                        if st.button("Finalizar", key=f"finalizar_{safe_idx}"):
-                            if not complemento.strip():
+                    # Usando o expander para "Finalizar Ocorrência"
+                    with st.expander("Finalizar Ocorrência"):
+                        # Complemento para a finalização
+                        complemento_key = f"complemento_final_{safe_idx}"
+
+                        # Inicializando o campo de complemento se não existir no session_state
+                        if complemento_key not in st.session_state:
+                            st.session_state[complemento_key] = ""
+
+                        complemento = st.text_area(
+                            "Complementar", 
+                            key=complemento_key, 
+                            value=st.session_state[complemento_key]
+                        )
+
+                        # Habilita ou desabilita o botão de finalização com base no preenchimento do complemento
+                        finalizar_disabled = not complemento.strip()
+
+                        # Quando o botão "Finalizar" for clicado, executa a finalização
+                        if st.button("Finalizar", key=f"finalizar_{safe_idx}", disabled=finalizar_disabled):
+                            if finalizar_disabled:
                                 st.error("❌ O campo 'Complementar' é obrigatório para finalizar a ocorrência.")
                             else:
+                                # Atualiza a ocorrência com as informações de finalização
                                 ocorr["Complementar"] = complemento
-                                agora_sp = datetime.now(pytz.timezone("America/Sao_Paulo"))
+                                agora_sp = datetime.now(pytz.timezone("America/Sao_Paulo")).replace(tzinfo=None)
                                 ocorr["Data/Hora Finalização"] = agora_sp.strftime("%d/%m/%Y %H:%M:%S")
                                 ocorr["Status"] = status
                                 ocorr["Cor"] = cor
                                 ocorr["Finalizada"] = True
                                 ocorr["Finalizado por"] = st.session_state.username
-                                 # 🕒 Calcula o tempo de permanência
+
+                                # Calcular tempo de permanência
+                                permanencia = "N/A"
                                 try:
-                                    dt_abertura = datetime.strptime(ocorr["Data/Hora Abertura"], "%d/%m/%Y %H:%M:%S")
-                                    dt_fim = datetime.strptime(ocorr["Data/Hora Finalização"], "%d/%m/%Y %H:%M:%S")
-                                    ocorr["Tempo de Permanência"] = str(dt_fim - dt_abertura)
+                                    if "abertura_timestamp" in ocorr and ocorr["abertura_timestamp"]:
+                                        abertura_ts = parser.parse(ocorr["abertura_timestamp"]).replace(tzinfo=None)
+                                        delta = agora_sp - abertura_ts
+                                        horas = str(delta.seconds // 3600).zfill(2)
+                                        minutos = str((delta.seconds // 60) % 60).zfill(2)
+                                        segundos = str(delta.seconds % 60).zfill(2)
+                                        permanencia = f"{horas}:{minutos}:{segundos}"
+
                                 except Exception as e:
-                                    ocorr["Tempo de Permanência"] = "Erro ao calcular"
+                                    st.error(f"Erro ao calcular permanência: {e}")
 
-                                salvar_ocorrencia_finalizada(ocorr, status)
+                                # Atualiza no banco de dados
+                                response = supabase.table("ocorrencias").update({
+                                    "data_hora_finalizacao": agora_sp.strftime("%Y-%m-%d %H:%M:%S"),
+                                    "finalizado_por": ocorr["Finalizado por"],
+                                    "complementar": ocorr["Complementar"],
+                                    "status": "Finalizada",
+                                    "permanencia": permanencia,
+                                }).eq("id", ocorr["id"]).execute()
 
-                                st.session_state.ocorrencias_finalizadas.append(ocorr)
-                                st.session_state.ocorrencias_abertas.pop(idx)
-                                st.session_state["mensagem_sucesso_finalizacao"] = True
-                                st.rerun()  # Substituto oficial para experimental_rerun()
+                                # Se a atualização for bem-sucedida, notifica o usuário
+                                if response and response.data:
+                                    st.session_state.ocorrencias_finalizadas.append(ocorr)
+                                    st.success("✅ Ocorrência finalizada com sucesso!")
+                                    time.sleep(2)
+                                    st.rerun()  # Atualiza a tela para refletir a mudança
+                                else:
+                                    st.error("Erro ao salvar a finalização no banco de dados.")
 
 
 
-                            
+
+
+
+
+# =============================== 
+#    FUNÇÃO CARREGAR FINALIZADAS 
+# ===============================        
+def carregar_ocorrencias_finalizadas():
+    try:
+        response = supabase.table("ocorrencias").select("*").eq("status", "Finalizada").order("data_hora_finalizacao", desc=True).execute()
+        return response.data
+    except Exception as e:
+        st.error(f"Erro ao carregar ocorrências finalizadas: {e}")
+        return []
+
 
 # =========================
 #     ABA 3 - FINALIZADAS
 # =========================
 with aba3:
-    #st.markdown("### 🔎 Filtro por Nota Fiscal")
     st.header("Ocorrências Finalizadas")
 
-    col_filtro, _ = st.columns([1, 5])  # Campo no canto esquerdo
-    with col_filtro:
-        nf_busca = st.text_input("Buscar", placeholder="Nota Fiscal")
+    try:
+        ocorrencias_finalizadas = carregar_ocorrencias_finalizadas()
+    except Exception as e:
+        st.error(f"Erro ao carregar ocorrências finalizadas: {e}")
+        st.stop()
 
-    # Usa somente ocorrências finalizadas
-    ocorrencias = st.session_state.get("ocorrencias_finalizadas", [])
-
-    # Se houver algo digitado, aplica o filtro
-    if nf_busca:
-        ocorrencias_filtradas = [
-            ocorr for ocorr in ocorrencias
-            if nf_busca.strip() in str(ocorr.get("Nota Fiscal", ""))]
+    if not ocorrencias_finalizadas:
+        st.info("ℹ️ Nenhuma ocorrência finalizada.")
     else:
-        ocorrencias_filtradas = ocorrencias
+        num_colunas = 4
+        colunas = st.columns(num_colunas)
 
-    # Caso não existam ocorrências finalizadas
-    if not ocorrencias_filtradas:
-        st.info("ℹ️ Nenhuma ocorrência finalizada encontrada.")
-    else:
-        # Divide o layout em 4 colunas
-        colunas = st.columns(4)
-        
-        # Calculando o tempo de permanência
-        for idx, ocorr in enumerate(ocorrencias_filtradas):
-
-            # Obtém as datas de abertura e finalização da ocorrência
-            data_abertura_str = ocorr.get("Data/Hora Abertura")
-            data_finalizacao_str = ocorr.get("Data/Hora Finalização")
-            
+        for idx, ocorr in enumerate(ocorrencias_finalizadas):
             try:
-                # Cálculo do tempo de permanência
-                data_abertura = datetime.strptime(data_abertura_str, "%d/%m/%Y %H:%M:%S")
-                data_finalizacao = datetime.strptime(data_finalizacao_str, "%d/%m/%Y %H:%M:%S")
-                
-                tempo_permanencia = data_finalizacao - data_abertura
-                tempo_permanencia_str = str(tempo_permanencia)
+                # Obtém os dados de finalização
+                data_finalizacao_raw = ocorr.get("data_hora_finalizacao")
+                data_abertura_raw = ocorr.get("abertura_ticket") or ocorr.get("abertura_timestamp")
 
-                status = ocorr.get("Status", "⏱️ Tempo desconhecido")
-                cor = ocorr.get("Cor", "#95a5a6")
+                data_abertura_dt = parser.isoparse(data_abertura_raw).replace(tzinfo=None) if data_abertura_raw else None
+                data_finalizacao_dt = parser.isoparse(data_finalizacao_raw).replace(tzinfo=None) if data_finalizacao_raw else None
+
+                data_abertura_formatada = data_abertura_dt.strftime("%d-%m-%Y %H:%M:%S") if data_abertura_dt else "-"
+                data_finalizacao_formatada = data_finalizacao_dt.strftime("%d-%m-%Y %H:%M:%S") if data_finalizacao_dt else "-"
+
+                if data_abertura_dt and data_finalizacao_dt:
+                    tempo_total = data_finalizacao_dt - data_abertura_dt
+                    tempo_permanencia_formatado = str(tempo_total).split('.')[0]
+                else:
+                    tempo_permanencia_formatado = "Não disponível"
+
+                status = ocorr.get("Status", "Finalizada")
+                cor = ocorr.get("Cor", "#34495e")  # Usa a cor salva, não recalcula
 
             except Exception as e:
-                st.error(f"Erro ao processar ocorrência (NF: {ocorr.get('Nota Fiscal', '-')}) — {e}")
-                continue
+                st.error(f"Erro ao processar dados da ocorrência (NF {ocorr.get('nota_fiscal', '-')}) — {e}")
+                data_abertura_formatada = data_finalizacao_formatada = tempo_permanencia_formatado = "-"
+                status = "Erro"
+                cor = "#7f8c8d"
 
-            # Seleciona uma das colunas disponíveis para exibir o card
-            with colunas[idx % 4]:
-                status = ocorr.get("Status", "Desconhecido")
-                cor = ocorr.get("Cor", "#777")
-
+            with colunas[idx % num_colunas]:
                 with st.container():
                     st.markdown(
                         f"<div style='background-color:{cor};padding:10px;border-radius:10px;color:white;"
-                        f"box-shadow: 0 4px 12px rgba(0,0,0,0.3);margin-bottom:30px;min-height: 300px;font-size:14px;'>"
-                        
-                        # Exibe o status
-                        f"<strong>Status:</strong> <span style='background-color:#2c3e50;padding:4px 8px;border-radius:5px;color:white;'>{status}</span><br>"
-
-                        # Exibe o número da nota fiscal
-                        f"<strong>NF:</strong> {ocorr.get('Nota Fiscal', '-')}<br>"
-
-                        # Exibe o nome do cliente
-                        f"<strong>Cliente:</strong> {ocorr.get('Cliente', '-')}<br>"
-
-                        # Exibe o nome Focal
-                        f"<strong>Focal:</strong> {ocorr.get('Focal', '-')}<br>"
-                        
-                        # Exibe a cidade da ocorrência
-                        f"<strong>Cidade:</strong> {ocorr.get('Cidade', '-')}<br>"
-
-                        # Exibe o nome do motorista
-                        f"<strong>Motorista:</strong> {ocorr.get('Motorista', '-')}<br>"
-
-                        # Exibe o tipo de ocorrência
-                        f"<strong>Tipo:</strong> {ocorr.get('Tipo de Ocorrência', '-')}<br>"
-
-                        # Exibe quem abriu a ocorrência
-                        f"<strong>Aberto por:</strong> {ocorr.get('Responsável', '-')}<br>"
-
-                        # Exibe a data/hora de abertura
-                        f"<strong>Data/Hora Abertura:</strong> {data_abertura.strftime('%d/%m/%Y %H:%M:%S')}<br>"
-
-                        # Exibe a data/hora de finalização
-                        f"<strong>Finalizado em:</strong> {ocorr.get('Data/Hora Finalização', '-')}<br>"
-
-                        # Exibe quem finalizou
-                        f"<strong>Finalizado por:</strong> {ocorr.get('Finalizado por', '-') }<br>"
-
-                        # Exibe o campo complementar
-                        f"<strong>Complementar:</strong> {ocorr.get('Complementar', '-')}<br>"
-
-                        # Exibe o tempo de permanência da ocorrência (tempo entre abertura e finalização)
-                        f"<strong>Tempo de Permanência:</strong> {tempo_permanencia_str}<br>"
-
-                        "</div>",
+                        f"box-shadow: 0 4px 10px rgba(0,0,0,0.3);margin-bottom:5px;min-height:250px;font-size:15px;'>"
+                        f"<strong>Status:</strong> <span style='background-color:#2c3e50;padding:4px 8px;border-radius:1px;color:white;'>{status}</span><br>"
+                        f"<strong>NF:</strong> {ocorr.get('nota_fiscal', '-')}<br>"
+                        f"<strong>Cliente:</strong> {ocorr.get('cliente', '-')}<br>"
+                        f"<strong>Cidade:</strong> {ocorr.get('cidade', '-')}<br>"
+                        f"<strong>Motorista:</strong> {ocorr.get('motorista', '-')}<br>"
+                        f"<strong>Tipo:</strong> {ocorr.get('tipo_de_ocorrencia', '-')}<br>"
+                        f"<strong>Aberto por:</strong> {ocorr.get('responsavel', '-')}<br>"
+                        f"<strong>Data/Hora Abertura:</strong> {data_abertura_formatada}<br>"
+                        f"<strong>Data/Hora Finalização:</strong> {data_finalizacao_formatada}<br>"
+                        f"<strong>Finalizado por:</strong> {ocorr.get('finalizado_por', '-')}<br>"
+                        f"<strong>Tempo de Permanência:</strong> {tempo_permanencia_formatado}<br>"
+                        f"</div>",
                         unsafe_allow_html=True
                     )
 
-            # Salvando o tempo de permanência no relatório Excel
-            ocorr["Tempo de Permanência"] = tempo_permanencia_str  # Adiciona o tempo de permanência à ocorrência
 
 
 
@@ -471,99 +674,145 @@ with aba3:
 # ======================
 #     ABA 4 - USUÁRIOS
 # ======================
+
+# Função para alterar a senha
+def alterar_senha(user_id, nova_senha):
+    try:
+        senha_hashed = hash_senha(nova_senha)  # Gera o hash da nova senha
+        response = supabase.table("usuarios").update({"senha_hash": senha_hashed}).eq("user_id", user_id).execute()
+
+        if response.data:
+            st.success("Senha alterada com sucesso!")
+        else:
+            st.error("Erro ao alterar a senha. A resposta da API não contém dados.")
+    except Exception as e:
+        st.error(f"Erro ao atualizar a senha: {e}")
+
 with aba4:
-    st.header("🔐 Gestão de Usuários")
+    #st.header("🔐 Gestão de Usuários")
 
     usuario_logado = st.session_state.username
     dados_usuario = supabase.table("usuarios").select("*").eq("nome_usuario", usuario_logado).execute().data[0]
     admin = dados_usuario["is_admin"]
 
+    # ===============================
+    #  AÇÕES ADMINISTRATIVAS (ADMIN)
+    # ===============================
     if admin:
-        st.subheader("👤 Criar Novo Usuário")
-        novo_usuario = st.text_input("Nome do novo usuário")
-        nova_senha = st.text_input("Senha do novo usuário", type="password")
-        admin_checkbox = st.checkbox("É administrador?")
+        st.subheader("🛠️ Administração de Usuários")
 
-        if st.button("Criar usuário"):
-            if not novo_usuario or not nova_senha:
-                st.error("Preencha todos os campos.")
-            else:
-                senha_hashed = hash_senha(nova_senha)
-                try:
-                    supabase.table("usuarios").insert({
-                        "nome_usuario": novo_usuario,
-                        "senha_hash": senha_hashed,
-                        "is_admin": admin_checkbox
-                    }).execute()
-                    msg = st.empty()
-                    msg.success("✅ Usuário criado com sucesso!")
-                    time.sleep(2)
-                    msg.empty()
-                except Exception as e:
-                    st.error(f"Erro ao criar usuário: {e}")
+        aba_admin = st.radio("Escolha uma ação", ["Criar Usuário", "Alterar Senha de Usuário", "Deletar Usuário"], horizontal=True)
 
-        # Excluir usuários - Usando Selectbox para listar os usuários existentes
-        st.subheader("🗑️ Deletar Usuário")
+        # --- CRIAR USUÁRIO ---
+        if aba_admin == "Criar Usuário":
+            st.subheader("➕ Criar novo usuário")
 
-        usuarios = supabase.table("usuarios").select("nome_usuario").execute().data
-        lista_usuarios = [usuario['nome_usuario'] for usuario in usuarios if usuario['nome_usuario'] != usuario_logado]
+            novo_usuario = st.text_input("Nome de usuário")
+            nova_senha = st.text_input("Senha", type="password")
+            confirmar_senha = st.text_input("Confirmar senha", type="password")
+            is_admin = st.checkbox("Conceder privilégios de administrador")
 
-        selectbox_key = str(uuid.uuid4())
-        usuario_para_deletar = st.selectbox("Selecione o usuário para excluir", lista_usuarios, key=selectbox_key)
-
-        if st.button("Deletar Usuário"):
-            if not usuario_para_deletar:
-                st.error("Selecione um usuário para excluir.")
-            else:
-                try:
-                    # Buscar ID do usuário a ser deletado
-                    resultado = supabase.table("usuarios").select("id").eq("nome_usuario", usuario_para_deletar).execute()
-                    dados_usuario_para_deletar = resultado.data
-
-                    if not dados_usuario_para_deletar:
-                        st.error(f"Erro: usuário '{usuario_para_deletar}' não encontrado.")
+            if st.button("Criar"):
+                if not novo_usuario or not nova_senha or not confirmar_senha:
+                    st.warning("Preencha todos os campos.")
+                elif nova_senha != confirmar_senha:
+                    st.error("As senhas não coincidem.")
+                else:
+                    # Verificar se já existe
+                    usuario_existente = supabase.table("usuarios").select("nome_usuario").eq("nome_usuario", novo_usuario).execute().data
+                    if usuario_existente:
+                        st.error(f"O usuário '{novo_usuario}' já existe.")
                     else:
-                        usuario_id = dados_usuario_para_deletar[0]["id"]
+                        try:
+                            senha_hashed = hash_senha(nova_senha)
+                            # Insira o novo usuário sem especificar o user_id, assumindo que ele é gerado automaticamente
+                            supabase.table("usuarios").insert({
+                                "nome_usuario": novo_usuario,
+                                "senha_hash": senha_hashed,
+                                "is_admin": is_admin
+                            }).execute()
+                            st.success("✅ Usuário criado com sucesso!")
+                        except Exception as e:
+                            st.error(f"Erro ao criar usuário: {e}")
 
-                        # Deletar o usuário
-                        response = supabase.table("usuarios").delete().eq("id", usuario_id).execute()
-                        print("Resposta da exclusão:", response)
+        # --- ALTERAR SENHA DE OUTRO USUÁRIO ---
+        elif aba_admin == "Alterar Senha de Usuário":
+            st.subheader("🔄 Alterar Senha de Outro Usuário")
 
-                        time.sleep(1)  # Delay para garantir sincronização
+            usuarios = supabase.table("usuarios").select("nome_usuario, user_id").execute().data
+            nomes_usuarios = [u["nome_usuario"] for u in usuarios]
 
-                        # Verificar se foi excluído
-                        usuario_excluido = supabase.table("usuarios").select("id").eq("id", usuario_id).execute().data
-                        msg = st.empty()
-                        if usuario_excluido:
-                            msg.error(f"Erro ao deletar usuário: O usuário '{usuario_para_deletar}' ainda existe na base.")
-                        else:
-                            msg.success(f"✅ O usuário '{usuario_para_deletar}' foi excluído com sucesso!")
-                            time.sleep(2)
-                            msg.empty()
+            usuario_alvo = st.selectbox("Escolha o usuário", nomes_usuarios)
+            nova_senha = st.text_input("Nova senha", type="password")
+            confirmar_senha = st.text_input("Confirmar nova senha", type="password")
 
+            if st.button("Alterar Senha"):
+                if nova_senha != confirmar_senha:
+                    st.error("As senhas não coincidem.")
+                elif not nova_senha:
+                    st.error("A nova senha não pode estar vazia.")
+                else:
+                    user_id = next((u["user_id"] for u in usuarios if u["nome_usuario"] == usuario_alvo), None)
+                    if user_id:
+                        alterar_senha(user_id, nova_senha)
+
+        # --- DELETAR USUÁRIO ---
+        elif aba_admin == "Deletar Usuário":
+            st.subheader("🗑️ Deletar Usuário")
+
+            usuarios = supabase.table("usuarios").select("nome_usuario, user_id").execute().data
+            nomes_usuarios = [u["nome_usuario"] for u in usuarios if u["nome_usuario"] != usuario_logado]
+
+            usuario_alvo = st.selectbox("Selecione o usuário a ser deletado", nomes_usuarios)
+
+            if st.button("Confirmar Deleção"):
+                try:
+                    user_id = next((u["user_id"] for u in usuarios if u["nome_usuario"] == usuario_alvo), None)
+                    if user_id:
+                        supabase.table("usuarios").delete().eq("user_id", user_id).execute()
+                        st.success(f"Usuário '{usuario_alvo}' deletado com sucesso.")
+                        st.rerun()
                 except Exception as e:
-                    st.error(f"Erro ao deletar usuário: {e}")
+                    st.error(f"Erro ao deletar: {e}")
 
-    # Alterar senha do próprio usuário
-    st.subheader("🔒 Alterar Minha Senha")
-    senha_atual = st.text_input("Senha atual", type="password")
-    nova_senha1 = st.text_input("Nova senha", type="password")
-    nova_senha2 = st.text_input("Confirme a nova senha", type="password")
+    # ===============================
+    #  ALTERAR SENHA DO PRÓPRIO USUÁRIO
+    # ===============================
+    if not admin:  # Para usuários não administradores, mostra apenas a opção de "Alterar Minha Senha"
+        st.subheader("🔒 Alterar Minha Senha")
 
-    if st.button("Atualizar Senha"):
-        if not senha_atual or not nova_senha1 or not nova_senha2:
-            st.error("Todos os campos são obrigatórios.")
-        elif nova_senha1 != nova_senha2:
-            st.error("As novas senhas não coincidem.")
-        elif hash_senha(senha_atual) != dados_usuario["senha_hash"]:
-            st.error("Senha atual incorreta.")
+        senha_atual = st.text_input("Senha Atual", type="password", key="senha_atual")
+        nova_senha1 = st.text_input("Nova Senha", type="password", key="nova1")
+        nova_senha2 = st.text_input("Confirmar Nova Senha", type="password", key="nova2")
+
+        if st.button("Atualizar Minha Senha"):
+            if not senha_atual or not nova_senha1 or not nova_senha2:
+                st.error("Todos os campos são obrigatórios.")
+            elif nova_senha1 != nova_senha2:
+                st.error("As novas senhas não coincidem.")
+            elif not verificar_senha(senha_atual, dados_usuario["senha_hash"]):
+                st.error("Senha atual incorreta.")
+            else:
+                alterar_senha(dados_usuario["user_id"], nova_senha1)
+
+
+# Função para alterar a senha
+def alterar_senha(user_id, nova_senha):
+    try:
+        senha_hashed = hash_senha(nova_senha)  # Gera o hash da nova senha
+        response = supabase.table("usuarios").update({"senha_hash": senha_hashed}).eq("user_id", user_id).execute()
+
+        if response.data:
+            st.success("Senha alterada com sucesso!")
         else:
-            nova_senha_hash = hash_senha(nova_senha1)
-            supabase.table("usuarios").update({"senha_hash": nova_senha_hash}).eq("nome_usuario", usuario_logado).execute()
-            msg = st.empty()
-            msg.success("🔐 Senha atualizada com sucesso.")
-            time.sleep(2)
-            msg.empty()
+            st.error("Erro ao alterar a senha. A resposta da API não contém dados.")
+    except Exception as e:
+        st.error(f"Erro ao atualizar a senha: {e}")
+
+
+
+
+
 
 
 
