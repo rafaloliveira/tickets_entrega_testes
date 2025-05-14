@@ -220,6 +220,11 @@ df_motoristas = pd.read_excel("data/motoristas.xlsx", sheet_name="motoristas")
 df_motoristas.columns = df_motoristas.columns.str.strip()
 motoristas = df_motoristas["Motorista"].dropna().tolist()
 
+# Carrega a lista de cidades do arquivo cidade.xlsx
+df_cidades = pd.read_excel("data/cidade.xlsx")
+df_cidades.columns = df_cidades.columns.str.strip()
+cidades = df_cidades["cidade"].dropna().unique().tolist()
+
 # --- FORMULÁRIO PARA NOVA OCORRÊNCIA ---
 
 # =========================
@@ -252,7 +257,9 @@ with aba1:
             elif cliente_opcao:
                 st.session_state["focal_responsavel"] = ""
 
-            cidade = st.text_input("Cidade", key="cidade")
+            cidade_opcao = st.selectbox("Cidade", options=cidades + ["Outro (digitar manualmente)"], index=None, key="cidade_opcao")
+            cidade = st.text_input("Digite o nome da cidade", key="cidade_manual") if cidade_opcao == "Outro (digitar manualmente)" else cidade_opcao
+
 
         with col2:
             motorista_opcao = st.selectbox("Motorista", options=motoristas + ["Outro (digitar manualmente)"], index=None, key="motorista_opcao")
