@@ -527,6 +527,7 @@ with aba2:
                         f"<strong>Tipo:</strong> {ocorr.get('tipo_de_ocorrencia', '-')}<br>"
                         f"<strong>Aberto por:</strong> {ocorr.get('responsavel', '-')}<br>"
                         f"<strong>Data/Hora Abertura:</strong> {data_formatada}<br>"
+                        f"<strong>Observações:</strong> {ocorr.get('observacoes', '-')}<br>"
                         "</div>",
                         unsafe_allow_html=True
                     )
@@ -706,13 +707,10 @@ with aba3:
                         f"<strong>Data/Hora Finalização:</strong> {data_finalizacao_formatada}<br>"
                         f"<strong>Finalizado por:</strong> {ocorr.get('finalizado_por', '-')}<br>"
                         f"<strong>Tempo de Permanência:</strong> {tempo_permanencia_formatado}<br>"
+                        f"<strong>Observações:</strong> {ocorr.get('observacoes', '-')}<br>"
                         f"</div>",
                         unsafe_allow_html=True
                     )
-
-
-
-
 
 
 # ======================
