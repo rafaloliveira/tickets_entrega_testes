@@ -959,3 +959,11 @@ with aba5:
                                         salvar_ocorrencia_finalizada(ocorr_finalizada, status="Finalizada")
                                         st.rerun()
 
+
+
+
+
+
+
+
+
