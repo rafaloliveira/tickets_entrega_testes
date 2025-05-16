@@ -164,7 +164,14 @@ if "ocorrencias_finalizadas" not in st.session_state:
     st.session_state.ocorrencias_finalizadas = []
 
 # --- ABA NOVA OCORRÊNCIA ---
-aba1, aba2, aba3, aba5, aba4,  = st.tabs(["📝 Nova Ocorrência", "📌 Ocorrências em Aberto", "✅ Ocorrências Finalizadas", "📝 Tickets por Focal", "📊 Configurações"])
+aba1, aba2, aba3, aba5, aba6, aba4 = st.tabs([
+    "📝 Nova Ocorrência", 
+    "📌 Ocorrências em Aberto", 
+    "✅ Ocorrências Finalizadas", 
+    "📝 Tickets por Focal",
+    "📊 Estatísticas de Tickets Finalizados",  # vírgula aqui
+    "🛠️ Configurações"
+])
 
 # Definindo a conexão com o banco de dados (ajuste com as suas credenciais)
 def get_db_connection():
@@ -473,7 +480,7 @@ with aba2:
     else:
         num_colunas = 4  # Garante que sempre teremos 4 colunas
         colunas = st.columns(num_colunas)
-        st_autorefresh(interval=30000, key="ocorrencias_abertas_refresh")
+        st_autorefresh(interval=40000, key="ocorrencias_abertas_refresh")
 
         for idx, ocorr in enumerate(ocorrencias_abertas):
             # Pegando a data diretamente do campo 'data_hora_abertura' retornado do Supabase
@@ -870,6 +877,10 @@ with aba5:
             focal = ocorr.get("focal", "Não informado")
             focais.setdefault(focal, []).append(ocorr)
 
+        # Limpa a seleção se a focal selecionada não existir mais
+        if st.session_state.get("focal_selecionada") not in focais:
+            st.session_state.focal_selecionada = None
+
         st.subheader("Selecione uma Focal para visualizar os tickets:")
 
         colunas = st.columns(4)
@@ -883,7 +894,6 @@ with aba5:
                     else:
                         # Clicou em outra focal → mostrar
                         st.session_state.focal_selecionada = focal
-
 
         # Se alguma focal foi selecionada, exibir seus tickets
         focal_atual = st.session_state.get("focal_selecionada")
@@ -901,7 +911,8 @@ with aba5:
 
                         # Processa a data
                         try:
-                            data_str = row.get("data_hora_abertura", "").replace('T', ' ')
+                            data_str = row.get("data_hora_abertura", "") or row.get("abertura_timestamp", "")
+                            data_str = data_str.replace('T', ' ')
                             data_dt = parser.parse(data_str)
                             data_formatada = data_dt.strftime("%d-%m-%Y %H:%M:%S")
                         except:
@@ -923,7 +934,7 @@ with aba5:
                                     <strong>Status:</strong> {status}<br>
                                     <strong>NF:</strong> {row.get("nota_fiscal", "-")}<br>
                                     <strong>Cliente:</strong> {row.get("cliente", "-")}<br>
-                                    <strong>Destinatário:</strong> {ocorr.get('destinatario', '-')}<br>
+                                    <strong>Destinatário:</strong> {row.get('destinatario', '-')}<br>
                                     <strong>Focal:</strong> {row.get("focal", "-")}<br>
                                     <strong>Cidade:</strong> {row.get("cidade", "-")}<br>
                                     <strong>Motorista:</strong> {row.get("motorista", "-")}<br>
@@ -952,13 +963,90 @@ with aba5:
                                     if not st.session_state[comp_key].strip():
                                         st.warning("⚠️ Campo 'Complementar' é obrigatório para finalizar.")
                                     else:
-                                        ocorr_finalizada = {
-                                            "ID": ticket_id,
-                                            "Finalizado por": st.session_state.username,
-                                            "Complementar": st.session_state[comp_key],
-                                            "Data/Hora Abertura": row["abertura_timestamp"],
-                                            "Data/Hora Finalização": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                                        }
+                                        agora_sp = datetime.now(pytz.timezone("America/Sao_Paulo")).replace(tzinfo=None)
 
-                                        salvar_ocorrencia_finalizada(ocorr_finalizada, status="Finalizada")
-                                        st.rerun()
+                                        abertura_str = row.get("data_hora_abertura") or row.get("abertura_timestamp")
+                                        if not abertura_str:
+                                            st.error("❌ Data/Hora de abertura ausente, não é possível finalizar.")
+                                        else:
+                                            try:
+                                                abertura_dt = parser.parse(abertura_str.replace('T', ' ')).replace(tzinfo=None)
+                                                delta = agora_sp - abertura_dt
+
+                                                horas = str(delta.seconds // 3600).zfill(2)
+                                                minutos = str((delta.seconds // 60) % 60).zfill(2)
+                                                segundos = str(delta.seconds % 60).zfill(2)
+                                                permanencia = f"{horas}:{minutos}:{segundos}"
+
+                                                response = supabase.table("ocorrencias").update({
+                                                    "data_hora_finalizacao": agora_sp.strftime("%Y-%m-%d %H:%M:%S"),
+                                                    "finalizado_por": st.session_state.username,
+                                                    "complementar": st.session_state[comp_key],
+                                                    "status": "Finalizada",
+                                                    "permanencia": permanencia,
+                                                }).eq("id", ticket_id).execute()
+
+                                                if response and response.data:
+                                                    st.success("✅ Ocorrência finalizada com sucesso!")
+                                                    time.sleep(2)
+                                                    st.rerun()
+                                                else:
+                                                    st.error("❌ Erro ao salvar a finalização no banco de dados.")
+                                            except Exception as e:
+                                                st.error(f"Erro ao calcular tempo de permanência: {e}")
+
+
+
+# =========================
+#     ABA 6 - ESTATÍSTICAS
+# =========================
+with aba6:
+    st.header("📊 Estatísticas de Ocorrências Finalizadas")
+
+    # Carrega as ocorrências finalizadas
+    ocorrencias_finalizadas = carregar_ocorrencias_finalizadas()
+
+    if not ocorrencias_finalizadas:
+        st.info("ℹ️ Nenhuma ocorrência finalizada para gerar estatísticas.")
+        st.stop()
+
+    df_finalizadas = pd.DataFrame(ocorrencias_finalizadas)
+
+    # --- Limpeza e conversões ---
+    df_finalizadas["data_hora_abertura"] = pd.to_datetime(
+        df_finalizadas.get("abertura_ticket") or df_finalizadas.get("abertura_timestamp"), errors="coerce"
+    )
+    df_finalizadas["data_hora_finalizacao"] = pd.to_datetime(df_finalizadas["data_hora_finalizacao"], errors="coerce")
+    df_finalizadas = df_finalizadas.dropna(subset=["data_hora_abertura", "data_hora_finalizacao"])
+
+    # Calcula tempo de permanência
+   # Remove timezone (caso exista)
+    df_finalizadas["data_hora_abertura"] = df_finalizadas["data_hora_abertura"].dt.tz_localize(None)
+    df_finalizadas["data_hora_finalizacao"] = df_finalizadas["data_hora_finalizacao"].dt.tz_localize(None)
+
+    # Calcula permanência
+    df_finalizadas["permanencia_horas"] = (
+        df_finalizadas["data_hora_finalizacao"] - df_finalizadas["data_hora_abertura"]
+    ).dt.total_seconds() / 3600
+
+    # --- Estatísticas Gerais ---
+    st.subheader("⏱️ Tempo Médio de Permanência")
+    tempo_medio = df_finalizadas["permanencia_horas"].mean()
+    st.metric("Tempo Médio de Permanência (h)", f"{tempo_medio:.2f} h")
+
+    # --- Gráfico por Tipo de Ocorrência ---
+    st.subheader("📌 Ocorrências por Tipo")
+    tipo_counts = df_finalizadas["tipo_de_ocorrencia"].value_counts()
+    st.bar_chart(tipo_counts)
+
+    # --- Gráfico por Cliente ---
+    st.subheader("🏢 Ocorrências por Cliente")
+    cliente_counts = df_finalizadas["cliente"].value_counts()
+    st.bar_chart(cliente_counts)
+
+    # --- Gráfico de Tempo Médio por Focal ---
+    st.subheader("👤 Tempo Médio por Focal")
+    tempo_por_focal = df_finalizadas.groupby("focal")["permanencia_horas"].mean().sort_values(ascending=False)
+    st.bar_chart(tempo_por_focal)
+
+
