@@ -521,6 +521,7 @@ with aba2:
                             <strong>Status:</strong> <span style='background-color:#2c3e50;padding:4px 8px;border-radius:1px;color:white;'>{status}</span><br>
                             <strong>NF:</strong> {ocorr.get('nota_fiscal', '-')}<br>
                             <strong>Cliente:</strong> {ocorr.get('cliente', '-')}<br>
+                            <strong>Destinatário:</strong> {ocorr.get('destinatario', '-')}<br>
                             <strong>Focal:</strong> {ocorr.get('focal', '-')}<br>
                             <strong>Cidade:</strong> {ocorr.get('cidade', '-')}<br>
                             <strong>Motorista:</strong> {ocorr.get('motorista', '-')}<br>
@@ -697,6 +698,7 @@ with aba3:
                             <strong>Status:</strong> <span style='background-color:#2c3e50;padding:4px 8px;border-radius:1px;color:white;'>{status}</span><br>
                             <strong>NF:</strong> {ocorr.get('nota_fiscal', '-')}<br>
                             <strong>Cliente:</strong> {ocorr.get('cliente', '-')}<br>
+                            <strong>Destinatário:</strong> {ocorr.get('destinatario', '-')}<br>
                             <strong>Cidade:</strong> {ocorr.get('cidade', '-')}<br>
                             <strong>Motorista:</strong> {ocorr.get('motorista', '-')}<br>
                             <strong>Tipo:</strong> {ocorr.get('tipo_de_ocorrencia', '-')}<br>
@@ -921,6 +923,7 @@ with aba5:
                                     <strong>Status:</strong> {status}<br>
                                     <strong>NF:</strong> {row.get("nota_fiscal", "-")}<br>
                                     <strong>Cliente:</strong> {row.get("cliente", "-")}<br>
+                                    <strong>Destinatário:</strong> {ocorr.get('destinatario', '-')}<br>
                                     <strong>Focal:</strong> {row.get("focal", "-")}<br>
                                     <strong>Cidade:</strong> {row.get("cidade", "-")}<br>
                                     <strong>Motorista:</strong> {row.get("motorista", "-")}<br>
