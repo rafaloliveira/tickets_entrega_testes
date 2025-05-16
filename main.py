@@ -1,4 +1,4 @@
-# versão liberada para usuario
+# versão liberada para usuário 15-05 
 
 
 import streamlit as st
@@ -625,27 +625,28 @@ with aba3:
     if not ocorrencias_finalizadas:
         st.info("ℹ️ Nenhuma ocorrência finalizada.")
     else:
-        # --- Linha com campo de pesquisa e botão de exportação ---
-        col1, col2 = st.columns([1, 2])  # Definindo as colunas com o botão de exportação mais largo
+        # Layout: filtro à esquerda e botão à extrema direita
+        col_filtro, col_vazio, col_botao = st.columns([2, 6, 1])  # Ajuste as proporções conforme necessário
 
-        with col1:
+        with col_filtro:
             filtro_nf = st.text_input("🔎 Pesquisar por NF:", "", max_chars=10)
 
-        with col2:
-            if st.button("📤 Exportar Excel"):
-                try:
-                    df = pd.DataFrame(ocorrencias_finalizadas)
-                    output = BytesIO()
-                    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                        df.to_excel(writer, index=False, sheet_name='Finalizadas')
-                    st.download_button(
-                        label="⬇️ Baixar Relatório Excel",
-                        data=output.getvalue(),
-                        file_name="ocorrencias_finalizadas.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    )
-                except Exception as e:
-                    st.error(f"Erro ao exportar para Excel: {e}")
+        with col_botao:
+            try:
+                df = pd.DataFrame(ocorrencias_finalizadas)
+                output = BytesIO()
+                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                    df.to_excel(writer, index=False, sheet_name='Finalizadas')
+                st.download_button(
+                    label="⬇️ Exportar",
+                    data=output.getvalue(),
+                    file_name="ocorrencias_finalizadas.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                )
+            except Exception as e:
+                st.error(f"Erro ao exportar para Excel: {e}")
+
+
 
         # --- Filtrar ocorrências finalizadas pela NF (caso o usuário digite algo) ---
         if filtro_nf:
@@ -958,4 +959,3 @@ with aba5:
 
                                         salvar_ocorrencia_finalizada(ocorr_finalizada, status="Finalizada")
                                         st.rerun()
-
