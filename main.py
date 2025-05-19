@@ -1,3 +1,6 @@
+# versão liberada para usuário - atualização de inserção manual de data e hora de abertura/finalização 
+
+
 # versão liberada para usuario
 
 
@@ -16,13 +19,6 @@ from datetime import datetime, timedelta, timezone
 from dateutil import parser
 from psycopg2 import sql
 from io import BytesIO
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-
-from dotenv import load_dotenv
-import os
-
 
 from streamlit_autorefresh import st_autorefresh
 import streamlit_authenticator as stauth
@@ -214,16 +210,12 @@ def inserir_ocorrencia_supabase(dados):
 
 
 # --- CARREGAMENTO DE DADOS Tabelas com nomes de motorista e clientes ---
+import pandas as pd
 
 # Carrega a aba "clientes" do arquivo clientes.xlsx
 df_clientes = pd.read_excel("data/clientes.xlsx", sheet_name="clientes")
 df_clientes.columns = df_clientes.columns.str.strip()  # Remove espaços extras nas colunas
 df_clientes = df_clientes[["Cliente", "Focal"]].dropna(subset=["Cliente"])
-
-df_clientes = pd.read_excel("data/clientes.xlsx", sheet_name="clientes")
-df_clientes.columns = df_clientes.columns.str.strip()
-df_clientes = df_clientes[["Cliente", "Focal", "enviar_para_email", "email_copia"]].dropna(subset=["Cliente"])
-
 
 # Carrega a lista de cidades do arquivo cidade.xlsx
 df_cidades = pd.read_excel("data/cidade.xlsx")
@@ -238,62 +230,6 @@ clientes = df_clientes["Cliente"].tolist()
 df_motoristas = pd.read_excel("data/motoristas.xlsx", sheet_name="motoristas")
 df_motoristas.columns = df_motoristas.columns.str.strip()
 motoristas = df_motoristas["Motorista"].dropna().tolist()
-
-
-#============================================
-# FUNÇÃO ENVIA E-MAIL AO ADICIONAR OCORRENCIA
-#============================================
-
-
-load_dotenv()
-
-def enviar_email_ocorrencia(cliente_nome, assunto, corpo_email):
-    try:
-        # Buscar e-mails do cliente na planilha
-        cliente_info = df_clientes[df_clientes["Cliente"] == cliente_nome]
-
-        if cliente_info.empty:
-            st.warning(f"⚠️ Cliente '{cliente_nome}' não encontrado na planilha.")
-            return
-
-        para_emails = cliente_info["enviar_para_email"].values[0]
-        cc_emails = cliente_info["email_copia"].values[0] if "email_copia" in cliente_info.columns else ""
-
-        if pd.isna(para_emails) or str(para_emails).strip() == "":
-            st.warning(f"⚠️ Cliente '{cliente_nome}' não possui e-mail cadastrado.")
-            return
-
-        destinatarios = [email.strip() for email in str(para_emails).split(";") if email.strip()]
-        copias = [email.strip() for email in str(cc_emails).split(";") if email.strip()]
-
-        remetente = os.getenv("EMAIL_REMETENTE")
-        senha = os.getenv("EMAIL_SENHA")
-        smtp_host = os.getenv("SMTP_HOST")
-        smtp_port = int(os.getenv("SMTP_PORT"))
-
-        if not all([remetente, senha, smtp_host, smtp_port]):
-            st.error("❌ Variáveis de ambiente ausentes ou inválidas.")
-            return
-
-        msg = MIMEMultipart()
-        msg["From"] = remetente
-        msg["To"] = ", ".join(destinatarios)
-        msg["Cc"] = ", ".join(copias)
-        msg["Subject"] = assunto
-        msg.attach(MIMEText(corpo_email, "plain"))
-
-        with smtplib.SMTP(smtp_host, smtp_port) as servidor:
-            servidor.starttls()
-            servidor.login(remetente, senha)
-            servidor.sendmail(remetente, destinatarios + copias, msg.as_string())
-
-        st.success("📧 E-mail enviado com sucesso!")
-
-    except Exception as e:
-        st.warning(f"⚠️ Ocorrência salva, mas houve erro ao enviar o e-mail: {e}")
-
-
-
 
 # --- FORMULÁRIO PARA NOVA OCORRÊNCIA ---
 
@@ -386,7 +322,7 @@ with aba1:
                 # Montagem do dicionário de nova ocorrência
                 nova_ocorrencia = {
                     "id": str(uuid.uuid4()),
-                    
+                    "numero_ticket": numero_ticket, #numero ticket
                     "nota_fiscal": nf,
                     "cliente": cliente,
                     "focal": st.session_state["focal_responsavel"],
@@ -406,10 +342,8 @@ with aba1:
                     "permanencia": ""
                 }
 
-                # Inserção no banco de dados            
+                # Inserção no banco de dados
                 response = inserir_ocorrencia_supabase(nova_ocorrencia)
-                numero_ticket_db = response.data[0].get("numero_ticket", "N/D")
-
                 
                 if response.data:
                     # Adiciona localmente para exibição imediata
@@ -423,14 +357,13 @@ with aba1:
                     sucesso.success("✅ Ocorrência aberta com sucesso!")
                     time.sleep(2)
                     sucesso.empty()
-            
-
+                else:
+                    st.error(f"Erro ao salvar ocorrência no Supabase: {response.error}")
 
 
 # Função de classificação
 from datetime import datetime
 import pytz
-TEMPO_LIMITE_EMAIL_MINUTOS = 30  # Altere aqui para 45, 60, etc., quando quiser
 
 # =========================
 #    FUNÇÃO CLASSIFICAÇÃO
@@ -460,12 +393,13 @@ def classificar_ocorrencia_por_tempo(data_abertura_input):
     agora = datetime.now(tz_sp)
     minutos_decorridos = (agora - data_abertura).total_seconds() / 60
 
-  
-    if minutos_decorridos < 10:
+    if minutos_decorridos < 15:
         return "🟢 Normal", "#2ecc71"
-    elif minutos_decorridos < 15:
-        return "🟡 Alerta", "#f1c40f"
     elif minutos_decorridos < 30:
+        return "🟡 Alerta", "#f1c40f"
+    elif minutos_decorridos < 45:
+        return "🔴 Crítico", "#e74c3c"
+    elif minutos_decorridos < 60:
         return "🔴 Crítico", "#e74c3c"
     else:
         return "🚨 +60 min", "#c0392b"
@@ -503,18 +437,23 @@ def salvar_ocorrencia_finalizada(ocorr, status):
             st.error("❌ Data/hora de finalização não pode ser menor que a de abertura.")
             return
 
-        # ✅ Calcula permanência
-        permanencia_timedelta = data_hora_finalizacao - data_hora_abertura
+        # Calcula permanência
+        permanencia_timedelta = data_finalizacao_manual - data_abertura_manual
         total_segundos = int(permanencia_timedelta.total_seconds())
+
         horas_totais = total_segundos // 3600
         minutos = (total_segundos % 3600) // 60
+
+        # Formata com zero à esquerda para 2 dígitos
         tempo_permanencia_formatado = f"{horas_totais:02d}:{minutos:02d}"
 
-        # ✅ Converte data/hora para banco
+
+        # Converte data finalização manual para formato ISO para o banco
         data_finalizacao_iso = data_hora_finalizacao.strftime("%Y-%m-%d")
         hora_finalizacao_manual = data_hora_finalizacao.strftime("%H:%M:%S")
 
-        # ✅ Atualiza no Supabase
+
+        # Atualiza no banco
         response = supabase.table("ocorrencias").update({
             "finalizado_por": ocorr["Finalizado por"],
             "complementar": ocorr["Complementar"],
@@ -524,7 +463,9 @@ def salvar_ocorrencia_finalizada(ocorr, status):
             "hora_finalizacao_manual": hora_finalizacao_manual
         }).eq("id", ocorr["ID"]).execute()
 
+        # Debug
         st.write("Resposta Supabase:", response)
+
         st.session_state["mensagem_sucesso_finalizacao"] = True
 
     except Exception as e:
@@ -537,8 +478,6 @@ def salvar_ocorrencia_finalizada(ocorr, status):
         time.sleep(2)
         sucesso_msg.empty()
         del st.session_state["mensagem_sucesso_finalizacao"]
-        st.rerun()
-
 
 
 
@@ -553,75 +492,10 @@ with aba2:
     if not ocorrencias_abertas:
         st.info("ℹ️ Nenhuma ocorrência aberta no momento.")
     else:
-        num_colunas = 4
+        num_colunas = 4  # Garante que sempre teremos 4 colunas
         colunas = st.columns(num_colunas)
         st_autorefresh(interval=40000, key="ocorrencias_abertas_refresh")
 
-        # Primeiro loop: verificação e envio automático de e-mails (45 min)
-        for ocorr in ocorrencias_abertas:
-            try:
-                if (
-                    ocorr.get("data_abertura_manual")
-                    and ocorr.get("hora_abertura_manual")
-                    and not ocorr.get("email_abertura_enviado")
-                ):
-                    tz_sp = pytz.timezone("America/Sao_Paulo")
-                    data_abertura_naive = datetime.strptime(
-                        f"{ocorr['data_abertura_manual']} {ocorr['hora_abertura_manual']}",
-                        "%Y-%m-%d %H:%M:%S"
-                    )
-                    data_abertura = tz_sp.localize(data_abertura_naive)
-                    agora = datetime.now(tz_sp)
-                    delta = agora - data_abertura
-
-                    #st.write(f"DEBUG: {ocorr.get('numero_ticket')} - tempo aberto {delta.total_seconds():.0f} segundos")
-
-                    if delta.total_seconds() >= TEMPO_LIMITE_EMAIL_MINUTOS * 60:
-                        numero_ticket = ocorr.get("numero_ticket", "N/D")
-                        cliente = ocorr.get("cliente", "Cliente não informado")
-                        nf = ocorr.get("nota_fiscal", "N/D")
-                        cidade = ocorr.get("cidade", "N/D")
-                        motorista = ocorr.get("motorista", "N/D")
-                        tipo = ocorr.get("tipo_de_ocorrencia", "N/D")
-                        responsavel = ocorr.get("responsavel", "N/D")
-                        data_abertura_fmt = data_abertura.strftime("%d-%m-%Y")
-                        hora_abertura_fmt = data_abertura.strftime("%H:%M:%S")
-
-                        assunto_abertura = f"[Abertura de Ocorrência] Ticket {numero_ticket} para {cliente}"
-
-                        corpo_abertura = f"""
-                        Prezados,
-
-                        Informamos que o veículo responsável pela entrega, conforme identificado abaixo, encontra-se no ponto de descarga há mais de 30 minutos.
-                        ⚠️ Atenção: após esse período, será aplicada a TDE (Taxa de Demora na Entrega), conforme previsto em contrato/tabela.
-                        Solicitamos, gentilmente, sua interferência no processo de descarga a fim de evitar custos adicionais.
-                        Atenciosamente,
-                        Equipe de Monitoramento
-
-                        ➡️ Número do Ticket: {numero_ticket}
-                        📄 Nota Fiscal: {nf}
-                        📍 Cidade: {cidade}
-                        🚚 Motorista: {motorista}
-                        📌 Tipo: {tipo}
-                        🕒 Abertura: {data_abertura_fmt} às {hora_abertura_fmt}
-                        👤 Responsável pela abertura: {responsavel}
-                                                """
-
-                        enviar_email_ocorrencia(
-                            cliente_nome=cliente,
-                            assunto=assunto_abertura,
-                            corpo_email=corpo_abertura
-                        )
-
-                        supabase.table("ocorrencias").update({
-                            "email_abertura_enviado": True
-                        }).eq("id", ocorr["id"]).execute()
-
-                        st.toast(f"E-mail automático de abertura enviado para {cliente} (ticket {numero_ticket})", icon="📧")
-            except Exception as e:
-                st.warning(f"Erro ao verificar/enviar e-mail automático para {ocorr.get('cliente', '-')}: {e}")
-
-        # Segundo loop: renderização dos cards e finalização
         for idx, ocorr in enumerate(ocorrencias_abertas):
             data_formatada = "Data não informada"
             status = "Data manual ausente"
@@ -630,21 +504,29 @@ with aba2:
             if ocorr.get("data_abertura_manual") and ocorr.get("hora_abertura_manual"):
                 try:
                     data_manual_str = f"{ocorr['data_abertura_manual']} {ocorr['hora_abertura_manual']}"
+                    # Converte do formato ISO para datetime
                     dt_manual = datetime.strptime(data_manual_str, "%Y-%m-%d %H:%M:%S")
+                    # Para exibição no card
                     data_formatada = dt_manual.strftime("%d-%m-%Y %H:%M:%S")
+                    # Para classificação
                     data_abertura_iso = dt_manual.strftime("%Y-%m-%d %H:%M:%S")
+
+                    # Classifica a ocorrência com base no tempo
                     status, cor = classificar_ocorrencia_por_tempo(data_abertura_iso)
                 except Exception as e:
-                    st.error(f"Erro ao processar data/hora da ocorrência {ocorr.get('nota_fiscal', '-')}: {e}")
+                    st.error(f"Erro ao processar data/hora manual da ocorrência {ocorr.get('nota_fiscal', '-')}: {e}")
                     status = "Erro"
                     cor = "gray"
 
             with colunas[idx % num_colunas]:
                 safe_idx = f"{idx}_{ocorr.get('nota_fiscal', '')}"
-                data_abertura_manual = ocorr.get("data_abertura_manual", "Não informada")
-                hora_abertura_manual = ocorr.get("hora_abertura_manual", "Não informada")
 
                 with st.container():
+                    if ocorr.get("data_abertura_manual") and ocorr.get("hora_abertura_manual"):
+                        abertura_manual = data_formatada
+                    else:
+                        abertura_manual = "Não informada"
+
                     st.markdown(
                         f"""
                         <div style='background-color:{cor};padding:10px;border-radius:10px;color:white;
@@ -667,7 +549,6 @@ with aba2:
                         """,
                         unsafe_allow_html=True
                     )
-
                 with st.expander("Finalizar Ocorrência"):
                     data_atual = datetime.now().strftime("%d-%m-%Y")
                     hora_atual = datetime.now().strftime("%H:%M")
@@ -679,102 +560,75 @@ with aba2:
                         st.session_state[complemento_key] = ""
 
                     complemento = st.text_area("Complementar", key=complemento_key, value=st.session_state[complemento_key])
+
                     finalizar_disabled = not complemento.strip()
 
                     if st.button("Finalizar", key=f"finalizar_{safe_idx}", disabled=finalizar_disabled):
-                        try:
-                            data_hora_finalizacao = datetime.strptime(
-                                f"{data_finalizacao_manual} {hora_finalizacao_manual}", "%d-%m-%Y %H:%M"
-                            )
-                            data_hora_abertura = datetime.strptime(
-                                f"{ocorr['data_abertura_manual']} {ocorr['hora_abertura_manual']}", "%Y-%m-%d %H:%M:%S"
-                            )
-
-                            if data_hora_finalizacao < data_hora_abertura:
-                                st.error("❌ Data/hora de finalização não pode ser menor que a data/hora de abertura.")
+                        if finalizar_disabled:
+                            st.error("❌ O campo 'Complementar' é obrigatório para finalizar a ocorrência.")
+                        else:
+                            try:
+                                # Parsing da data e hora finalização manual (SEM segundos)
+                                data_hora_finalizacao = datetime.strptime(
+                                    f"{data_finalizacao_manual} {hora_finalizacao_manual}",
+                                    "%d-%m-%Y %H:%M"
+                                )
+                            except ValueError:
+                                st.error("❌ Formato inválido. Use DD-MM-AAAA para a data e HH:MM para a hora.")
                                 st.stop()
 
-                            delta = data_hora_finalizacao - data_hora_abertura
-                            total_segundos = int(delta.total_seconds())
-                            horas_totais = total_segundos // 3600
-                            minutos = (total_segundos % 3600) // 60
-                            permanencia_manual = f"{horas_totais:02d}:{minutos:02d}"
-
-                            hora_finalizacao_banco = f"{hora_finalizacao_manual}:00"
-
-                            if total_segundos >= 1800 and not ocorr.get("email_abertura_enviado"):
-                                # tempo para envio do email de notificação para o cliente
-                                try:
-                                    assunto_abertura = f"[Abertura de Ocorrência] Ticket {ocorr.get('numero_ticket')} para {ocorr.get('cliente')}"
-                                    corpo_abertura = f"""
-                                    
-
-                                    ➡️ Número do Ticket: {ocorr.get('numero_ticket')}
-                                    📄 Nota Fiscal: {ocorr.get('nota_fiscal')}
-                                    📍 Cidade: {ocorr.get('cidade')}
-                                    🚚 Motorista: {ocorr.get('motorista')}
-                                    📌 Tipo: {ocorr.get('tipo_de_ocorrencia')}
-                                    🕒 Abertura: {data_hora_abertura.strftime('%d-%m-%Y')} às {data_hora_abertura.strftime('%H:%M:%S')}
-                                    
-                                                                        """
-                                    enviar_email_ocorrencia(
-                                        cliente_nome=ocorr.get("cliente"),
-                                        assunto=assunto_abertura,
-                                        corpo_email=corpo_abertura
-                                    )
-                                    supabase.table("ocorrencias").update({
-                                        "email_abertura_enviado": True
-                                    }).eq("id", ocorr["id"]).execute()
-                                    st.success(f"📧 E-mail enviado para o cliente {ocorr.get('cliente')} sobre ticket {ocorr.get('numero_ticket')} (45min).")
-                                except Exception as e:
-                                    st.warning(f"❌ Falha ao enviar e-mail de abertura para {ocorr.get('cliente')}: {e}")
-
-                            # Atualiza a ocorrência no Supabase
-                            supabase.table("ocorrencias").update({
-                                "status": "Finalizada",
-                                "complementar": complemento,
-                                "data_hora_finalizacao": data_hora_finalizacao.strftime("%Y-%m-%d %H:%M:%S"),
-                                "finalizado_por": st.session_state.username,
-                                "permanencia": permanencia_manual
-                            }).eq("id", ocorr["id"]).execute()
-                            # Após supabase.table(...).update(...).execute()
-
                             try:
-                                assunto_finalizacao = f"[Finalização de Ocorrência] Ticket {ocorr.get('numero_ticket')} - {ocorr.get('cliente')}"
-                                corpo_finalizacao = f"""
-                            Prezados,
-
-                            Informamos que a seguinte ocorrência foi finalizada com sucesso:
-
-                            ➡️ Número do Ticket: {ocorr.get('numero_ticket')}
-                            📄 Nota Fiscal: {ocorr.get('nota_fiscal')}
-                            📍 Cidade: {ocorr.get('cidade')}
-                            🚚 Motorista: {ocorr.get('motorista')}
-                            📌 Tipo: {ocorr.get('tipo_de_ocorrencia')}
-                            🕒 Abertura: {data_hora_abertura.strftime('%d-%m-%Y')} às {data_hora_abertura.strftime('%H:%M:%S')}
-                            🕒 Finalização: {data_hora_finalizacao.strftime('%d-%m-%Y')} às {data_hora_finalizacao.strftime('%H:%M:%S')}
-                            ⌛ Tempo de Permanência: {permanencia_manual}
-                            
-
-                            📝 Complementar:
-                            {ocorr.get('Complementar', 'Sem detalhes adicionais.')}
-
-                            Atenciosamente,
-                            Equipe de Monitoramento
-                                """
-
-                                enviar_email_ocorrencia(
-                                    cliente_nome=ocorr.get("cliente"),
-                                    assunto=assunto_finalizacao,
-                                    corpo_email=corpo_finalizacao
+                                # Parsing da data e hora abertura manual (com segundos)
+                                data_hora_abertura = datetime.strptime(
+                                    f"{ocorr['data_abertura_manual']} {ocorr['hora_abertura_manual']}",
+                                    "%Y-%m-%d %H:%M:%S"
                                 )
-                                st.toast(f"📧 E-mail de finalização enviado para {ocorr.get('cliente')}.")
-                            except Exception as e:
-                                st.warning(f"❌ Falha ao enviar e-mail de finalização para {ocorr.get('cliente')}: {e}")
 
-                            st.success("✅ Ocorrência finalizada com sucesso.")
-                        except Exception as e:
-                            st.error(f"❌ Erro ao finalizar ocorrência: {e}")
+                                if data_hora_finalizacao < data_hora_abertura:
+                                    st.error("❌ Data/hora de finalização não pode ser menor que a data/hora de abertura.")
+                                else:
+                                    ocorr["Complementar"] = complemento
+                                    ocorr["Data/Hora Finalização"] = data_hora_finalizacao.strftime("%d-%m-%Y %H:%M")
+                                    ocorr["Status"] = status
+                                    ocorr["Cor"] = cor
+                                    ocorr["Finalizada"] = True
+                                    ocorr["Finalizado por"] = st.session_state.username
+                                    # Cálculo da permanência manual
+                                    delta = data_hora_finalizacao - data_hora_abertura
+                                    total_segundos = int(delta.total_seconds())
+                                    horas_totais = total_segundos // 3600
+                                    minutos = (total_segundos % 3600) // 60
+                                    permanencia_manual = f"{horas_totais:02d}:{minutos:02d}"
+
+                                    # Adiciona :00 ao salvar a hora_finalizacao_manual no banco para salvar como HH:MM:SS
+                                    hora_finalizacao_banco = f"{hora_finalizacao_manual}:00"
+
+                                    response = supabase.table("ocorrencias").update({
+                                        "data_hora_finalizacao": data_hora_finalizacao.strftime("%Y-%m-%d %H:%M"),
+                                        "finalizado_por": ocorr["Finalizado por"],
+                                        "complementar": ocorr["Complementar"],
+                                        "status": "Finalizada",
+                                        "permanencia_manual": permanencia_manual,
+                                        "data_finalizacao_manual": data_hora_finalizacao.strftime("%Y-%m-%d"),
+                                        "hora_finalizacao_manual": hora_finalizacao_banco,
+                                    }).eq("id", ocorr["id"]).execute()
+
+
+                                    if response and response.data:
+                                        st.session_state.ocorrencias_finalizadas.append(ocorr)
+                                        st.success("✅ Ocorrência finalizada com sucesso!")
+                                        time.sleep(2)
+                                        st.rerun()
+                                    else:
+                                        st.error("Erro ao salvar a finalização no banco de dados.")
+
+                            except Exception as e:
+                                st.error(f"Erro ao calcular ou salvar permanência manual: {e}")
+
+
+
+
+
 
 
 # =============================== 
@@ -1059,44 +913,6 @@ def alterar_senha(user_id, nova_senha):
         st.error(f"Erro ao atualizar a senha: {e}")
 
 
-# ==============================================
-# FUNÇÃO PARA ENVIAR EMAIL AO FINALIZAR NA ABA5
-# ==============================================
-
-# Função para enviar email de finalização
-def enviar_email_finalizacao(ocorrencia):
-    try:
-        # Exemplo básico de e-mail - personalize conforme seu servidor SMTP
-        remetente = "seuemail@dominio.com"
-        senha = "sua_senha"
-        destinatarios = ["destinatario1@dominio.com", "destinatario2@dominio.com"]
-
-        assunto = f"Finalização do Ticket #{ocorrencia.get('numero_ticket', 'N/A')}"
-        corpo = f"""
-        O ticket #{ocorrencia.get('numero_ticket', 'N/A')} foi finalizado.
-
-        Cliente: {ocorrencia.get('cliente', '-')}
-        Tipo: {ocorrencia.get('tipo_de_ocorrencia', '-')}
-        Complementar: {ocorrencia.get('complementar', '')}
-        Finalizado por: {st.session_state.username}
-        Data e hora de finalização: {ocorrencia.get('data_hora_finalizacao')}
-
-        Obrigado.
-        """
-
-        msg = MIMEMultipart()
-        msg['From'] = remetente
-        msg['To'] = ", ".join(destinatarios)
-        msg['Subject'] = assunto
-        msg.attach(MIMEText(corpo, 'plain'))
-
-        with smtplib.SMTP('smtp.dominio.com', 587) as servidor:
-            servidor.starttls()
-            servidor.login(remetente, senha)
-            servidor.sendmail(remetente, destinatarios, msg.as_string())
-
-    except Exception as e:
-        st.warning(f"⚠️ Falha ao enviar e-mail de finalização: {e}")
 
 # ===============================
 #  ABA 5 - TICKETS POR FOCAL
@@ -1249,50 +1065,33 @@ with aba5:
 
                                             hora_finalizacao_banco = f"{hora_finalizacao_manual}:00"
 
-                                            supabase.table("ocorrencias").update({
-                                            "status": "Finalizada",
-                                            "complementar": complemento,
-                                            "data_hora_finalizacao": data_hora_finalizacao.strftime("%Y-%m-%d %H:%M:%S"),
-                                            "finalizado_por": st.session_state.username,
-                                            "permanencia": permanencia_manual
-                                        }).eq("id", ocorr["id"]).execute()
+                                            response = supabase.table("ocorrencias").update({
+                                                "data_hora_finalizacao": data_hora_finalizacao.strftime("%Y-%m-%d %H:%M"),
+                                                "finalizado_por": st.session_state.username,
+                                                "complementar": complemento,
+                                                "status": "Finalizada",
+                                                "permanencia_manual": permanencia_manual,
+                                                "data_finalizacao_manual": data_hora_finalizacao.strftime("%Y-%m-%d"),
+                                                "hora_finalizacao_manual": hora_finalizacao_banco,
+                                                "contato_motorista": st.session_state[contato_motorista_key],
+                                                "contato_industria": st.session_state[contato_industria_key],
+                                            }).eq("id", ticket_id).execute()
 
-                                            # Envio de e-mail de finalização
-                                            try:
-                                                assunto_finalizacao = f"[Finalização de Ocorrência] Ticket {ocorr.get('numero_ticket')} - {ocorr.get('cliente')}"
-                                                corpo_finalizacao = f"""
-                                                    Prezados,
-
-                                                    Informamos que a seguinte ocorrência foi finalizada com sucesso:
-
-                                                    ➡️ Número do Ticket: {ocorr.get('numero_ticket')}
-                                                    📄 Nota Fiscal: {ocorr.get('nota_fiscal')}
-                                                    📍 Cidade: {ocorr.get('cidade')}
-                                                    🚚 Motorista: {ocorr.get('motorista')}
-                                                    📌 Tipo: {ocorr.get('tipo_de_ocorrencia')}
-                                                    🕒 Abertura: {data_hora_abertura.strftime('%d-%m-%Y')} às {data_hora_abertura.strftime('%H:%M:%S')}
-                                                    🕒 Finalização: {data_hora_finalizacao.strftime('%d-%m-%Y')} às {data_hora_finalizacao.strftime('%H:%M:%S')}
-                                                    ⌛ Tempo de Permanência: {permanencia_manual}
-                                                    
-
-                                                    📝 Complementar:
-                                                    {complemento or 'Sem detalhes adicionais.'}
-
-                                                    Atenciosamente,
-                                                    Equipe de Monitoramento
-                                                """
-
-                                                enviar_email_ocorrencia(
-                                                    cliente_nome=ocorr.get("cliente"),
-                                                    assunto=assunto_finalizacao,
-                                                    corpo_email=corpo_finalizacao
-                                                )
-                                                st.toast(f"📧 E-mail de finalização enviado para {ocorr.get('cliente')}.")
-                                            except Exception as e:
-                                                st.warning(f"❌ Falha ao enviar e-mail de finalização para {ocorr.get('cliente')}: {e}")
-
-                                            st.success("✅ Ocorrência finalizada com sucesso.")
-                                            st.rerun()
-
+                                            if response and response.data:
+                                                st.success("✅ Ocorrência finalizada com sucesso!")
+                                                time.sleep(1)
+                                                st.rerun()
+                                            else:
+                                                st.error("Erro ao salvar a finalização no banco de dados.")
+                                    except ValueError:
+                                        st.error("❌ Formato inválido. Use DD-MM-AAAA para a data e HH:MM para a hora.")
                                     except Exception as e:
-                                        st.error(f"❌ Erro ao finalizar ocorrência: {e}")
+                                        st.error(f"Erro ao salvar a finalização: {e}")
+        
+
+
+
+
+
+
+
