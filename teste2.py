@@ -250,7 +250,7 @@ SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
 
 
 
-supabase: Client = create_client(url, key)
+supabase = create_client = create_client(url, key)
 
 def enviar_email_smtp(destinatarios, assunto, corpo_html):
     """
