@@ -1,4 +1,4 @@
-# funcionando sem envio de e-mail 19-05
+# funcionando sem envio de e-mail 20-05
 # versão liberada para usuário - atualização de inserção manual de data e hora de abertura/finalização 
 # versão liberada para usuario
 
@@ -7,6 +7,15 @@ import streamlit as st
 st.set_page_config(page_title="Entregas - Tempo de Permanência", layout="wide")
 
 import pandas as pd
+import streamlit as st
+from supabase import create_client, Client
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from datetime import datetime, timedelta, timezone
+import time
+import threading
+from dotenv import load_dotenv
 import os
 import time
 import uuid
@@ -229,6 +238,155 @@ clientes = df_clientes["Cliente"].tolist()
 df_motoristas = pd.read_excel("data/motoristas.xlsx", sheet_name="motoristas")
 df_motoristas.columns = df_motoristas.columns.str.strip()
 motoristas = df_motoristas["Motorista"].dropna().tolist()
+
+
+# Carregar variáveis do .env
+load_dotenv()
+
+EMAIL_REMETENTE = os.getenv("EMAIL_REMETENTE")
+EMAIL_SENHA = os.getenv("EMAIL_SENHA")
+SMTP_HOST = os.getenv("SMTP_HOST")
+SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
+
+# Configuração Supabase
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+def enviar_email_smtp(destinatarios, assunto, corpo_html):
+    """
+    Envia e-mail via SMTP KingHost.
+    destinatarios: lista de e-mails
+    assunto: string
+    corpo_html: string (HTML do corpo do e-mail)
+    """
+    try:
+        msg = MIMEMultipart()
+        msg["From"] = EMAIL_REMETENTE
+        msg["To"] = ", ".join(destinatarios)
+        msg["Subject"] = assunto
+        msg.attach(MIMEText(corpo_html, "html"))
+
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            server.starttls()
+            server.login(EMAIL_REMETENTE, EMAIL_SENHA)
+            server.sendmail(EMAIL_REMETENTE, destinatarios, msg.as_string())
+
+        st.info(f"E-mail enviado para: {', '.join(destinatarios)}")
+        return True
+    except Exception as e:
+        st.error(f"Erro ao enviar e-mail: {e}")
+        return False
+
+def verificar_e_enviar_alertas(supabase: Client, tempo_limite_minutos=30): # O tempo_limite_minutos controla com quanto tempo de atraso após a abertura o e-mail deve ser disparado.
+    """
+    Verifica tickets abertos há mais de tempo_limite_minutos e que ainda não receberam e-mail,
+    envia o e-mail e atualiza o campo email_abertura_enviado = True.
+    """
+    agora_utc = datetime.now(timezone.utc)
+    limite = agora_utc - timedelta(minutes=tempo_limite_minutos)
+
+    # Busca tickets abertos (status != 'Finalizado' ou como você defina)
+    # e que ainda não tiveram email_abertura_enviado = True
+    response = supabase.table("ocorrencias")\
+        .select("*")\
+        .neq("status", "Finalizado")\
+        .eq("email_abertura_enviado", False)\
+        .lte("data_hora_abertura", limite.isoformat())\
+        .execute()
+
+    if response.error:
+        st.error(f"Erro ao buscar ocorrências no Supabase: {response.error.message}")
+        return
+
+    tickets = response.data
+
+    if not tickets:
+        st.write("Nenhum ticket para enviar alerta.")
+        return
+
+    for ticket in tickets:
+        cliente = ticket["cliente"]
+        email_cliente = buscar_email_cliente(cliente)
+
+        if not email_cliente:
+            st.warning(f"Cliente {cliente} não possui e-mail cadastrado para envio.")
+            continue
+
+        assunto = f"[ALERTA] Ticket Aberto há mais de {tempo_limite_minutos} minutos - {cliente}"
+        corpo_html = f"""
+        <p>Olá,</p>
+        <p>O ticket com ID <b>{ticket['id']}</b> está aberto desde <b>{ticket['data_hora_abertura']}</b> e ainda não foi finalizado.</p>
+        <p>Por favor, verifique e tome as providências necessárias.</p>
+        <br>
+        <p>Atenciosamente,</p>
+        <p>Equipe Clicklog</p>
+        """
+
+        enviado = enviar_email_smtp(email_cliente, assunto, corpo_html)
+
+        if enviado:
+            # Atualizar a coluna email_abertura_enviado para True
+            supabase.table("ocorrencias").update({"email_abertura_enviado": True})\
+                .eq("id", ticket["id"]).execute()
+            st.write(f"Alerta enviado e atualizado no Supabase para ticket {ticket['id']}.")
+
+import pandas as pd
+
+# Carregar planilha uma vez só para otimizar (global)
+df_clientes = pd.read_excel("data/clientes.xlsx", sheet_name="clientes")
+
+def buscar_email_cliente(cliente_nome):
+    """
+    Busca e retorna lista de e-mails do cliente a partir do arquivo Excel.
+    Combina 'enviar_para_email' (col C) e 'email_copia' (col D) separados por ';'.
+    """
+    # Filtra linhas onde a coluna 'Cliente' bate com o nome
+    df_filtro = df_clientes[df_clientes['Cliente'].str.strip().str.lower() == cliente_nome.strip().lower()]
+
+    if df_filtro.empty:
+        return None  # Cliente não encontrado
+
+    # Pega os valores da primeira linha (assumindo que cliente é único)
+    enviar_para = df_filtro.iloc[0]['enviar_para_email']
+    email_copia = df_filtro.iloc[0]['email_copia']
+
+    # Criar lista de e-mails juntando os dois campos (se existirem)
+    lista_emails = []
+
+    if pd.notna(enviar_para):
+        lista_emails += [email.strip() for email in str(enviar_para).split(';') if email.strip()]
+
+    if pd.notna(email_copia):
+        lista_emails += [email.strip() for email in str(email_copia).split(';') if email.strip()]
+
+    # Remover duplicados
+    lista_emails = list(set(lista_emails))
+
+    if not lista_emails:
+        return None
+
+    return lista_emails
+
+# Thread para rodar a verificação a cada minuto em background
+def iniciar_loop_verificacao():
+    while True:
+        verificar_e_enviar_alertas(supabase, tempo_limite_minutos=30) #<<<<<<<< TEMPO PARA O ENVIO DO EMAIL
+        time.sleep(10)  # espera 60 segundos
+
+# Iniciar thread em background
+threading.Thread(target=iniciar_loop_verificacao, daemon=True).start()
+
+# --- Seu código Streamlit aqui ---
+
+st.title("Sistema de Controle de Ocorrências - Clicklog")
+
+st.write("Interface principal, suas abas, formulários etc.")
+
+# Exemplo: Mostrar última verificação (você pode melhorar para guardar log)
+st.write("Verificação de alertas automática rodando a cada minuto...")
+
 
 # --- FORMULÁRIO PARA NOVA OCORRÊNCIA ---
 
@@ -781,7 +939,7 @@ with aba4:
             novo_usuario = st.text_input("Nome de usuário")
             nova_senha = st.text_input("Senha", type="password")
             confirmar_senha = st.text_input("Confirmar senha", type="password")
-            is_admin = st.checkbox("Conceder privilégios de administrador")
+            is_admin = st.checkbox("Co1nceder privilégios de administrador")
 
             if st.button("Criar"):
                 if not novo_usuario or not nova_senha or not confirmar_senha:
