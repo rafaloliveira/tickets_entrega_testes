@@ -503,8 +503,6 @@ with aba2:
                     data_manual_str = f"{data_abertura_manual} {hora_abertura_manual}"
                     dt_manual = datetime.strptime(data_manual_str, "%Y-%m-%d %H:%M:%S")
                     abertura_manual_formatada = dt_manual.strftime("%d-%m-%Y %H:%M:%S")
-                    data_formatada_br = datetime.strptime(data_abertura_manual, "%Y-%m-%d").strftime("%d-%m-%Y") if data_abertura_manual else "Não informada"
-
 
                     # Classificação por tempo com base nas datas manuais
                     status, cor = classificar_ocorrencia_por_tempo(data_abertura_manual, hora_abertura_manual)
@@ -533,7 +531,7 @@ with aba2:
                         <strong>Motorista:</strong> {ocorr.get('motorista', '-')}<br>
                         <strong>Tipo:</strong> {ocorr.get('tipo_de_ocorrencia', '-')}<br>
                         <strong>Aberto por:</strong> {ocorr.get('responsavel', '-')}<br>
-                        <strong>Data Abertura:</strong> {data_formatada_br}<br>
+                        <strong>Data Abertura:</strong> {data_abertura_manual or 'Não informada'}<br>
                         <strong>Hora Abertura:</strong> {hora_abertura_manual or 'Não informada'}<br> 
                         <strong>Observações:</strong> {ocorr.get('observacoes', 'Sem observações.')}<br>
                         </div>
