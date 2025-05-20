@@ -373,16 +373,6 @@ def iniciar_loop_verificacao():
 # Iniciar thread em background
 threading.Thread(target=iniciar_loop_verificacao, daemon=True).start()
 
-# --- Seu código Streamlit aqui ---
-
-st.title("Sistema de Controle de Ocorrências - Clicklog")
-
-st.write("Interface principal, suas abas, formulários etc.")
-
-# Exemplo: Mostrar última verificação (você pode melhorar para guardar log)
-st.write("Verificação de alertas automática rodando a cada minuto...")
-
-
 # --- FORMULÁRIO PARA NOVA OCORRÊNCIA ---
 
 # =========================
