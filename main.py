@@ -205,12 +205,12 @@ def inserir_ocorrencia_supabase(dados):
         "observacoes": dados["observacoes"],
         "responsavel": dados["responsavel"],
         "status": "Aberta",
-        "data_hora_abertura": dados["data_hora_abertura"].isoformat(),
-        "abertura_timestamp": dados["abertura_timestamp"].isoformat(),
+        "data_hora_abertura": dados["data_hora_abertura"],  # ✅ sem isoformat()
+        "abertura_timestamp": dados["abertura_timestamp"],  # ✅ sem isoformat()
+        "data_abertura_manual": dados["data_abertura_manual"],  # string "YYYY-MM-DD"
+        "hora_abertura_manual": dados["hora_abertura_manual"],   # string "HH:MM:SS"
         "permanencia": dados["permanencia"],
-        "complementar": dados["complementar"],
-        "data_abertura_manual": datetime.now().strftime("%d/%m/%Y"),
-        "hora_abertura_manual": datetime.now().strftime("%H:%M:%S")
+        "complementar": dados["complementar"]
     }
 
     try:
@@ -400,6 +400,7 @@ with aba1:
                 fuso_sp = pytz.timezone("America/Sao_Paulo")
                 agora_sp = datetime.now(fuso_sp)
                 abertura_sem_fuso = agora_sp.replace(tzinfo=None)  # Remove o fuso horário para formato sem TZ
+                
 
                 # Montagem do dicionário de nova ocorrência
                 nova_ocorrencia = {
