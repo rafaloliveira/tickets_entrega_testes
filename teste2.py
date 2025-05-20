@@ -18,7 +18,6 @@ from datetime import datetime, timedelta, timezone
 from dateutil import parser
 from psycopg2 import sql
 from io import BytesIO
-from datetime import datetime, timedelta
 
 from streamlit_autorefresh import st_autorefresh
 import streamlit_authenticator as stauth
@@ -542,8 +541,8 @@ with aba2:
 
                 with st.expander("Finalizar Ocorrência"):
                     data_atual = datetime.now().strftime("%d-%m-%Y")
-                    fuso = pytz.timezone("America/Sao_Paulo")
-                    hora_atual = datetime.now(fuso).strftime("%H:%M")
+                    hora_atual = (datetime.utcnow() - timedelta(hours=3)).strftime("%H:%M")  # Sugerido em UTC−3
+
                     data_finalizacao_manual = st.text_input("Data Finalização (DD-MM-AAAA)", value=data_atual, key=f"data_final_{safe_idx}")
                     hora_finalizacao_manual = st.text_input("Hora Finalização (HH:MM)", value=hora_atual, key=f"hora_final_{safe_idx}")
 
