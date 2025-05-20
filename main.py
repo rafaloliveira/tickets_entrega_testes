@@ -348,20 +348,20 @@ with aba1:
             st.markdown("")
 
             tz = pytz.timezone("America/Sao_Paulo")
-            agora = datetime.now(tz)
+            
 
             # Layout com valores padrão preenchidos com a hora atual em UTC−3
             col_data, col_hora = st.columns(2)
             with col_data:
                 data_abertura_manual = st.date_input(
                     "Data de Abertura",
-                    value=agora.date(),
+              
                     format="DD/MM/YYYY"
                 )
             with col_hora:
                 hora_abertura_manual = st.time_input(
                     "Hora de Abertura",
-                    value=agora.time().replace(microsecond=0)
+                    
                 )
 
 
