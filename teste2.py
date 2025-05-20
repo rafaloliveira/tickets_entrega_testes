@@ -924,7 +924,7 @@ with aba5:
                         cor = "gray"
 
                 with colunas[idx % 4]:
-                    safe_idx = f"{idx}_{ocorr.get('nota_fiscal', '')}"
+                    safe_idx = f"{ocorr['id']}"
 
                     with st.container():
                         st.markdown(
