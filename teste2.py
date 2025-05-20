@@ -18,6 +18,7 @@ from datetime import datetime, timedelta, timezone
 from dateutil import parser
 from psycopg2 import sql
 from io import BytesIO
+from datetime import datetime, timedelta
 
 from streamlit_autorefresh import st_autorefresh
 import streamlit_authenticator as stauth
@@ -531,7 +532,7 @@ with aba2:
                         <strong>Motorista:</strong> {ocorr.get('motorista', '-')}<br>
                         <strong>Tipo:</strong> {ocorr.get('tipo_de_ocorrencia', '-')}<br>
                         <strong>Aberto por:</strong> {ocorr.get('responsavel', '-')}<br>
-                        <strong>Data Abertura:</strong> {data_abertura_manual or 'Não informada'}<br>
+                        <strong>Data Abertura:</strong> {datetime.strptime(data_abertura_manual, '%Y-%m-%d').strftime('%d-%m-%Y') if data_abertura_manual else 'Não informada'}<br>
                         <strong>Hora Abertura:</strong> {hora_abertura_manual or 'Não informada'}<br> 
                         <strong>Observações:</strong> {ocorr.get('observacoes', 'Sem observações.')}<br>
                         </div>
@@ -541,7 +542,8 @@ with aba2:
 
                 with st.expander("Finalizar Ocorrência"):
                     data_atual = datetime.now().strftime("%d-%m-%Y")
-                    hora_atual = datetime.now().strftime("%H:%M")
+                    fuso = pytz.timezone("America/Sao_Paulo")
+                    hora_atual = datetime.now(fuso).strftime("%H:%M")
                     data_finalizacao_manual = st.text_input("Data Finalização (DD-MM-AAAA)", value=data_atual, key=f"data_final_{safe_idx}")
                     hora_finalizacao_manual = st.text_input("Hora Finalização (HH:MM)", value=hora_atual, key=f"hora_final_{safe_idx}")
 
