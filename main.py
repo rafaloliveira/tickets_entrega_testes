@@ -655,8 +655,8 @@ with aba2:
                                 <strong>Motorista:</strong> {ocorr.get('motorista', '-')}<br>
                                 <strong>Tipo:</strong> {ocorr.get('tipo_de_ocorrencia', '-')}<br>
                                 <strong>Aberto por:</strong> {ocorr.get('responsavel', '-')}<br>
-                                <strong>Data Abertura:</strong> {data_abertura_manual_disp}<br>
-                                <strong>Hora Abertura:</strong> {hora_abertura_manual_disp}<br>
+                                <strong>Data Abertura:</strong> {data_abertura_manual}<br>
+                                <strong>Hora Abertura:</strong> {hora_abertura_manual}<br>
                                 <strong>Observações:</strong> {ocorr.get('observacoes', 'Sem observações.')}<br>
                             </div>
                             """,
