@@ -367,30 +367,20 @@ import pytz
 # =========================
 #    FUNÇÃO CLASSIFICAÇÃO
 # =========================
-def classificar_ocorrencia_por_tempo(data_abertura_input):
+def classificar_ocorrencia_por_tempo(data_str, hora_str):
     tz_sp = pytz.timezone("America/Sao_Paulo")
 
-    if not data_abertura_input:
-        return "Data inválida", "gray"
-
     try:
-        # Se já for datetime, transforme para aware São Paulo
-        if isinstance(data_abertura_input, datetime):
-            if data_abertura_input.tzinfo is None:
-                data_abertura = tz_sp.localize(data_abertura_input)
-            else:
-                data_abertura = data_abertura_input.astimezone(tz_sp)
-        else:
-            # Assume string, faz parse
-            data_abertura_str = data_abertura_input.replace("T", " ")
-            data_abertura_naive = datetime.strptime(data_abertura_str, "%Y-%m-%d %H:%M:%S")
-            data_abertura = tz_sp.localize(data_abertura_naive)
+        # Junta data e hora
+        data_hora_str = f"{data_str} {hora_str}"
+        data_hora = datetime.strptime(data_hora_str, "%Y-%m-%d %H:%M:%S")
+        data_hora = tz_sp.localize(data_hora)
     except Exception as e:
-        print(f"Erro ao converter data: {e}")
+        print(f"Erro ao converter data manual: {e}")
         return "Erro", "gray"
 
     agora = datetime.now(tz_sp)
-    minutos_decorridos = (agora - data_abertura).total_seconds() / 60
+    minutos_decorridos = (agora - data_hora).total_seconds() / 60
 
     if minutos_decorridos < 15:
         return "🟢 Normal", "#2ecc71"
@@ -402,6 +392,7 @@ def classificar_ocorrencia_por_tempo(data_abertura_input):
         return "🔴 Crítico", "#e74c3c"
     else:
         return "🚨 +60 min", "#c0392b"
+
 
 
 
@@ -491,27 +482,26 @@ with aba2:
     if not ocorrencias_abertas:
         st.info("ℹ️ Nenhuma ocorrência aberta no momento.")
     else:
-        num_colunas = 4  # Garante que sempre teremos 4 colunas
+        num_colunas = 4
         colunas = st.columns(num_colunas)
         st_autorefresh(interval=40000, key="ocorrencias_abertas_refresh")
 
         for idx, ocorr in enumerate(ocorrencias_abertas):
-            data_formatada = "Data não informada"
             status = "Data manual ausente"
             cor = "gray"
+            abertura_manual_formatada = "Não informada"
+            data_abertura_manual = ocorr.get("data_abertura_manual")
+            hora_abertura_manual = ocorr.get("hora_abertura_manual")
 
-            if ocorr.get("data_abertura_manual") and ocorr.get("hora_abertura_manual"):
+            if data_abertura_manual and hora_abertura_manual:
                 try:
-                    data_manual_str = f"{ocorr['data_abertura_manual']} {ocorr['hora_abertura_manual']}"
-                    # Converte do formato ISO para datetime
+                    data_manual_str = f"{data_abertura_manual} {hora_abertura_manual}"
                     dt_manual = datetime.strptime(data_manual_str, "%Y-%m-%d %H:%M:%S")
-                    # Para exibição no card
-                    data_formatada = dt_manual.strftime("%d-%m-%Y %H:%M:%S")
-                    # Para classificação
-                    data_abertura_iso = dt_manual.strftime("%Y-%m-%d %H:%M:%S")
+                    abertura_manual_formatada = dt_manual.strftime("%d-%m-%Y %H:%M:%S")
 
-                    # Classifica a ocorrência com base no tempo
-                    status, cor = classificar_ocorrencia_por_tempo(data_abertura_iso)
+                    # Classificação por tempo com base nas datas manuais
+                    status, cor = classificar_ocorrencia_por_tempo(data_abertura_manual, hora_abertura_manual)
+
                 except Exception as e:
                     st.error(f"Erro ao processar data/hora manual da ocorrência {ocorr.get('nota_fiscal', '-')}: {e}")
                     status = "Erro"
@@ -521,11 +511,6 @@ with aba2:
                 safe_idx = f"{idx}_{ocorr.get('nota_fiscal', '')}"
 
                 with st.container():
-                    if ocorr.get("data_abertura_manual") and ocorr.get("hora_abertura_manual"):
-                        abertura_manual = data_formatada
-                    else:
-                        abertura_manual = "Não informada"
-
                     st.markdown(
                         f"""
                         <div style='background-color:{cor};padding:10px;border-radius:10px;color:white;
@@ -541,13 +526,14 @@ with aba2:
                         <strong>Motorista:</strong> {ocorr.get('motorista', '-')}<br>
                         <strong>Tipo:</strong> {ocorr.get('tipo_de_ocorrencia', '-')}<br>
                         <strong>Aberto por:</strong> {ocorr.get('responsavel', '-')}<br>
-                        <strong>Data Abertura:</strong> {data_abertura_manual}<br>
-                        <strong>Hora Abertura:</strong> {hora_abertura_manual}<br> 
+                        <strong>Data Abertura:</strong> {data_abertura_manual or 'Não informada'}<br>
+                        <strong>Hora Abertura:</strong> {hora_abertura_manual or 'Não informada'}<br> 
                         <strong>Observações:</strong> {ocorr.get('observacoes', 'Sem observações.')}<br>
                         </div>
                         """,
                         unsafe_allow_html=True
                     )
+
                 with st.expander("Finalizar Ocorrência"):
                     data_atual = datetime.now().strftime("%d-%m-%Y")
                     hora_atual = datetime.now().strftime("%H:%M")
@@ -559,7 +545,6 @@ with aba2:
                         st.session_state[complemento_key] = ""
 
                     complemento = st.text_area("Complementar", key=complemento_key, value=st.session_state[complemento_key])
-
                     finalizar_disabled = not complemento.strip()
 
                     if st.button("Finalizar", key=f"finalizar_{safe_idx}", disabled=finalizar_disabled):
@@ -567,51 +552,42 @@ with aba2:
                             st.error("❌ O campo 'Complementar' é obrigatório para finalizar a ocorrência.")
                         else:
                             try:
-                                # Parsing da data e hora finalização manual (SEM segundos)
                                 data_hora_finalizacao = datetime.strptime(
-                                    f"{data_finalizacao_manual} {hora_finalizacao_manual}",
-                                    "%d-%m-%Y %H:%M"
+                                    f"{data_finalizacao_manual} {hora_finalizacao_manual}", "%d-%m-%Y %H:%M"
                                 )
                             except ValueError:
                                 st.error("❌ Formato inválido. Use DD-MM-AAAA para a data e HH:MM para a hora.")
                                 st.stop()
 
+                            if not data_abertura_manual or not hora_abertura_manual:
+                                st.error("❌ Data/hora de abertura manual ausente. Não é possível calcular a permanência.")
+                                st.stop()
+
                             try:
-                                # Parsing da data e hora abertura manual (com segundos)
                                 data_hora_abertura = datetime.strptime(
-                                    f"{ocorr['data_abertura_manual']} {ocorr['hora_abertura_manual']}",
-                                    "%Y-%m-%d %H:%M:%S"
+                                    f"{data_abertura_manual} {hora_abertura_manual}", "%Y-%m-%d %H:%M:%S"
                                 )
 
                                 if data_hora_finalizacao < data_hora_abertura:
                                     st.error("❌ Data/hora de finalização não pode ser menor que a data/hora de abertura.")
                                 else:
-                                    ocorr["Complementar"] = complemento
-                                    ocorr["Data/Hora Finalização"] = data_hora_finalizacao.strftime("%d-%m-%Y %H:%M")
-                                    ocorr["Status"] = status
-                                    ocorr["Cor"] = cor
-                                    ocorr["Finalizada"] = True
-                                    ocorr["Finalizado por"] = st.session_state.username
-                                    # Cálculo da permanência manual
                                     delta = data_hora_finalizacao - data_hora_abertura
                                     total_segundos = int(delta.total_seconds())
                                     horas_totais = total_segundos // 3600
                                     minutos = (total_segundos % 3600) // 60
                                     permanencia_manual = f"{horas_totais:02d}:{minutos:02d}"
 
-                                    # Adiciona :00 ao salvar a hora_finalizacao_manual no banco para salvar como HH:MM:SS
                                     hora_finalizacao_banco = f"{hora_finalizacao_manual}:00"
 
                                     response = supabase.table("ocorrencias").update({
                                         "data_hora_finalizacao": data_hora_finalizacao.strftime("%Y-%m-%d %H:%M"),
-                                        "finalizado_por": ocorr["Finalizado por"],
-                                        "complementar": ocorr["Complementar"],
+                                        "finalizado_por": st.session_state.username,
+                                        "complementar": complemento,
                                         "status": "Finalizada",
                                         "permanencia_manual": permanencia_manual,
                                         "data_finalizacao_manual": data_hora_finalizacao.strftime("%Y-%m-%d"),
                                         "hora_finalizacao_manual": hora_finalizacao_banco,
                                     }).eq("id", ocorr["id"]).execute()
-
 
                                     if response and response.data:
                                         st.session_state.ocorrencias_finalizadas.append(ocorr)
@@ -620,9 +596,9 @@ with aba2:
                                         st.rerun()
                                     else:
                                         st.error("Erro ao salvar a finalização no banco de dados.")
-
                             except Exception as e:
                                 st.error(f"Erro ao calcular ou salvar permanência manual: {e}")
+
 
 
 
