@@ -403,7 +403,6 @@ with aba1:
                 # Montagem do dicionário de nova ocorrência
                 nova_ocorrencia = {
                     "id": str(uuid.uuid4()),
-                    
                     "nota_fiscal": nf,
                     "cliente": cliente,
                     "focal": st.session_state["focal_responsavel"],
@@ -413,12 +412,15 @@ with aba1:
                     "tipo_de_ocorrencia": ", ".join(tipo),
                     "observacoes": obs,
                     "responsavel": responsavel,
-                    "data_hora_abertura": abertura_sem_fuso.strftime("%Y-%m-%d %H:%M:%S"),   # Para exibição (com TZ)
-                    "abertura_timestamp": abertura_sem_fuso.isoformat(),            # ISO sem fuso (para cálculos)
-                    "abertura_datetime_obj": abertura_sem_fuso,                     # Objeto datetime sem TZ (para cálculos)
-                    "abertura_ticket": abertura_sem_fuso.strftime("%Y-%m-%d %H:%M:%S"),      # Novo campo para cálculo na finalização
-                    "data_abertura_manual": data_abertura_manual.strftime("%Y-%m-%d"), # data abertura inserido manual
-                    "hora_abertura_manual": hora_abertura_manual.strftime("%H:%M:%S"), # hora abertura inserido manual
+
+                    # Agora com base na data/hora manual inserida
+                    "data_hora_abertura": abertura_sem_fuso.strftime("%Y-%m-%d %H:%M:%S"),
+                    "abertura_timestamp": abertura_sem_fuso.isoformat(),
+                    "abertura_datetime_obj": abertura_sem_fuso,
+                    "abertura_ticket": abertura_sem_fuso.strftime("%Y-%m-%d %H:%M:%S"),
+
+                    "data_abertura_manual": data_abertura_manual.strftime("%Y-%m-%d"),
+                    "hora_abertura_manual": hora_abertura_manual.strftime("%H:%M:%S"),
                     "complementar": "",
                     "permanencia": ""
                 }
@@ -554,7 +556,7 @@ def salvar_ocorrencia_finalizada(ocorr, complemento):
         sucesso_msg.empty()
         # Limpa o estado do campo 'complemento' para esse ticket
         st.session_state.pop(f"complemento_final_{ocorr['id']}", None)
-        st.experimental_rerun()
+        st.rerun()
 
 
 # =========================
