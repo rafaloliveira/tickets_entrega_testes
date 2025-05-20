@@ -257,6 +257,11 @@ def enviar_email_smtp(destinatarios, assunto, corpo_html):
     corpo_html: string (HTML do corpo do e-mail)
     """
     try:
+        st.write("🟦 Enviando e-mail com os dados:")
+        st.write(f"Remetente: {EMAIL_REMETENTE}")
+        st.write(f"Destinatários: {destinatarios}")
+        st.write(f"Assunto: {assunto}")
+
         msg = MIMEMultipart()
         msg["From"] = EMAIL_REMETENTE
         msg["To"] = ", ".join(destinatarios)
@@ -274,21 +279,13 @@ def enviar_email_smtp(destinatarios, assunto, corpo_html):
         st.error(f"Erro ao enviar e-mail: {e}")
         return False
 
-def verificar_e_enviar_alertas(supabase: Client, tempo_limite_minutos=30): # O tempo_limite_minutos controla com quanto tempo de atraso após a abertura o e-mail deve ser disparado.
-    """
-    Verifica tickets abertos há mais de tempo_limite_minutos e que ainda não receberam e-mail,
-    envia o e-mail e atualiza o campo email_abertura_enviado = True.
-    """
-    agora_utc = datetime.now(timezone.utc)
-    limite = agora_utc - timedelta(minutes=tempo_limite_minutos)
 
-    # Busca tickets abertos (status != 'Finalizado' ou como você defina)
-    # e que ainda não tiveram email_abertura_enviado = True
-    response = supabase.table("ocorrencias")\
-        .select("*")\
-        .neq("status", "Finalizado")\
-        .eq("email_abertura_enviado", False)\
-        .lte("data_hora_abertura", limite.isoformat())\
+def verificar_e_enviar_alertas(supabase, tempo_limite_minutos=30):
+    st.write("🚀 Iniciando verificação de alertas...")
+
+    response = supabase.table("ocorrencias").select("*") \
+        .neq("status", "Finalizado") \
+        .or_("email_abertura_enviado.is.null,email_abertura_enviado.eq.false") \
         .execute()
 
     if response.error:
@@ -296,36 +293,62 @@ def verificar_e_enviar_alertas(supabase: Client, tempo_limite_minutos=30): # O t
         return
 
     tickets = response.data
-
     if not tickets:
         st.write("Nenhum ticket para enviar alerta.")
         return
 
     for ticket in tickets:
-        cliente = ticket["cliente"]
-        email_cliente = buscar_email_cliente(cliente)
+        st.write(f"📋 Analisando ticket #{ticket['numero_ticket']} - ID: {ticket['id']}")
+        data = ticket.get("data_abertura_manual")
+        hora = ticket.get("hora_abertura_manual")
 
-        if not email_cliente:
-            st.warning(f"Cliente {cliente} não possui e-mail cadastrado para envio.")
+        if not data or not hora:
+            st.warning(f"Ticket #{ticket['numero_ticket']} sem data/hora de abertura válida.")
             continue
 
-        assunto = f"[ALERTA] Ticket Aberto há mais de {tempo_limite_minutos} minutos - {cliente}"
-        corpo_html = f"""
-        <p>Olá,</p>
-        <p>O ticket com ID <b>{ticket['id']}</b> está aberto desde <b>{ticket['data_hora_abertura']}</b> e ainda não foi finalizado.</p>
-        <p>Por favor, verifique e tome as providências necessárias.</p>
-        <br>
-        <p>Atenciosamente,</p>
-        <p>Equipe Clicklog</p>
-        """
+        try:
+            tz_sp = pytz.timezone("America/Sao_Paulo")
+            dt_abertura = tz_sp.localize(datetime.strptime(f"{data} {hora}", "%Y-%m-%d %H:%M:%S"))
+        except Exception as e:
+            st.error(f"Erro ao converter data/hora do ticket {ticket['id']}: {e}")
+            continue
 
-        enviado = enviar_email_smtp(email_cliente, assunto, corpo_html)
+        minutos_decorridos = (datetime.now(tz_sp) - dt_abertura).total_seconds() / 60
+        st.write(f"⏱️ Tempo decorrido: {minutos_decorridos:.1f} minutos")
 
-        if enviado:
-            # Atualizar a coluna email_abertura_enviado para True
-            supabase.table("ocorrencias").update({"email_abertura_enviado": True})\
-                .eq("id", ticket["id"]).execute()
-            st.write(f"Alerta enviado e atualizado no Supabase para ticket {ticket['id']}.")
+        if minutos_decorridos >= tempo_limite_minutos:
+            cliente = ticket["cliente"]
+            email_cliente = buscar_email_cliente(cliente)
+
+            st.write(f"📨 E-mails encontrados para o cliente {cliente}: {email_cliente}")
+
+            if not email_cliente:
+                st.warning(f"Cliente {cliente} não possui e-mail cadastrado para envio.")
+                continue
+
+            assunto = f"[ALERTA] Ticket Aberto há mais de {tempo_limite_minutos} minutos - {cliente}"
+            corpo_html = f"""
+            <p>Olá,</p>
+            <p>O ticket com ID <b>{ticket['id']}</b> está aberto desde <b>{data} {hora}</b> e ainda não foi finalizado.</p>
+            <p>Por favor, verifique e tome as providências necessárias.</p>
+            <br>
+            <p>Atenciosamente,</p>
+            <p>Equipe Clicklog</p>
+            """
+
+            enviado = enviar_email_smtp(email_cliente, assunto, corpo_html)
+
+            if enviado:
+                # Atualiza no Supabase que o e-mail foi enviado
+                update_response = supabase.table("ocorrencias").update({
+                    "email_abertura_enviado": True
+                }).eq("id", ticket["id"]).execute()
+
+                if update_response.error:
+                    st.error(f"Erro ao atualizar status de e-mail no ticket {ticket['id']}: {update_response.error.message}")
+                else:
+                    st.success(f"E-mail enviado para cliente {cliente} - Ticket #{ticket['numero_ticket']}.")
+
 
 import pandas as pd
 
@@ -335,45 +358,47 @@ df_clientes = pd.read_excel("data/clientes.xlsx", sheet_name="clientes")
 def buscar_email_cliente(cliente_nome):
     """
     Busca e retorna lista de e-mails do cliente a partir do arquivo Excel.
-    Combina 'enviar_para_email' (col C) e 'email_copia' (col D) separados por ';'.
+    Combina 'enviar_para_email' e 'email_copia' separados por ';'.
     """
-    # Filtra linhas onde a coluna 'Cliente' bate com o nome
+    st.write(f"🔍 Buscando e-mail do cliente: {cliente_nome}")
+
     df_filtro = df_clientes[df_clientes['Cliente'].str.strip().str.lower() == cliente_nome.strip().lower()]
 
     if df_filtro.empty:
-        return None  # Cliente não encontrado
+        st.warning(f"Cliente '{cliente_nome}' não encontrado no Excel.")
+        return None
 
-    # Pega os valores da primeira linha (assumindo que cliente é único)
     enviar_para = df_filtro.iloc[0]['enviar_para_email']
     email_copia = df_filtro.iloc[0]['email_copia']
 
-    # Criar lista de e-mails juntando os dois campos (se existirem)
     lista_emails = []
 
     if pd.notna(enviar_para):
         lista_emails += [email.strip() for email in str(enviar_para).split(';') if email.strip()]
-
     if pd.notna(email_copia):
         lista_emails += [email.strip() for email in str(email_copia).split(';') if email.strip()]
 
-    # Remover duplicados
     lista_emails = list(set(lista_emails))
 
     if not lista_emails:
+        st.warning(f"Nenhum e-mail válido encontrado para o cliente {cliente_nome}.")
         return None
 
     return lista_emails
 
-# Thread para rodar a verificação a cada minuto em background
+
+# Thread para rodar verificação de tempos em background
 def iniciar_loop_verificacao():
     while True:
-        verificar_e_enviar_alertas(supabase, tempo_limite_minutos=30) #<<<<<<<< TEMPO PARA O ENVIO DO EMAIL
-        time.sleep(10)  # espera 60 segundos
+        verificar_e_enviar_alertas(supabase, tempo_limite_minutos=30)
+        time.sleep(10)  # Teste rápido (use 60 na produção)
+
 
 # Iniciar thread em background
 threading.Thread(target=iniciar_loop_verificacao, daemon=True).start()
 
 # --- FORMULÁRIO PARA NOVA OCORRÊNCIA ---
+
 
 # =========================
 #     ABA 1 - NOVA OCORRENCIA
