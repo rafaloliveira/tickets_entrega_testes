@@ -1188,8 +1188,6 @@ with aba5:
                                 st.session_state[comp_key] = ""
                             complemento = st.text_area("Complementar (obrigatório)", key=comp_key)
 
-                            data_atual = datetime.now().strftime("%d-%m-%Y")
-                            hora_atual = datetime.now().strftime("%H:%M")
 
                             data_final_key = f"data_final_{ticket_id}"
                             hora_final_key = f"hora_final_{ticket_id}"
