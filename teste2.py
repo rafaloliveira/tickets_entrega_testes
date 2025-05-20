@@ -526,7 +526,7 @@ with aba2:
                         <strong>Motorista:</strong> {ocorr.get('motorista', '-')}<br>
                         <strong>Tipo:</strong> {ocorr.get('tipo_de_ocorrencia', '-')}<br>
                         <strong>Aberto por:</strong> {ocorr.get('responsavel', '-')}<br>
-                        <strong>Data Abertura:</strong> {data_abertura_manual or 'Não informada'}<br>
+                        <strong>Data Abertura:</strong> {abertura_manual_formatada.split(" ")[0] if abertura_manual_formatada != "Não informada" else 'Não informada'}<br>
                         <strong>Hora Abertura:</strong> {hora_abertura_manual or 'Não informada'}<br> 
                         <strong>Observações:</strong> {ocorr.get('observacoes', 'Sem observações.')}<br>
                         </div>
