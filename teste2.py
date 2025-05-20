@@ -278,10 +278,15 @@ with aba1:
             st.markdown("")
 
             col_data, col_hora = st.columns(2)
+
             with col_data:
                 data_abertura_manual = st.date_input("Data de Abertura", format="DD/MM/YYYY")
+
             with col_hora:
-                hora_abertura_manual = st.time_input("Hora de Abertura")
+                fuso_sp = pytz.timezone("America/Sao_Paulo")
+                agora_sp = datetime.now(fuso_sp)
+                hora_padrao = agora_sp.time().replace(microsecond=0)  # hora atual sem microssegundos
+                hora_abertura_manual = st.time_input("Hora de Abertura", value=hora_padrao)
 
 
         enviar = st.form_submit_button("Adicionar Ocorrência")
