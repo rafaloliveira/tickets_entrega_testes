@@ -248,11 +248,9 @@ EMAIL_SENHA = os.getenv("EMAIL_SENHA")
 SMTP_HOST = os.getenv("SMTP_HOST")
 SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
 
-# Configuração Supabase
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+supabase: Client = create_client(url, key)
 
 def enviar_email_smtp(destinatarios, assunto, corpo_html):
     """
