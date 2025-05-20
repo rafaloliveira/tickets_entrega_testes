@@ -599,13 +599,6 @@ with aba2:
                             except Exception as e:
                                 st.error(f"Erro ao calcular ou salvar permanência manual: {e}")
 
-
-
-
-
-
-
-
 # =============================== 
 #    FUNÇÃO CARREGAR FINALIZADAS 
 # ===============================        
@@ -891,18 +884,16 @@ def alterar_senha(user_id, nova_senha):
 
 # ===============================
 #  ABA 5 - TICKETS POR FOCAL
-# ===============================   
+# ===============================
 
 with aba5:
     st.header("Tickets por Focal")
 
-    # Carrega todas as ocorrências abertas
     ocorrencias_abertas = carregar_ocorrencias_abertas()
 
     if not ocorrencias_abertas:
         st.info("ℹ️ Nenhuma ocorrência aberta no momento.")
     else:
-        # Agrupar por focal
         focais = {}
         for ocorr in ocorrencias_abertas:
             focal = ocorr.get("focal", "Sem Focal")
@@ -916,7 +907,7 @@ with aba5:
                 btn_key = f"btn_focal_{idx}"
                 if st.button(f"{focal} ({len(tickets)} tickets)", key=btn_key):
                     if st.session_state.get("focal_selecionada") == focal:
-                        st.session_state.focal_selecionada = None  # desmarcar
+                        st.session_state.focal_selecionada = None
                     else:
                         st.session_state.focal_selecionada = focal
 
@@ -932,7 +923,6 @@ with aba5:
                     with linha[j]:
                         ticket_id = ocorr["id"]
 
-                        # Processa data de abertura manual
                         data_formatada = "Data não informada"
                         status = "Data manual ausente"
                         cor = "gray"
@@ -946,7 +936,6 @@ with aba5:
                         except Exception:
                             pass
 
-                        # Exibe informações do ticket
                         st.markdown(
                             f"""
                             <div style='background-color:{cor};padding:10px;border-radius:10px;color:white;
@@ -999,16 +988,19 @@ with aba5:
                                 st.session_state[comp_key] = ""
                             complemento = st.text_area("Complementar (obrigatório)", key=comp_key)
 
-                            data_atual = datetime.now().strftime("%d-%m-%Y")
-                            hora_atual = datetime.now().strftime("%H:%M")
+                            # Sugestão automática com base no horário atual em UTC−3
+                            fuso = timezone(timedelta(hours=-3))
+                            agora = datetime.now(fuso)
+                            data_padrao = agora.strftime("%d-%m-%Y")
+                            hora_padrao = agora.strftime("%H:%M")
 
                             data_final_key = f"data_final_{ticket_id}"
                             hora_final_key = f"hora_final_{ticket_id}"
 
                             if data_final_key not in st.session_state:
-                                st.session_state[data_final_key] = data_atual
+                                st.session_state[data_final_key] = data_padrao
                             if hora_final_key not in st.session_state:
-                                st.session_state[hora_final_key] = hora_atual
+                                st.session_state[hora_final_key] = hora_padrao
 
                             data_finalizacao_manual = st.text_input("Data Finalização (DD-MM-AAAA)", key=data_final_key)
                             hora_finalizacao_manual = st.text_input("Hora Finalização (HH:MM)", key=hora_final_key)
