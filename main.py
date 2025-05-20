@@ -209,8 +209,8 @@ def inserir_ocorrencia_supabase(dados):
         "abertura_timestamp": dados["abertura_timestamp"],
         "permanencia": dados["permanencia"],
         "complementar": dados["complementar"],
-        "data_abertura_manual": datetime.now().strftime("%d/%m/%Y"),
-        "hora_abertura_manual": datetime.now().strftime("%H:%M:%S")
+        "data_hora_abertura": dados["data_hora_abertura"].isoformat(),
+        "abertura_timestamp": dados["abertura_timestamp"].isoformat(),
 
     }]).execute()
     return response
