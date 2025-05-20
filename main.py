@@ -1,9 +1,6 @@
-# funcionando sem envio de e-mail 19-05
+# funcionando 100% sem envio de e-mail
 
-# versão liberada para usuário - atualização de inserção manual de data e hora de abertura/finalização 
-
-
-# versão liberada para usuario
+# versão liberada para usuário 15-05 
 
 
 import streamlit as st
@@ -169,7 +166,14 @@ if "ocorrencias_finalizadas" not in st.session_state:
     st.session_state.ocorrencias_finalizadas = []
 
 # --- ABA NOVA OCORRÊNCIA ---
-aba1, aba2, aba3, aba5, aba4,  = st.tabs(["📝 Nova Ocorrência", "📌 Ocorrências em Aberto", "✅ Ocorrências Finalizadas", "📝 Tickets por Focal", "📊 Configurações"])
+aba1, aba2, aba3, aba5, aba6, aba4 = st.tabs([
+    "📝 Nova Ocorrência", 
+    "📌 Ocorrências em Aberto", 
+    "✅ Ocorrências Finalizadas", 
+    "📝 Tickets por Focal",
+    "📊 Estatísticas de Tickets Finalizados",  # vírgula aqui
+    "🛠️ Configurações"
+])
 
 # Definindo a conexão com o banco de dados (ajuste com as suas credenciais)
 def get_db_connection():
@@ -203,10 +207,7 @@ def inserir_ocorrencia_supabase(dados):
         "data_hora_abertura": dados["data_hora_abertura"],
         "abertura_timestamp": dados["abertura_timestamp"],
         "permanencia": dados["permanencia"],
-        "complementar": dados["complementar"],
-        "data_abertura_manual": dados["data_abertura_manual"],     # <-- data inserida manualmente
-        "hora_abertura_manual": dados["hora_abertura_manual"]      # <-- hora inserida manualmente
-
+        "complementar": dados["complementar"]
     }]).execute()
     return response
 
@@ -277,18 +278,7 @@ with aba1:
             responsavel = st.session_state.username
             st.text_input("Quem está abrindo o ticket", value=responsavel, disabled=True)
 
-            #### data e hora de abertura inserido manual #####
-            st.markdown("")
-
-            col_data, col_hora = st.columns(2)
-            with col_data:
-                data_abertura_manual = st.date_input("Data de Abertura", format="DD/MM/YYYY")
-            with col_hora:
-                hora_abertura_manual = st.time_input("Hora de Abertura")
-
-
         enviar = st.form_submit_button("Adicionar Ocorrência")
-
 
         # Validações
         if enviar:
@@ -338,10 +328,8 @@ with aba1:
                     "abertura_timestamp": abertura_sem_fuso.isoformat(),            # ISO sem fuso (para cálculos)
                     "abertura_datetime_obj": abertura_sem_fuso,                     # Objeto datetime sem TZ (para cálculos)
                     "abertura_ticket": abertura_sem_fuso.strftime("%Y-%m-%d %H:%M:%S"),      # Novo campo para cálculo na finalização
-                    "data_abertura_manual": data_abertura_manual.strftime("%Y-%m-%d"), # data abertura inserido manual
-                    "hora_abertura_manual": hora_abertura_manual.strftime("%H:%M:%S"), # hora abertura inserido manual
-                    "complementar": "",
-                    "permanencia": ""
+                     "complementar": "",
+                     "permanencia": ""
                 }
 
                 # Inserção no banco de dados
@@ -370,43 +358,34 @@ import pytz
 # =========================
 #    FUNÇÃO CLASSIFICAÇÃO
 # =========================
-def classificar_ocorrencia_por_tempo(data_abertura_input):
+def classificar_ocorrencia_por_tempo(data_abertura_str):
     tz_sp = pytz.timezone("America/Sao_Paulo")
 
-    if not data_abertura_input:
-        return "Data inválida", "gray"
-
     try:
-        # Se já for datetime, transforme para aware São Paulo
-        if isinstance(data_abertura_input, datetime):
-            if data_abertura_input.tzinfo is None:
-                data_abertura = tz_sp.localize(data_abertura_input)
-            else:
-                data_abertura = data_abertura_input.astimezone(tz_sp)
-        else:
-            # Assume string, faz parse
-            data_abertura_str = data_abertura_input.replace("T", " ")
-            data_abertura_naive = datetime.strptime(data_abertura_str, "%Y-%m-%d %H:%M:%S")
-            data_abertura = tz_sp.localize(data_abertura_naive)
+        # Garante que a string esteja no formato correto
+        data_abertura_str = data_abertura_str.replace('T', ' ')
+        data_abertura_naive = datetime.strptime(data_abertura_str, "%Y-%m-%d %H:%M:%S")
+
+        # Aplica o fuso horário de São Paulo
+        data_abertura = tz_sp.localize(data_abertura_naive)
+
     except Exception as e:
         print(f"Erro ao converter data: {e}")
         return "Erro", "gray"
 
-    agora = datetime.now(tz_sp)
-    minutos_decorridos = (agora - data_abertura).total_seconds() / 60
+    agora = datetime.now(tz_sp)  # aware
+    tempo_decorrido = (agora - data_abertura).total_seconds() / 60  # minutos
 
-    if minutos_decorridos < 15:
+    if tempo_decorrido < 15:
         return "🟢 Normal", "#2ecc71"
-    elif minutos_decorridos < 30:
+    elif tempo_decorrido < 30:
         return "🟡 Alerta", "#f1c40f"
-    elif minutos_decorridos < 45:
+    elif tempo_decorrido < 45:
         return "🔴 Crítico", "#e74c3c"
-    elif minutos_decorridos < 60:
+    elif tempo_decorrido < 60:
         return "🔴 Crítico", "#e74c3c"
     else:
         return "🚨 +60 min", "#c0392b"
-
-
 
 
 # Função para carregar ocorrências abertas
@@ -418,70 +397,77 @@ def carregar_ocorrencias_abertas():
         st.error(f"Erro ao carregar ocorrências abertas: {e}")
         return []
 
+
+
+
+
 # =========================
 #    FUNÇÃO SALVAR FINALIZADA
 # =========================
 def salvar_ocorrencia_finalizada(ocorr, status):
     try:
+        # Garantir que as chaves existam e as datas sejam strings válidas
         if isinstance(ocorr.get("Data/Hora Finalização"), str):
             try:
-                data_hora_finalizacao = datetime.strptime(ocorr["Data/Hora Finalização"], "%d-%m-%Y %H:%M:%S")
+                data_hora_finalizacao = parser.parse(ocorr["Data/Hora Finalização"])
             except ValueError:
                 st.error("Erro: Formato de 'Data/Hora Finalização' inválido!")
                 return
         else:
             data_hora_finalizacao = ocorr["Data/Hora Finalização"]
 
-        data_hora_abertura = parser.parse(ocorr["abertura_timestamp"]).replace(tzinfo=None)
+        if isinstance(ocorr.get("Data/Hora Abertura"), str):
+            try:
+                data_hora_abertura = parser.parse(ocorr["Data/Hora Abertura"])
+            except ValueError:
+                st.error("Erro: Formato de 'Data/Hora Abertura' inválido!")
+                return
+        else:
+            data_hora_abertura = ocorr["Data/Hora Abertura"]
 
-        # Impede finalização com data anterior
-        if data_hora_finalizacao < data_hora_abertura:
-            st.error("❌ Data/hora de finalização não pode ser menor que a de abertura.")
-            return
+           
 
-        # Calcula permanência
-        permanencia_timedelta = data_finalizacao_manual - data_abertura_manual
-        total_segundos = int(permanencia_timedelta.total_seconds())
+            # Certifique-se que essas datas existem e são datetime válidos
+            data_hora_abertura = parser.parse(ocorr["abertura_timestamp"]).replace(tzinfo=None)
+            agora_sp = datetime.now()
 
-        horas_totais = total_segundos // 3600
-        minutos = (total_segundos % 3600) // 60
+            # Calcular permanência
+            permanencia_timedelta = agora_sp - data_hora_abertura
+            total_segundos = int(permanencia_timedelta.total_seconds())
+            dias = total_segundos // 86400
+            horas = (total_segundos % 86400) // 3600
+            minutos = (total_segundos % 3600) // 60
+            tempo_permanencia_formatado = f"{dias}d {horas}h {minutos}min"
 
-        # Formata com zero à esquerda para 2 dígitos
-        tempo_permanencia_formatado = f"{horas_totais:02d}:{minutos:02d}"
+            # Atualiza no banco de dados
+            response = supabase.table("ocorrencias").update({
+                "data_hora_finalizacao": agora_sp.strftime("%Y-%m-%d %H:%M:%S"),
+                "finalizado_por": ocorr["Finalizado por"],
+                "complementar": ocorr["Complementar"],
+                "permanencia": tempo_permanencia_formatado,
+                "status": "Finalizada"
+            }).eq("id", ocorr["ID"]).execute()
+
+            # Debug opcional
+            st.write("Resposta Supabase:", response)
 
 
-        # Converte data finalização manual para formato ISO para o banco
-        data_finalizacao_iso = data_hora_finalizacao.strftime("%Y-%m-%d")
-        hora_finalizacao_manual = data_hora_finalizacao.strftime("%H:%M:%S")
 
 
-        # Atualiza no banco
-        response = supabase.table("ocorrencias").update({
-            "finalizado_por": ocorr["Finalizado por"],
-            "complementar": ocorr["Complementar"],
-            "permanencia": tempo_permanencia_formatado,
-            "status": "Finalizada",
-            "data_finalizacao_manual": data_finalizacao_iso,
-            "hora_finalizacao_manual": hora_finalizacao_manual
-        }).eq("id", ocorr["ID"]).execute()
-
-        # Debug
-        st.write("Resposta Supabase:", response)
-
+        
         st.session_state["mensagem_sucesso_finalizacao"] = True
 
     except Exception as e:
         st.error(f"Erro ao salvar no banco de dados: {e}")
         st.session_state["mensagem_sucesso_finalizacao"] = False
 
+    # Exibe mensagem de sucesso se houver
     if st.session_state.get("mensagem_sucesso_finalizacao"):
         sucesso_msg = st.empty()
         sucesso_msg.success("✅ Ocorrência finalizada com sucesso!")
         time.sleep(2)
         sucesso_msg.empty()
         del st.session_state["mensagem_sucesso_finalizacao"]
-
-
 
 # =========================
 #     ABA 2 - EM ABERTO
@@ -499,138 +485,127 @@ with aba2:
         st_autorefresh(interval=40000, key="ocorrencias_abertas_refresh")
 
         for idx, ocorr in enumerate(ocorrencias_abertas):
-            data_formatada = "Data não informada"
-            status = "Data manual ausente"
-            cor = "gray"
+            # Pegando a data diretamente do campo 'data_hora_abertura' retornado do Supabase
+            data_abertura_str = ocorr.get("data_hora_abertura")
 
-            if ocorr.get("data_abertura_manual") and ocorr.get("hora_abertura_manual"):
-                try:
-                    data_manual_str = f"{ocorr['data_abertura_manual']} {ocorr['hora_abertura_manual']}"
-                    # Converte do formato ISO para datetime
-                    dt_manual = datetime.strptime(data_manual_str, "%Y-%m-%d %H:%M:%S")
-                    # Para exibição no card
-                    data_formatada = dt_manual.strftime("%d-%m-%Y %H:%M:%S")
-                    # Para classificação
-                    data_abertura_iso = dt_manual.strftime("%Y-%m-%d %H:%M:%S")
+            try:
+                if not data_abertura_str:
+                    raise ValueError("Data de abertura ausente.")
+                
+                # Converte string mm-dd-yyyy HH:MM:SS para datetime
+                data_abertura_str = data_abertura_str.replace('T', ' ')
+                data_abertura = parser.parse(data_abertura_str)
+                
+                # Converte para string no formato brasileiro dd-mm-yyyy HH:MM:SS
+                data_abertura_formatada = data_abertura.strftime("%d-%m-%Y %H:%M:%S")
 
-                    # Classifica a ocorrência com base no tempo
-                    status, cor = classificar_ocorrencia_por_tempo(data_abertura_iso)
-                except Exception as e:
-                    st.error(f"Erro ao processar data/hora manual da ocorrência {ocorr.get('nota_fiscal', '-')}: {e}")
-                    status = "Erro"
-                    cor = "gray"
+            except Exception as e:
+                st.error(f"Erro ao processar a data de abertura: {e}")
+                data_abertura_formatada = "Data inválida"
+
+            # Classificando o status e a cor com base no tempo de abertura
+            status, cor = classificar_ocorrencia_por_tempo(data_abertura_str)
+
+            try:
+                data_abertura_str = data_abertura_str.replace('T', ' ')
+                data_abertura = parser.parse(data_abertura_str)
+                data_formatada = data_abertura.strftime('%d-%m-%Y %H:%M:%S')
+                print(f"Data processada corretamente: {data_formatada}")
+            except Exception as e:
+                st.error(f"Erro ao processar ocorrência (NF: {ocorr.get('nota_fiscal', '-')}) — {e}")
+                continue
+
+            # Agora, independentemente de erro, defina status e cor
+            status = status
+            cor = cor  # A cor é determinada pela classificação por tempo
 
             with colunas[idx % num_colunas]:
                 safe_idx = f"{idx}_{ocorr.get('nota_fiscal', '')}"
 
                 with st.container():
-                    if ocorr.get("data_abertura_manual") and ocorr.get("hora_abertura_manual"):
-                        abertura_manual = data_formatada
-                    else:
-                        abertura_manual = "Não informada"
-
                     st.markdown(
                         f"""
-                        <div style='background-color:{cor};padding:10px;border-radius:10px;color:white;
-                        box-shadow: 0 4px 10px rgba(0,0,0,0.3);margin-bottom:5px;min-height:250px;font-size:15px;'>
-                        <strong>Ticket #:</strong> {ocorr.get('numero_ticket', 'N/A')}<br>
-                        <strong>Status:</strong> <span style='background-color:#2c3e50;padding:4px 8px;
-                        border-radius:1px;color:white;'>{status}</span><br>
-                        <strong>NF:</strong> {ocorr.get('nota_fiscal', '-')}<br>
-                        <strong>Cliente:</strong> {ocorr.get('cliente', '-')}<br>
-                        <strong>Destinatário:</strong> {ocorr.get('destinatario', '-')}<br>
-                        <strong>Focal:</strong> {ocorr.get('focal', '-')}<br>
-                        <strong>Cidade:</strong> {ocorr.get('cidade', '-')}<br>
-                        <strong>Motorista:</strong> {ocorr.get('motorista', '-')}<br>
-                        <strong>Tipo:</strong> {ocorr.get('tipo_de_ocorrencia', '-')}<br>
-                        <strong>Aberto por:</strong> {ocorr.get('responsavel', '-')}<br>
-                        <strong>Data Abertura:</strong> {data_abertura_manual}<br>
-                        <strong>Hora Abertura:</strong> {hora_abertura_manual}<br> 
-                        <strong>Observações:</strong> {ocorr.get('observacoes', 'Sem observações.')}<br>
+                        <div style='background-color:{cor};padding:10px;border-radius:10px;color:white;box-shadow: 0 4px 10px rgba(0,0,0,0.3);margin-bottom:5px;min-height:250px;font-size:15px;'>
+                            <strong>Ticket #:</strong> {ocorr.get('numero_ticket') if ocorr.get('numero_ticket') else 'N/A'}<br>
+                            <strong>Status:</strong> <span style='background-color:#2c3e50;padding:4px 8px;border-radius:1px;color:white;'>{status}</span><br>
+                            <strong>NF:</strong> {ocorr.get('nota_fiscal', '-')}<br>
+                            <strong>Cliente:</strong> {ocorr.get('cliente', '-')}<br>
+                            <strong>Destinatário:</strong> {ocorr.get('destinatario', '-')}<br>
+                            <strong>Focal:</strong> {ocorr.get('focal', '-')}<br>
+                            <strong>Cidade:</strong> {ocorr.get('cidade', '-')}<br>
+                            <strong>Motorista:</strong> {ocorr.get('motorista', '-')}<br>
+                            <strong>Tipo:</strong> {ocorr.get('tipo_de_ocorrencia', '-')}<br>
+                            <strong>Aberto por:</strong> {ocorr.get('responsavel', '-')}<br>
+                            <strong>Data/Hora Abertura:</strong> {data_formatada}<br>
+                            <strong>Observações:</strong> {ocorr.get('observacoes', 'Sem observações.')}<br>
                         </div>
                         """,
                         unsafe_allow_html=True
                     )
-                with st.expander("Finalizar Ocorrência"):
-                    data_atual = datetime.now().strftime("%d-%m-%Y")
-                    hora_atual = datetime.now().strftime("%H:%M")
-                    data_finalizacao_manual = st.text_input("Data Finalização (DD-MM-AAAA)", value=data_atual, key=f"data_final_{safe_idx}")
-                    hora_finalizacao_manual = st.text_input("Hora Finalização (HH:MM)", value=hora_atual, key=f"hora_final_{safe_idx}")
 
-                    complemento_key = f"complemento_final_{safe_idx}"
-                    if complemento_key not in st.session_state:
-                        st.session_state[complemento_key] = ""
+                    # Usando o expander para "Finalizar Ocorrência"
+                    with st.expander("Finalizar Ocorrência"):
+                        # Complemento para a finalização
+                        complemento_key = f"complemento_final_{safe_idx}"
 
-                    complemento = st.text_area("Complementar", key=complemento_key, value=st.session_state[complemento_key])
+                        # Inicializando o campo de complemento se não existir no session_state
+                        if complemento_key not in st.session_state:
+                            st.session_state[complemento_key] = ""
 
-                    finalizar_disabled = not complemento.strip()
+                        complemento = st.text_area(
+                            "Complementar", 
+                            key=complemento_key, 
+                            value=st.session_state[complemento_key]
+                        )
 
-                    if st.button("Finalizar", key=f"finalizar_{safe_idx}", disabled=finalizar_disabled):
-                        if finalizar_disabled:
-                            st.error("❌ O campo 'Complementar' é obrigatório para finalizar a ocorrência.")
-                        else:
-                            try:
-                                # Parsing da data e hora finalização manual (SEM segundos)
-                                data_hora_finalizacao = datetime.strptime(
-                                    f"{data_finalizacao_manual} {hora_finalizacao_manual}",
-                                    "%d-%m-%Y %H:%M"
-                                )
-                            except ValueError:
-                                st.error("❌ Formato inválido. Use DD-MM-AAAA para a data e HH:MM para a hora.")
-                                st.stop()
+                        # Habilita ou desabilita o botão de finalização com base no preenchimento do complemento
+                        finalizar_disabled = not complemento.strip()
 
-                            try:
-                                # Parsing da data e hora abertura manual (com segundos)
-                                data_hora_abertura = datetime.strptime(
-                                    f"{ocorr['data_abertura_manual']} {ocorr['hora_abertura_manual']}",
-                                    "%Y-%m-%d %H:%M:%S"
-                                )
+                        # Quando o botão "Finalizar" for clicado, executa a finalização
+                        if st.button("Finalizar", key=f"finalizar_{safe_idx}", disabled=finalizar_disabled):
+                            if finalizar_disabled:
+                                st.error("❌ O campo 'Complementar' é obrigatório para finalizar a ocorrência.")
+                            else:
+                                # Atualiza a ocorrência com as informações de finalização
+                                ocorr["Complementar"] = complemento
+                                agora_sp = datetime.now(pytz.timezone("America/Sao_Paulo")).replace(tzinfo=None)
+                                ocorr["Data/Hora Finalização"] = agora_sp.strftime("%d/%m/%Y %H:%M:%S")
+                                ocorr["Status"] = status
+                                ocorr["Cor"] = cor
+                                ocorr["Finalizada"] = True
+                                ocorr["Finalizado por"] = st.session_state.username
 
-                                if data_hora_finalizacao < data_hora_abertura:
-                                    st.error("❌ Data/hora de finalização não pode ser menor que a data/hora de abertura.")
+                                # Calcular tempo de permanência
+                                permanencia = "N/A"
+                                try:
+                                    if "abertura_timestamp" in ocorr and ocorr["abertura_timestamp"]:
+                                        abertura_ts = parser.parse(ocorr["abertura_timestamp"]).replace(tzinfo=None)
+                                        delta = agora_sp - abertura_ts
+                                        horas = str(delta.seconds // 3600).zfill(2)
+                                        minutos = str((delta.seconds // 60) % 60).zfill(2)
+                                        segundos = str(delta.seconds % 60).zfill(2)
+                                        permanencia = f"{horas}:{minutos}:{segundos}"
+
+                                except Exception as e:
+                                    st.error(f"Erro ao calcular permanência: {e}")
+
+                                # Atualiza no banco de dados
+                                response = supabase.table("ocorrencias").update({
+                                    "data_hora_finalizacao": agora_sp.strftime("%Y-%m-%d %H:%M:%S"),
+                                    "finalizado_por": ocorr["Finalizado por"],
+                                    "complementar": ocorr["Complementar"],
+                                    "status": "Finalizada",
+                                    "permanencia": permanencia,
+                                }).eq("id", ocorr["id"]).execute()
+
+                                # Se a atualização for bem-sucedida, notifica o usuário
+                                if response and response.data:
+                                    st.session_state.ocorrencias_finalizadas.append(ocorr)
+                                    st.success("✅ Ocorrência finalizada com sucesso!")
+                                    time.sleep(2)
+                                    st.rerun()  # Atualiza a tela para refletir a mudança
                                 else:
-                                    ocorr["Complementar"] = complemento
-                                    ocorr["Data/Hora Finalização"] = data_hora_finalizacao.strftime("%d-%m-%Y %H:%M")
-                                    ocorr["Status"] = status
-                                    ocorr["Cor"] = cor
-                                    ocorr["Finalizada"] = True
-                                    ocorr["Finalizado por"] = st.session_state.username
-                                    # Cálculo da permanência manual
-                                    delta = data_hora_finalizacao - data_hora_abertura
-                                    total_segundos = int(delta.total_seconds())
-                                    horas_totais = total_segundos // 3600
-                                    minutos = (total_segundos % 3600) // 60
-                                    permanencia_manual = f"{horas_totais:02d}:{minutos:02d}"
-
-                                    # Adiciona :00 ao salvar a hora_finalizacao_manual no banco para salvar como HH:MM:SS
-                                    hora_finalizacao_banco = f"{hora_finalizacao_manual}:00"
-
-                                    response = supabase.table("ocorrencias").update({
-                                        "data_hora_finalizacao": data_hora_finalizacao.strftime("%Y-%m-%d %H:%M"),
-                                        "finalizado_por": ocorr["Finalizado por"],
-                                        "complementar": ocorr["Complementar"],
-                                        "status": "Finalizada",
-                                        "permanencia_manual": permanencia_manual,
-                                        "data_finalizacao_manual": data_hora_finalizacao.strftime("%Y-%m-%d"),
-                                        "hora_finalizacao_manual": hora_finalizacao_banco,
-                                    }).eq("id", ocorr["id"]).execute()
-
-
-                                    if response and response.data:
-                                        st.session_state.ocorrencias_finalizadas.append(ocorr)
-                                        st.success("✅ Ocorrência finalizada com sucesso!")
-                                        time.sleep(2)
-                                        st.rerun()
-                                    else:
-                                        st.error("Erro ao salvar a finalização no banco de dados.")
-
-                            except Exception as e:
-                                st.error(f"Erro ao calcular ou salvar permanência manual: {e}")
-
-
-
-
-
+                                    st.error("Erro ao salvar a finalização no banco de dados.")
 
 
 # =============================== 
@@ -660,27 +635,30 @@ with aba3:
     if not ocorrencias_finalizadas:
         st.info("ℹ️ Nenhuma ocorrência finalizada.")
     else:
-        # --- Filtros e exportação ---
-        col1, col2 = st.columns([1, 2])
-        with col1:
-            filtro_nf = st.text_input("🔎 Pesquisar por NF:", "", max_chars=10)
-        with col2:
-            if st.button("📤 Exportar Excel"):
-                try:
-                    df = pd.DataFrame(ocorrencias_finalizadas)
-                    output = BytesIO()
-                    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                        df.to_excel(writer, index=False, sheet_name='Finalizadas')
-                    st.download_button(
-                        label="⬇️ Baixar Relatório Excel",
-                        data=output.getvalue(),
-                        file_name="ocorrencias_finalizadas.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    )
-                except Exception as e:
-                    st.error(f"Erro ao exportar para Excel: {e}")
+        # Layout: filtro à esquerda e botão à extrema direita
+        col_filtro, col_vazio, col_botao = st.columns([2, 6, 1])  # Ajuste as proporções conforme necessário
 
-        # --- Filtrar ---
+        with col_filtro:
+            filtro_nf = st.text_input("🔎 Pesquisar por NF:", "", max_chars=10)
+
+        with col_botao:
+            try:
+                df = pd.DataFrame(ocorrencias_finalizadas)
+                output = BytesIO()
+                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                    df.to_excel(writer, index=False, sheet_name='Finalizadas')
+                st.download_button(
+                    label="⬇️ Exportar",
+                    data=output.getvalue(),
+                    file_name="ocorrencias_finalizadas.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                )
+            except Exception as e:
+                st.error(f"Erro ao exportar para Excel: {e}")
+
+
+
+        # --- Filtrar ocorrências finalizadas pela NF (caso o usuário digite algo) ---
         if filtro_nf:
             ocorrencias_filtradas = [
                 ocorr for ocorr in ocorrencias_finalizadas
@@ -689,74 +667,44 @@ with aba3:
         else:
             ocorrencias_filtradas = ocorrencias_finalizadas
 
+        # Exibir cards em colunas
         num_colunas = 4
-        for i in range(0, len(ocorrencias_filtradas), num_colunas):
-            linha = ocorrencias_filtradas[i:i+num_colunas]
-            colunas = st.columns(num_colunas)
+        colunas = st.columns(num_colunas)
 
-            for idx, ocorr in enumerate(linha):
-                try:
-                    # --- Datas sistema ---
-                    data_abertura_raw = ocorr.get("abertura_ticket") or ocorr.get("abertura_timestamp")
-                    data_finalizacao_raw = ocorr.get("data_hora_finalizacao")
+        for idx, ocorr in enumerate(ocorrencias_filtradas):
+            try:
+                data_finalizacao_raw = ocorr.get("data_hora_finalizacao")
+                data_abertura_raw = ocorr.get("abertura_ticket") or ocorr.get("abertura_timestamp")
 
-                    data_abertura_dt = parser.isoparse(data_abertura_raw).replace(tzinfo=None) if data_abertura_raw else None
-                    data_finalizacao_dt = parser.isoparse(data_finalizacao_raw).replace(tzinfo=None) if data_finalizacao_raw else None
+                data_abertura_dt = parser.isoparse(data_abertura_raw).replace(tzinfo=None) if data_abertura_raw else None
+                data_finalizacao_dt = parser.isoparse(data_finalizacao_raw).replace(tzinfo=None) if data_finalizacao_raw else None
 
-                    data_abertura_formatada = data_abertura_dt.strftime("%d-%m-%Y %H:%M:%S") if data_abertura_dt else "-"
-                    data_finalizacao_formatada = data_finalizacao_dt.strftime("%d-%m-%Y %H:%M:%S") if data_finalizacao_dt else "-"
+                data_abertura_formatada = data_abertura_dt.strftime("%d-%m-%Y %H:%M:%S") if data_abertura_dt else "-"
+                data_finalizacao_formatada = data_finalizacao_dt.strftime("%d-%m-%Y %H:%M:%S") if data_finalizacao_dt else "-"
 
-                    tempo_permanencia_formatado = "-"
-                    if data_abertura_dt and data_finalizacao_dt:
-                        tempo_total = data_finalizacao_dt - data_abertura_dt
-                        tempo_permanencia_formatado = str(tempo_total).split('.')[0]
+                if data_abertura_dt and data_finalizacao_dt:
+                    tempo_total = data_finalizacao_dt - data_abertura_dt
+                    tempo_permanencia_formatado = str(tempo_total).split('.')[0]
+                else:
+                    tempo_permanencia_formatado = "Não disponível"
 
-                    # --- Datas manuais ---
-                    data_abertura_manual = "-"
-                    hora_abertura_manual = "-"
-                    if ocorr.get("data_abertura_manual") and ocorr.get("hora_abertura_manual"):
-                        try:
-                            abertura_dt = datetime.strptime(
-                                f"{ocorr['data_abertura_manual']} {ocorr['hora_abertura_manual']}",
-                                "%Y-%m-%d %H:%M:%S"
-                            )
-                            data_abertura_manual = abertura_dt.strftime("%d-%m-%Y")
-                            hora_abertura_manual = abertura_dt.strftime("%H:%M:%S")
-                        except:
-                            pass
+                status = ocorr.get("Status", "Finalizada")
+                cor = ocorr.get("Cor", "#34495e")
 
-                    data_finalizacao_manual = "-"
-                    hora_finalizacao_manual = "-"
-                    if ocorr.get("data_finalizacao_manual") and ocorr.get("hora_finalizacao_manual"):
-                        try:
-                            finalizacao_dt = datetime.strptime(
-                                f"{ocorr['data_finalizacao_manual']} {ocorr['hora_finalizacao_manual']}",
-                                "%Y-%m-%d %H:%M:%S"
-                            )
-                            data_finalizacao_manual = finalizacao_dt.strftime("%d-%m-%Y")
-                            hora_finalizacao_manual = finalizacao_dt.strftime("%H:%M:%S")
-                        except:
-                            pass
+            except Exception as e:
+                st.error(f"Erro ao processar ocorrência (NF {ocorr.get('nota_fiscal', '-')}) — {e}")
+                data_abertura_formatada = data_finalizacao_formatada = tempo_permanencia_formatado = "-"
+                status = "Erro"
+                cor = "#7f8c8d"
 
-                    status = ocorr.get("Status", "Finalizada")
-                    cor = ocorr.get("Cor", "#34495e")
-
-                except Exception as e:
-                    st.error(f"Erro ao processar ocorrência (NF {ocorr.get('nota_fiscal', '-')}) — {e}")
-                    data_abertura_formatada = data_finalizacao_formatada = tempo_permanencia_formatado = "-"
-                    data_abertura_manual = hora_abertura_manual = "-"
-                    data_finalizacao_manual = hora_finalizacao_manual = "-"
-                    status = "Erro"
-                    cor = "#7f8c8d"
-
-                with colunas[idx]:
+            with colunas[idx % num_colunas]:
+                with st.container():
                     st.markdown(
                         f"""
-                        <div style='background-color:{cor};padding:15px;border-radius:10px;color:white;
-                            box-shadow: 0 4px 10px rgba(0,0,0,0.3);margin:8px;min-height:250px;font-size:15px;
-                            border: 2px solid #ccc; box-sizing: border-box; width: 100%;'>
+                        <div style='background-color:{cor};padding:10px;border-radius:10px;color:white;
+                        box-shadow: 0 4px 10px rgba(0,0,0,0.3);margin-bottom:5px;min-height:250px;font-size:15px;'>
                             <strong>Ticket #:</strong> {ocorr.get('numero_ticket') or 'N/A'}<br>
-                            <strong>Status:</strong> <span style='background-color:#2c3e50;padding:4px 8px;border-radius:3px;color:white;'>{status}</span><br>
+                            <strong>Status:</strong> <span style='background-color:#2c3e50;padding:4px 8px;border-radius:1px;color:white;'>{status}</span><br>
                             <strong>NF:</strong> {ocorr.get('nota_fiscal', '-')}<br>
                             <strong>Cliente:</strong> {ocorr.get('cliente', '-')}<br>
                             <strong>Destinatário:</strong> {ocorr.get('destinatario', '-')}<br>
@@ -764,17 +712,16 @@ with aba3:
                             <strong>Motorista:</strong> {ocorr.get('motorista', '-')}<br>
                             <strong>Tipo:</strong> {ocorr.get('tipo_de_ocorrencia', '-')}<br>
                             <strong>Aberto por:</strong> {ocorr.get('responsavel', '-')}<br>
-                            <strong>Data Abertura:</strong> {data_abertura_manual}<br>
-                            <strong>Hora Abertura:</strong> {hora_abertura_manual}<br>
-                            <strong>Data Finalização:</strong> {data_finalizacao_manual}<br>
-                            <strong>Hora Finalização:</strong> {hora_finalizacao_manual}<br>
+                            <strong>Data/Hora Abertura:</strong> {data_abertura_formatada}<br>
+                            <strong>Data/Hora Finalização:</strong> {data_finalizacao_formatada}<br>
                             <strong>Finalizado por:</strong> {ocorr.get('finalizado_por', '-')}<br>
-                            <strong>Tempo de Permanência:</strong> {ocorr.get('permanencia_manual', '-')}<br>
+                            <strong>Tempo de Permanência:</strong> {tempo_permanencia_formatado}<br>
                             <strong>Observações:</strong> {ocorr.get('observacoes', 'Sem observações.')}<br>
                         </div>
                         """,
                         unsafe_allow_html=True
                     )
+
 
 # ======================
 #     ABA 4 - USUÁRIOS
@@ -914,26 +861,27 @@ def alterar_senha(user_id, nova_senha):
     except Exception as e:
         st.error(f"Erro ao atualizar a senha: {e}")
 
-
-
-# ===============================
-#  ABA 5 - TICKETS POR FOCAL
-# ===============================   
-
+# =========================
+#     ABA 5 - TICKETS POR FOCAL
+# =========================
 with aba5:
     st.header("Tickets por Focal")
 
     # Carrega todas as ocorrências abertas
-    ocorrencias_abertas = carregar_ocorrencias_abertas()
+    todas_ocorrencias = carregar_ocorrencias_abertas()
 
-    if not ocorrencias_abertas:
+    if not todas_ocorrencias:
         st.info("ℹ️ Nenhuma ocorrência aberta no momento.")
     else:
         # Agrupar por focal
         focais = {}
-        for ocorr in ocorrencias_abertas:
-            focal = ocorr.get("focal", "Sem Focal")
+        for ocorr in todas_ocorrencias:
+            focal = ocorr.get("focal", "Não informado")
             focais.setdefault(focal, []).append(ocorr)
+
+        # Limpa a seleção se a focal selecionada não existir mais
+        if st.session_state.get("focal_selecionada") not in focais:
+            st.session_state.focal_selecionada = None
 
         st.subheader("Selecione uma Focal para visualizar os tickets:")
 
@@ -943,149 +891,164 @@ with aba5:
                 btn_key = f"btn_focal_{idx}"
                 if st.button(f"{focal} ({len(tickets)} tickets)", key=btn_key):
                     if st.session_state.get("focal_selecionada") == focal:
-                        st.session_state.focal_selecionada = None  # desmarcar
+                        # Clicou de novo na mesma focal → esconder
+                        st.session_state.focal_selecionada = None
                     else:
+                        # Clicou em outra focal → mostrar
                         st.session_state.focal_selecionada = focal
 
+        # Se alguma focal foi selecionada, exibir seus tickets
         focal_atual = st.session_state.get("focal_selecionada")
-        if focal_atual and focal_atual in focais:
+        if focal_atual:
             st.markdown(f"### 🎯 Tickets da focal: **{focal_atual}**")
             tickets_focal = focais[focal_atual]
 
+            # Define número de colunas por linha
             num_colunas = 3
             for i in range(0, len(tickets_focal), num_colunas):
                 linha = st.columns(num_colunas)
-                for j, ocorr in enumerate(tickets_focal[i:i+num_colunas]):
+                for j, row in enumerate(tickets_focal[i:i+num_colunas]):
                     with linha[j]:
-                        ticket_id = ocorr["id"]
+                        ticket_id = row["id"]
 
-                        # Processa data de abertura manual
-                        data_formatada = "Data não informada"
-                        status = "Data manual ausente"
-                        cor = "gray"
+                        # Processa a data
                         try:
-                            if ocorr.get("data_abertura_manual") and ocorr.get("hora_abertura_manual"):
-                                data_manual_str = f"{ocorr['data_abertura_manual']} {ocorr['hora_abertura_manual']}"
-                                dt_manual = datetime.strptime(data_manual_str, "%Y-%m-%d %H:%M:%S")
-                                data_formatada = dt_manual.strftime("%d-%m-%Y %H:%M:%S")
-                                data_abertura_iso = dt_manual.strftime("%Y-%m-%d %H:%M:%S")
-                                status, cor = classificar_ocorrencia_por_tempo(data_abertura_iso)
-                        except Exception:
-                            pass
+                            data_str = row.get("data_hora_abertura", "") or row.get("abertura_timestamp", "")
+                            data_str = data_str.replace('T', ' ')
+                            data_dt = parser.parse(data_str)
+                            data_formatada = data_dt.strftime("%d-%m-%Y %H:%M:%S")
+                        except:
+                            data_formatada = "Data inválida"
 
-                        # Exibe informações do ticket
-                        st.markdown(
-                            f"""
-                            <div style='background-color:{cor};padding:10px;border-radius:10px;color:white;
-                            box-shadow: 0 4px 10px rgba(0,0,0,0.3);margin-bottom:10px;font-size:15px;'>
-                            <strong>Ticket #:</strong> {ocorr.get('numero_ticket', 'N/A')}<br>
-                            <strong>Status:</strong> <span style='background-color:#2c3e50;padding:4px 8px;
-                            border-radius:1px;color:white;'>{status}</span><br>
-                            <strong>NF:</strong> {ocorr.get('nota_fiscal', '-')}<br>
-                            <strong>Cliente:</strong> {ocorr.get('cliente', '-')}<br>
-                            <strong>Destinatário:</strong> {ocorr.get('destinatario', '-')}<br>
-                            <strong>Cidade:</strong> {ocorr.get('cidade', '-')}<br>
-                            <strong>Motorista:</strong> {ocorr.get('motorista', '-')}<br>
-                            <strong>Tipo:</strong> {ocorr.get('tipo_de_ocorrencia', '-')}<br>
-                            <strong>Abertura Manual:</strong> {data_formatada}<br>
-                            <strong>Observações:</strong> {ocorr.get('observacoes', 'Sem observações.')}<br>
-                            </div>
-                            """,
-                            unsafe_allow_html=True
-                        )
+                        status, cor = classificar_ocorrencia_por_tempo(data_str)
 
-                        with st.expander("🔒 Finalizar Ocorrência"):
-                            contato_motorista_key = f"contato_motorista_{ticket_id}"
-                            contato_industria_key = f"contato_industria_{ticket_id}"
+                        # Gerencia checkboxes temporários
+                        contato_motorista_key = f"contato_motorista_{ticket_id}"
+                        contato_industria_key = f"contato_industria_{ticket_id}"
+                        st.session_state.setdefault(contato_motorista_key, False)
+                        st.session_state.setdefault(contato_industria_key, False)
 
-                            valor_motorista = bool(ocorr.get("contato_motorista", False))
-                            valor_industria = bool(ocorr.get("contato_industria", False))
+                        with st.container():
+                            st.markdown(
+                                f"""
+                                <div style='background-color:{cor};padding:10px;border-radius:10px;color:white;margin-bottom:10px;'>
+                                    <strong>Ticket #:</strong> {row.get("numero_ticket", "-")}<br>
+                                    <strong>Status:</strong> {status}<br>
+                                    <strong>NF:</strong> {row.get("nota_fiscal", "-")}<br>
+                                    <strong>Cliente:</strong> {row.get("cliente", "-")}<br>
+                                    <strong>Destinatário:</strong> {row.get('destinatario', '-')}<br>
+                                    <strong>Focal:</strong> {row.get("focal", "-")}<br>
+                                    <strong>Cidade:</strong> {row.get("cidade", "-")}<br>
+                                    <strong>Motorista:</strong> {row.get("motorista", "-")}<br>
+                                    <strong>Tipo:</strong> {row.get("tipo_de_ocorrencia", "-")}<br>
+                                    <strong>Aberto por:</strong> {row.get("responsavel", "-")}<br>
+                                    <strong>Data/Hora Abertura:</strong> {data_formatada}<br>
+                                    <strong>Observações:</strong> {row.get("observacoes", "Sem observações.")}<br>
+                                </div>
+                                """,
+                                unsafe_allow_html=True
+                            )
 
                             col1, col2 = st.columns(2)
                             with col1:
-                                novo_motorista = st.checkbox("✔️ Contato com motorista",
-                                                            key=contato_motorista_key,
-                                                            value=valor_motorista)
+                                st.checkbox("✔️ Contato com motorista", key=contato_motorista_key)
                             with col2:
-                                novo_industria = st.checkbox("✔️ Contato com indústria",
-                                                            key=contato_industria_key,
-                                                            value=valor_industria)
+                                st.checkbox("✔️ Contato com indústria", key=contato_industria_key)
 
-                            if novo_motorista != valor_motorista:
-                                supabase.table("ocorrencias").update({
-                                    "contato_motorista": novo_motorista
-                                }).eq("id", ticket_id).execute()
+                            # Finalização
+                            with st.expander("🔒 Finalizar Ocorrência"):
+                                comp_key = f"complementar_final_{ticket_id}"
+                                st.session_state.setdefault(comp_key, "")
+                                st.text_area("Complementar (obrigatório)", key=comp_key)
 
-                            if novo_industria != valor_industria:
-                                supabase.table("ocorrencias").update({
-                                    "contato_industria": novo_industria
-                                }).eq("id", ticket_id).execute()
+                                if st.button("✅ Finalizar", key=f"finalizar_btn_{ticket_id}"):
+                                    if not st.session_state[comp_key].strip():
+                                        st.warning("⚠️ Campo 'Complementar' é obrigatório para finalizar.")
+                                    else:
+                                        agora_sp = datetime.now(pytz.timezone("America/Sao_Paulo")).replace(tzinfo=None)
 
-                            comp_key = f"complementar_final_{ticket_id}"
-                            if comp_key not in st.session_state:
-                                st.session_state[comp_key] = ""
-                            complemento = st.text_area("Complementar (obrigatório)", key=comp_key)
-
-                            data_atual = datetime.now().strftime("%d-%m-%Y")
-                            hora_atual = datetime.now().strftime("%H:%M")
-
-                            data_final_key = f"data_final_{ticket_id}"
-                            hora_final_key = f"hora_final_{ticket_id}"
-
-                            if data_final_key not in st.session_state:
-                                st.session_state[data_final_key] = data_atual
-                            if hora_final_key not in st.session_state:
-                                st.session_state[hora_final_key] = hora_atual
-
-                            data_finalizacao_manual = st.text_input("Data Finalização (DD-MM-AAAA)", key=data_final_key)
-                            hora_finalizacao_manual = st.text_input("Hora Finalização (HH:MM)", key=hora_final_key)
-
-                            finalizar_btn_key = f"finalizar_{ticket_id}"
-                            if st.button("Finalizar", key=finalizar_btn_key):
-                                if not complemento.strip():
-                                    st.error("❌ O campo 'Complementar' é obrigatório para finalizar a ocorrência.")
-                                else:
-                                    try:
-                                        data_hora_finalizacao = datetime.strptime(
-                                            f"{data_finalizacao_manual} {hora_finalizacao_manual}",
-                                            "%d-%m-%Y %H:%M"
-                                        )
-
-                                        data_hora_abertura = datetime.strptime(
-                                            f"{ocorr['data_abertura_manual']} {ocorr['hora_abertura_manual']}",
-                                            "%Y-%m-%d %H:%M:%S"
-                                        )
-
-                                        if data_hora_finalizacao < data_hora_abertura:
-                                            st.error("❌ Data/hora de finalização não pode ser menor que a data/hora de abertura.")
+                                        abertura_str = row.get("data_hora_abertura") or row.get("abertura_timestamp")
+                                        if not abertura_str:
+                                            st.error("❌ Data/Hora de abertura ausente, não é possível finalizar.")
                                         else:
-                                            delta = data_hora_finalizacao - data_hora_abertura
-                                            total_segundos = int(delta.total_seconds())
-                                            horas_totais = total_segundos // 3600
-                                            minutos = (total_segundos % 3600) // 60
-                                            permanencia_manual = f"{horas_totais:02d}:{minutos:02d}"
+                                            try:
+                                                abertura_dt = parser.parse(abertura_str.replace('T', ' ')).replace(tzinfo=None)
+                                                delta = agora_sp - abertura_dt
 
-                                            hora_finalizacao_banco = f"{hora_finalizacao_manual}:00"
+                                                horas = str(delta.seconds // 3600).zfill(2)
+                                                minutos = str((delta.seconds // 60) % 60).zfill(2)
+                                                segundos = str(delta.seconds % 60).zfill(2)
+                                                permanencia = f"{horas}:{minutos}:{segundos}"
 
-                                            response = supabase.table("ocorrencias").update({
-                                                "data_hora_finalizacao": data_hora_finalizacao.strftime("%Y-%m-%d %H:%M"),
-                                                "finalizado_por": st.session_state.username,
-                                                "complementar": complemento,
-                                                "status": "Finalizada",
-                                                "permanencia_manual": permanencia_manual,
-                                                "data_finalizacao_manual": data_hora_finalizacao.strftime("%Y-%m-%d"),
-                                                "hora_finalizacao_manual": hora_finalizacao_banco,
-                                                "contato_motorista": st.session_state[contato_motorista_key],
-                                                "contato_industria": st.session_state[contato_industria_key],
-                                            }).eq("id", ticket_id).execute()
+                                                response = supabase.table("ocorrencias").update({
+                                                    "data_hora_finalizacao": agora_sp.strftime("%Y-%m-%d %H:%M:%S"),
+                                                    "finalizado_por": st.session_state.username,
+                                                    "complementar": st.session_state[comp_key],
+                                                    "status": "Finalizada",
+                                                    "permanencia": permanencia,
+                                                }).eq("id", ticket_id).execute()
 
-                                            if response and response.data:
-                                                st.success("✅ Ocorrência finalizada com sucesso!")
-                                                time.sleep(1)
-                                                st.rerun()
-                                            else:
-                                                st.error("Erro ao salvar a finalização no banco de dados.")
-                                    except ValueError:
-                                        st.error("❌ Formato inválido. Use DD-MM-AAAA para a data e HH:MM para a hora.")
-                                    except Exception as e:
-                                        st.error(f"Erro ao salvar a finalização: {e}")
+                                                if response and response.data:
+                                                    st.success("✅ Ocorrência finalizada com sucesso!")
+                                                    time.sleep(2)
+                                                    st.rerun()
+                                                else:
+                                                    st.error("❌ Erro ao salvar a finalização no banco de dados.")
+                                            except Exception as e:
+                                                st.error(f"Erro ao calcular tempo de permanência: {e}")
+
+
+
+# =========================
+#     ABA 6 - ESTATÍSTICAS
+# =========================
+with aba6:
+    st.header("📊 Estatísticas de Ocorrências Finalizadas")
+
+    # Carrega as ocorrências finalizadas
+    ocorrencias_finalizadas = carregar_ocorrencias_finalizadas()
+
+    if not ocorrencias_finalizadas:
+        st.info("ℹ️ Nenhuma ocorrência finalizada para gerar estatísticas.")
+        st.stop()
+
+    df_finalizadas = pd.DataFrame(ocorrencias_finalizadas)
+
+    # --- Limpeza e conversões ---
+    df_finalizadas["data_hora_abertura"] = pd.to_datetime(
+        df_finalizadas.get("abertura_ticket") or df_finalizadas.get("abertura_timestamp"), errors="coerce"
+    )
+    df_finalizadas["data_hora_finalizacao"] = pd.to_datetime(df_finalizadas["data_hora_finalizacao"], errors="coerce")
+    df_finalizadas = df_finalizadas.dropna(subset=["data_hora_abertura", "data_hora_finalizacao"])
+
+    # Calcula tempo de permanência
+   # Remove timezone (caso exista)
+    df_finalizadas["data_hora_abertura"] = df_finalizadas["data_hora_abertura"].dt.tz_localize(None)
+    df_finalizadas["data_hora_finalizacao"] = df_finalizadas["data_hora_finalizacao"].dt.tz_localize(None)
+
+    # Calcula permanência
+    df_finalizadas["permanencia_horas"] = (
+        df_finalizadas["data_hora_finalizacao"] - df_finalizadas["data_hora_abertura"]
+    ).dt.total_seconds() / 3600
+
+    # --- Estatísticas Gerais ---
+    st.subheader("⏱️ Tempo Médio de Permanência")
+    tempo_medio = df_finalizadas["permanencia_horas"].mean()
+    st.metric("Tempo Médio de Permanência (h)", f"{tempo_medio:.2f} h")
+
+    # --- Gráfico por Tipo de Ocorrência ---
+    st.subheader("📌 Ocorrências por Tipo")
+    tipo_counts = df_finalizadas["tipo_de_ocorrencia"].value_counts()
+    st.bar_chart(tipo_counts)
+
+    # --- Gráfico por Cliente ---
+    st.subheader("🏢 Ocorrências por Cliente")
+    cliente_counts = df_finalizadas["cliente"].value_counts()
+    st.bar_chart(cliente_counts)
+
+    # --- Gráfico de Tempo Médio por Focal ---
+    st.subheader("👤 Tempo Médio por Focal")
+    tempo_por_focal = df_finalizadas.groupby("focal")["permanencia_horas"].mean().sort_values(ascending=False)
+    st.bar_chart(tempo_por_focal)
+
+
