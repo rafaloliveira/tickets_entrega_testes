@@ -193,7 +193,7 @@ def get_db_connection():
 
 # Função de inserção no Supabase
 def inserir_ocorrencia_supabase(dados):
-    response = supabase.table("ocorrencias").insert([{
+    payload = {
         "id": dados["id"],
         "nota_fiscal": dados["nota_fiscal"],
         "cliente": dados["cliente"],
@@ -205,15 +205,24 @@ def inserir_ocorrencia_supabase(dados):
         "observacoes": dados["observacoes"],
         "responsavel": dados["responsavel"],
         "status": "Aberta",
-        "data_hora_abertura": dados["data_hora_abertura"],
-        "abertura_timestamp": dados["abertura_timestamp"],
-        "permanencia": dados["permanencia"],
-        "complementar": dados["complementar"],
         "data_hora_abertura": dados["data_hora_abertura"].isoformat(),
         "abertura_timestamp": dados["abertura_timestamp"].isoformat(),
+        "permanencia": dados["permanencia"],
+        "complementar": dados["complementar"],
+        "data_abertura_manual": datetime.now().strftime("%d/%m/%Y"),
+        "hora_abertura_manual": datetime.now().strftime("%H:%M:%S")
+    }
 
-    }]).execute()
-    return response
+    try:
+        print("Payload a ser enviado:")
+        print(payload)
+        response = supabase.table("ocorrencias").insert([payload]).execute()
+        return response
+    except Exception as e:
+        st.error("Erro ao inserir ocorrência.")
+        st.exception(e)
+        return None
+
 
 
 # --- CARREGAMENTO DE DADOS Tabelas com nomes de motorista e clientes ---
