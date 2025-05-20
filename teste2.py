@@ -999,8 +999,7 @@ with aba5:
 
                     with st.expander("🛑 Finalizar Ocorrência"):
                         data_atual = datetime.now().strftime("%d-%m-%Y")
-                        fuso = pytz.timezone("America/Sao_Paulo")
-                        hora_atual = datetime.now(fuso).strftime("%H:%M")
+                        hora_atual = datetime.now().strftime("%H:%M")
                         data_finalizacao_manual = st.text_input("Data Finalização (DD-MM-AAAA)", value=data_atual, key=f"data_final_{safe_idx}")
                         hora_finalizacao_manual = st.text_input("Hora Finalização (HH:MM)", value=hora_atual, key=f"hora_final_{safe_idx}")
 
