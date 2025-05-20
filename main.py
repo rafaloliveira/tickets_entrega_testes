@@ -205,8 +205,6 @@ def inserir_ocorrencia_supabase(dados):
         "observacoes": dados["observacoes"],
         "responsavel": dados["responsavel"],
         "status": "Aberta",
-        "data_hora_abertura": dados["data_hora_abertura"],  # ✅ sem isoformat()
-        "abertura_timestamp": dados["abertura_timestamp"],  # ✅ sem isoformat()
         "data_abertura_manual": dados["data_abertura_manual"],  # string "YYYY-MM-DD"
         "hora_abertura_manual": dados["hora_abertura_manual"],   # string "HH:MM:SS"
         "permanencia": dados["permanencia"],
@@ -655,8 +653,8 @@ with aba2:
                                 <strong>Motorista:</strong> {ocorr.get('motorista', '-')}<br>
                                 <strong>Tipo:</strong> {ocorr.get('tipo_de_ocorrencia', '-')}<br>
                                 <strong>Aberto por:</strong> {ocorr.get('responsavel', '-')}<br>
-                                <strong>Data Abertura:</strong> {data_abertura_manual}<br>
-                                <strong>Hora Abertura:</strong> {hora_abertura_manual}<br>
+                                <strong>Data Abertura:</strong> {data_abertura_manual_disp}<br>
+                                <strong>Hora Abertura:</strong> {hora_abertura_manual_disp}<br>
                                 <strong>Observações:</strong> {ocorr.get('observacoes', 'Sem observações.')}<br>
                             </div>
                             """,
