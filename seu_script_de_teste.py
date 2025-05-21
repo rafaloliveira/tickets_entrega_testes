@@ -602,7 +602,7 @@ def verificar_e_enviar_email_abertura(ocorrencia):
                             </tr>
                         </table>
                         <p>Por favor, entre em contato conosco para mais informações.</p>
-                        <p>Atenciosamente,<br>Equipe de Monitoramento ClickLog TransportesS</p>
+                        <p>Atenciosamente,<br>Equipe de Monitoramento ClickLog Transportes</p>
                     </body>
                     </html>
                     """
