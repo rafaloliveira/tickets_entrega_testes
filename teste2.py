@@ -1,6 +1,6 @@
 # funcionando com envio de e-mail 21-05
 # versão completa com todas as funcionalidades solicitadas
-# versão liberada para usuário com correção de fuso horário
+# versão liberada para usuário com correção de fuso horário e uso exclusivo de datas manuais
 
 
 import streamlit as st
@@ -211,55 +211,6 @@ def get_db_connection():
         st.error(f"Erro ao conectar ao banco de dados: {e}")
         return None
 
-# Função de inserção no Supabase
-def inserir_ocorrencia_supabase(dados):
-    response = supabase.table("ocorrencias").insert([{
-        "id": dados["id"],
-        "nota_fiscal": dados["nota_fiscal"],
-        "cliente": dados["cliente"],
-        "focal": dados["focal"],
-        "destinatario": dados["destinatario"],
-        "cidade": dados["cidade"],
-        "motorista": dados["motorista"],
-        "tipo_de_ocorrencia": dados["tipo_de_ocorrencia"],
-        "observacoes": dados["observacoes"],
-        "responsavel": dados["responsavel"],
-        "status": "Aberta",
-        "data_hora_abertura": dados["data_hora_abertura"],
-        "abertura_timestamp": dados["abertura_timestamp"],
-        "permanencia": dados["permanencia"],
-        "complementar": dados["complementar"],
-        "data_abertura_manual": dados["data_abertura_manual"],     # <-- data inserida manualmente
-        "hora_abertura_manual": dados["hora_abertura_manual"],     # <-- hora inserida manualmente
-        "email_abertura_enviado": False,                           # <-- inicializa como não enviado
-        "email_finalizacao_enviado": False                         # <-- inicializa como não enviado
-
-    }]).execute()
-    return response
-
-
-# --- CARREGAMENTO DE DADOS Tabelas com nomes de motorista e clientes ---
-import pandas as pd
-
-# Carrega a aba "clientes" do arquivo clientes.xlsx
-df_clientes = pd.read_excel("data/clientes.xlsx", sheet_name="clientes")
-df_clientes.columns = df_clientes.columns.str.strip()  # Remove espaços extras nas colunas
-df_clientes = df_clientes[["Cliente", "Focal"]].dropna(subset=["Cliente"])
-
-# Carrega a lista de cidades do arquivo cidade.xlsx
-df_cidades = pd.read_excel("data/cidade.xlsx")
-df_cidades.columns = df_cidades.columns.str.strip()
-cidades = df_cidades["cidade"].dropna().unique().tolist()
-
-# Cria dicionário Cliente -> Focal e lista de clientes
-cliente_to_focal = dict(zip(df_clientes["Cliente"], df_clientes["Focal"]))
-clientes = df_clientes["Cliente"].tolist()
-
-# Carrega a aba "motoristas" do arquivo motoristas.xlsx
-df_motoristas = pd.read_excel("data/motoristas.xlsx", sheet_name="motoristas")
-df_motoristas.columns = df_motoristas.columns.str.strip()
-motoristas = df_motoristas["Motorista"].dropna().tolist()
-
 # --- FUNÇÕES DE DATA E HORA COM FUSO HORÁRIO ---
 
 def obter_data_hora_atual_brasil():
@@ -290,6 +241,75 @@ def calcular_diferenca_tempo(data_hora_inicial, data_hora_final=None):
         data_hora_final = data_hora_final.astimezone(FUSO_HORARIO_BRASIL)
     
     return data_hora_final - data_hora_inicial
+
+def criar_datetime_manual(data_str, hora_str):
+    """Cria um objeto datetime a partir de strings de data e hora, com fuso horário do Brasil."""
+    try:
+        data_hora_str = f"{data_str} {hora_str}"
+        data_hora = datetime.strptime(data_hora_str, "%Y-%m-%d %H:%M:%S")
+        return FUSO_HORARIO_BRASIL.localize(data_hora)
+    except Exception as e:
+        st.error(f"Erro ao criar datetime manual: {e}")
+        return None
+
+# Função de inserção no Supabase
+def inserir_ocorrencia_supabase(dados):
+    # Criar data_hora_abertura a partir dos campos manuais
+    data_hora_manual = criar_datetime_manual(dados["data_abertura_manual"], dados["hora_abertura_manual"])
+    
+    if data_hora_manual:
+        # Usar a data/hora manual para todos os campos de data/hora
+        data_hora_str = data_hora_manual.strftime("%Y-%m-%d %H:%M:%S")
+        timestamp_iso = data_hora_manual.isoformat()
+        
+        response = supabase.table("ocorrencias").insert([{
+            "id": dados["id"],
+            "nota_fiscal": dados["nota_fiscal"],
+            "cliente": dados["cliente"],
+            "focal": dados["focal"],
+            "destinatario": dados["destinatario"],
+            "cidade": dados["cidade"],
+            "motorista": dados["motorista"],
+            "tipo_de_ocorrencia": dados["tipo_de_ocorrencia"],
+            "observacoes": dados["observacoes"],
+            "responsavel": dados["responsavel"],
+            "status": "Aberta",
+            "data_hora_abertura": data_hora_str,  # Usar data/hora manual
+            "abertura_timestamp": timestamp_iso,  # Usar data/hora manual
+            "permanencia": dados["permanencia"],
+            "complementar": dados["complementar"],
+            "data_abertura_manual": dados["data_abertura_manual"],
+            "hora_abertura_manual": dados["hora_abertura_manual"],
+            "email_abertura_enviado": False,
+            "email_finalizacao_enviado": False
+        }]).execute()
+        return response
+    else:
+        st.error("Erro ao criar data/hora manual para inserção no banco")
+        return None
+
+
+# --- CARREGAMENTO DE DADOS Tabelas com nomes de motorista e clientes ---
+import pandas as pd
+
+# Carrega a aba "clientes" do arquivo clientes.xlsx
+df_clientes = pd.read_excel("data/clientes.xlsx", sheet_name="clientes")
+df_clientes.columns = df_clientes.columns.str.strip()  # Remove espaços extras nas colunas
+df_clientes = df_clientes[["Cliente", "Focal"]].dropna(subset=["Cliente"])
+
+# Carrega a lista de cidades do arquivo cidade.xlsx
+df_cidades = pd.read_excel("data/cidade.xlsx")
+df_cidades.columns = df_cidades.columns.str.strip()
+cidades = df_cidades["cidade"].dropna().unique().tolist()
+
+# Cria dicionário Cliente -> Focal e lista de clientes
+cliente_to_focal = dict(zip(df_clientes["Cliente"], df_clientes["Focal"]))
+clientes = df_clientes["Cliente"].tolist()
+
+# Carrega a aba "motoristas" do arquivo motoristas.xlsx
+df_motoristas = pd.read_excel("data/motoristas.xlsx", sheet_name="motoristas")
+df_motoristas.columns = df_motoristas.columns.str.strip()
+motoristas = df_motoristas["Motorista"].dropna().tolist()
 
 # --- FORMULÁRIO PARA NOVA OCORRÊNCIA ---
 
@@ -374,19 +394,9 @@ with aba1:
                 # Gera número de ticket único baseado em data/hora
                 numero_ticket = obter_data_hora_atual_brasil().strftime("%Y%m%d%H%M%S%f")  # Ex: 20250513151230543210
 
-                # Obter data e hora atual no fuso horário do Brasil
-                agora_brasil = obter_data_hora_atual_brasil()
-                
-                # Converter data e hora manual para datetime com fuso horário do Brasil
-                data_hora_manual = datetime.combine(
-                    data_abertura_manual, 
-                    hora_abertura_manual
-                )
-                data_hora_manual = FUSO_HORARIO_BRASIL.localize(data_hora_manual)
-                
-                # Formatar para string no formato esperado pelo banco
-                data_abertura_manual_str = data_hora_manual.strftime("%Y-%m-%d")
-                hora_abertura_manual_str = data_hora_manual.strftime("%H:%M:%S")
+                # Formatar data e hora manual para string no formato esperado pelo banco
+                data_abertura_manual_str = data_abertura_manual.strftime("%Y-%m-%d")
+                hora_abertura_manual_str = hora_abertura_manual.strftime("%H:%M:%S")
 
                 # Montagem do dicionário de nova ocorrência
                 nova_ocorrencia = {
@@ -401,22 +411,16 @@ with aba1:
                     "tipo_de_ocorrencia": ", ".join(tipo),
                     "observacoes": obs,
                     "responsavel": responsavel,
-                    "data_hora_abertura": agora_brasil.strftime("%Y-%m-%d %H:%M:%S"),   # Para exibição (com TZ)
-                    "abertura_timestamp": agora_brasil.isoformat(),            # ISO com fuso (para cálculos)
-                    "abertura_datetime_obj": agora_brasil,                     # Objeto datetime com TZ (para cálculos)
-                    "abertura_ticket": agora_brasil.strftime("%Y-%m-%d %H:%M:%S"),      # Novo campo para cálculo na finalização
                     "data_abertura_manual": data_abertura_manual_str, # data abertura inserido manual
                     "hora_abertura_manual": hora_abertura_manual_str, # hora abertura inserido manual
                     "complementar": "",
                     "permanencia": "",
-                    "email_abertura_enviado": False,  # Inicializa como não enviado
-                    "email_finalizacao_enviado": False  # Inicializa como não enviado
                 }
 
                 # Inserção no banco de dados
                 response = inserir_ocorrencia_supabase(nova_ocorrencia)
                 
-                if response.data:
+                if response and response.data:
                     # Adiciona localmente para exibição imediata
                     nova_ocorrencia_local = nova_ocorrencia.copy()
                     nova_ocorrencia_local["Data/Hora Finalização"] = ""
@@ -432,7 +436,7 @@ with aba1:
                     # Verificar se precisa enviar e-mail (mais de 30 minutos)
                     
                 else:
-                    st.error(f"Erro ao salvar ocorrência no Supabase: {response.error}")
+                    st.error(f"Erro ao salvar ocorrência no Supabase: {response.error if response else 'Erro desconhecido'}")
 
 
 # Função de classificação
@@ -444,16 +448,14 @@ import pytz
 # =========================
 def classificar_ocorrencia_por_tempo(data_str, hora_str):
     try:
-        # Junta data e hora
-        data_hora_str = f"{data_str} {hora_str}"
-        data_hora = datetime.strptime(data_hora_str, "%Y-%m-%d %H:%M:%S")
-        
-        # Garantir que a data/hora está no fuso horário do Brasil
-        data_hora = FUSO_HORARIO_BRASIL.localize(data_hora)
+        # Criar datetime a partir das strings de data e hora
+        data_hora = criar_datetime_manual(data_str, hora_str)
+        if not data_hora:
+            return "Erro", "gray"
         
         # Calcula a diferença de tempo com a hora atual do Brasil
         agora = obter_data_hora_atual_brasil()
-        diferenca = agora - data_hora
+        diferenca = calcular_diferenca_tempo(data_hora, agora)
         
         # Classifica com base no tempo decorrido (novos intervalos)
         if diferenca <= timedelta(minutes=15):
@@ -512,14 +514,17 @@ def obter_ocorrencias_abertas_30min():
             # Verificar se tem data e hora manual
             if ocorr.get("data_abertura_manual") and ocorr.get("hora_abertura_manual"):
                 try:
-                    data_hora_str = f"{ocorr['data_abertura_manual']} {ocorr['hora_abertura_manual']}"
-                    data_hora_abertura = datetime.strptime(data_hora_str, "%Y-%m-%d %H:%M:%S")
-                    data_hora_abertura = FUSO_HORARIO_BRASIL.localize(data_hora_abertura)
+                    # Criar datetime a partir das strings de data e hora manual
+                    data_hora_abertura = criar_datetime_manual(
+                        ocorr["data_abertura_manual"], 
+                        ocorr["hora_abertura_manual"]
+                    )
                     
-                    # Verificar se passou mais de 30 minutos
-                    diferenca = calcular_diferenca_tempo(data_hora_abertura, agora)
-                    if diferenca > timedelta(minutes=30):
-                        ocorrencias_30min.append(ocorr)
+                    if data_hora_abertura:
+                        # Verificar se passou mais de 30 minutos
+                        diferenca = calcular_diferenca_tempo(data_hora_abertura, agora)
+                        if diferenca > timedelta(minutes=30):
+                            ocorrencias_30min.append(ocorr)
                 except Exception as e:
                     st.error(f"Erro ao processar data/hora da ocorrência {ocorr.get('nota_fiscal', '-')}: {e}")
         
@@ -590,9 +595,14 @@ def verificar_e_enviar_email_abertura(ocorrencia):
         agora = obter_data_hora_atual_brasil()
         
         if ocorrencia.get("data_abertura_manual") and ocorrencia.get("hora_abertura_manual"):
-            data_hora_str = f"{ocorrencia['data_abertura_manual']} {ocorrencia['hora_abertura_manual']}"
-            data_hora_abertura = datetime.strptime(data_hora_str, "%Y-%m-%d %H:%M:%S")
-            data_hora_abertura = FUSO_HORARIO_BRASIL.localize(data_hora_abertura)
+            # Criar datetime a partir das strings de data e hora manual
+            data_hora_abertura = criar_datetime_manual(
+                ocorrencia["data_abertura_manual"], 
+                ocorrencia["hora_abertura_manual"]
+            )
+            
+            if not data_hora_abertura:
+                return False, "Erro ao criar datetime a partir de data/hora manual"
             
             # Verificar se passou mais de 30 minutos
             diferenca = calcular_diferenca_tempo(data_hora_abertura, agora)
@@ -605,6 +615,9 @@ def verificar_e_enviar_email_abertura(ocorrencia):
                     email_info = clientes_emails[cliente]
                     email_principal = email_info['principal']
                     email_copia = email_info['copia']
+                    
+                    # Formatar data/hora para exibição
+                    data_hora_str = f"{ocorrencia['data_abertura_manual']} {ocorrencia['hora_abertura_manual']}"
                     
                     # Criar corpo do e-mail
                     corpo_html = f"""
@@ -675,7 +688,7 @@ def verificar_e_enviar_email_abertura(ocorrencia):
                 else:
                     return False, "Cliente não possui e-mail cadastrado"
             else:
-                return False, "Ocorrência aberta há menos de 30 minutos"
+                return False, f"Ocorrência aberta há menos de 30 minutos (diferença: {diferenca})"
         else:
             return False, "Dados de data/hora de abertura ausentes"
     except Exception as e:
@@ -864,81 +877,6 @@ def obter_focais_com_contagem():
         st.error(f"Erro ao obter focais com contagem: {e}")
         return []
 
-# =========================
-#    FUNÇÃO SALVAR FINALIZADA
-# =========================
-def salvar_ocorrencia_finalizada(ocorr, status):
-    try:
-        if isinstance(ocorr.get("Data/Hora Finalização"), str):
-            try:
-                data_hora_finalizacao = datetime.strptime(ocorr["Data/Hora Finalização"], "%d-%m-%Y %H:%M:%S")
-                data_hora_finalizacao = FUSO_HORARIO_BRASIL.localize(data_hora_finalizacao)
-            except ValueError:
-                st.error("Erro: Formato de 'Data/Hora Finalização' inválido!")
-                return
-        else:
-            data_hora_finalizacao = ocorr["Data/Hora Finalização"]
-            if data_hora_finalizacao.tzinfo is None:
-                data_hora_finalizacao = FUSO_HORARIO_BRASIL.localize(data_hora_finalizacao)
-
-        # Obter data/hora de abertura
-        data_abertura_manual = ocorr.get("data_abertura_manual")
-        hora_abertura_manual = ocorr.get("hora_abertura_manual")
-        
-        if data_abertura_manual and hora_abertura_manual:
-            data_hora_str = f"{data_abertura_manual} {hora_abertura_manual}"
-            data_abertura_manual = datetime.strptime(data_hora_str, "%Y-%m-%d %H:%M:%S")
-            data_abertura_manual = FUSO_HORARIO_BRASIL.localize(data_abertura_manual)
-        else:
-            st.error("Erro: Data/hora de abertura manual ausente!")
-            return
-
-        # Impede finalização com data anterior
-        if data_hora_finalizacao < data_abertura_manual:
-            st.error("❌ Data/hora de finalização não pode ser menor que a de abertura.")
-            return
-
-        # Calcula permanência
-        permanencia_timedelta = data_hora_finalizacao - data_abertura_manual
-        total_segundos = int(permanencia_timedelta.total_seconds())
-
-        horas_totais = total_segundos // 3600
-        minutos = (total_segundos % 3600) // 60
-
-        # Formata com zero à esquerda para 2 dígitos
-        tempo_permanencia_formatado = f"{horas_totais:02d}:{minutos:02d}"
-
-        # Converte data finalização manual para formato ISO para o banco
-        data_finalizacao_iso = data_hora_finalizacao.strftime("%Y-%m-%d")
-        hora_finalizacao_manual = data_hora_finalizacao.strftime("%H:%M:%S")
-
-        # Atualiza no banco
-        response = supabase.table("ocorrencias").update({
-            "finalizado_por": ocorr["Finalizado por"],
-            "complementar": ocorr["Complementar"],
-            "permanencia": tempo_permanencia_formatado,
-            "status": "Finalizada",
-            "data_finalizacao_manual": data_finalizacao_iso,
-            "hora_finalizacao_manual": hora_finalizacao_manual,
-            "email_finalizacao_enviado": False  # Inicializa como não enviado
-        }).eq("id", ocorr["ID"]).execute()
-
-        # Debug
-        st.write("Resposta Supabase:", response)
-
-        st.session_state["mensagem_sucesso_finalizacao"] = True
-
-    except Exception as e:
-        st.error(f"Erro ao salvar no banco de dados: {e}")
-        st.session_state["mensagem_sucesso_finalizacao"] = False
-
-    if st.session_state.get("mensagem_sucesso_finalizacao"):
-        sucesso_msg = st.empty()
-        sucesso_msg.success("✅ Ocorrência finalizada com sucesso!")
-        time.sleep(2)
-        sucesso_msg.empty()
-        del st.session_state["mensagem_sucesso_finalizacao"]
-
 # Função para finalizar ocorrência
 def finalizar_ocorrencia(ocorr, complemento, data_finalizacao_manual, hora_finalizacao_manual):
     try:
@@ -950,16 +888,18 @@ def finalizar_ocorrencia(ocorr, complemento, data_finalizacao_manual, hora_final
         
         try:
             # Converter string para datetime com fuso horário do Brasil
-            data_hora_finalizacao = datetime.strptime(
-                f"{data_finalizacao_manual} {hora_finalizacao_manual}", "%d-%m-%Y %H:%M"
-            )
-            data_hora_finalizacao = FUSO_HORARIO_BRASIL.localize(data_hora_finalizacao)
+            try:
+                data_hora_finalizacao = datetime.strptime(
+                    f"{data_finalizacao_manual} {hora_finalizacao_manual}", "%d-%m-%Y %H:%M"
+                )
+                data_hora_finalizacao = FUSO_HORARIO_BRASIL.localize(data_hora_finalizacao)
+            except ValueError:
+                return False, "Formato inválido para data/hora de finalização. Use DD-MM-AAAA para a data e HH:MM para a hora."
             
             # Converter data/hora de abertura para datetime com fuso horário do Brasil
-            data_hora_abertura = datetime.strptime(
-                f"{data_abertura_manual} {hora_abertura_manual}", "%Y-%m-%d %H:%M:%S"
-            )
-            data_hora_abertura = FUSO_HORARIO_BRASIL.localize(data_hora_abertura)
+            data_hora_abertura = criar_datetime_manual(data_abertura_manual, hora_abertura_manual)
+            if not data_hora_abertura:
+                return False, "Erro ao criar datetime a partir de data/hora de abertura manual."
             
             if data_hora_finalizacao < data_hora_abertura:
                 return False, "Data/hora de finalização não pode ser menor que a data/hora de abertura."
@@ -971,6 +911,8 @@ def finalizar_ocorrencia(ocorr, complemento, data_finalizacao_manual, hora_final
             minutos = (total_segundos % 3600) // 60
             permanencia_manual = f"{horas_totais:02d}:{minutos:02d}"
             
+            # Formatar para o banco
+            data_finalizacao_banco = data_hora_finalizacao.strftime("%Y-%m-%d")
             hora_finalizacao_banco = f"{hora_finalizacao_manual}:00"
             
             # Atualizar no banco
@@ -980,7 +922,7 @@ def finalizar_ocorrencia(ocorr, complemento, data_finalizacao_manual, hora_final
                 "complementar": complemento,
                 "status": "Finalizada",
                 "permanencia_manual": permanencia_manual,
-                "data_finalizacao_manual": data_hora_finalizacao.strftime("%Y-%m-%d"),
+                "data_finalizacao_manual": data_finalizacao_banco,
                 "hora_finalizacao_manual": hora_finalizacao_banco,
                 "email_finalizacao_enviado": False  # Inicializa como não enviado
             }).eq("id", ocorr["id"]).execute()
@@ -1027,13 +969,16 @@ with aba2:
 
             if data_abertura_manual and hora_abertura_manual:
                 try:
-                    data_manual_str = f"{data_abertura_manual} {hora_abertura_manual}"
-                    dt_manual = datetime.strptime(data_manual_str, "%Y-%m-%d %H:%M:%S")
-                    dt_manual = FUSO_HORARIO_BRASIL.localize(dt_manual)
-                    abertura_manual_formatada = dt_manual.strftime("%d-%m-%Y %H:%M:%S")
+                    # Criar datetime a partir das strings de data e hora manual
+                    dt_manual = criar_datetime_manual(data_abertura_manual, hora_abertura_manual)
+                    if dt_manual:
+                        abertura_manual_formatada = dt_manual.strftime("%d-%m-%Y %H:%M:%S")
 
-                    # Classificação por tempo com base nas datas manuais
-                    status, cor = classificar_ocorrencia_por_tempo(data_abertura_manual, hora_abertura_manual)
+                        # Classificação por tempo com base nas datas manuais
+                        status, cor = classificar_ocorrencia_por_tempo(data_abertura_manual, hora_abertura_manual)
+                    else:
+                        status = "Erro"
+                        cor = "gray"
 
                 except Exception as e:
                     st.error(f"Erro ao processar data/hora manual da ocorrência {ocorr.get('nota_fiscal', '-')}: {e}")
@@ -1165,39 +1110,19 @@ with aba3:
 
             for idx, ocorr in enumerate(linha):
                 try:
-                    # --- Datas sistema ---
-                    data_abertura_raw = ocorr.get("abertura_ticket") or ocorr.get("abertura_timestamp")
-                    data_finalizacao_raw = ocorr.get("data_hora_finalizacao")
-
-                    data_abertura_dt = parser.isoparse(data_abertura_raw).replace(tzinfo=None) if data_abertura_raw else None
-                    data_finalizacao_dt = parser.isoparse(data_finalizacao_raw).replace(tzinfo=None) if data_finalizacao_raw else None
-
-                    # Garantir fuso horário do Brasil
-                    if data_abertura_dt:
-                        data_abertura_dt = FUSO_HORARIO_BRASIL.localize(data_abertura_dt)
-                    if data_finalizacao_dt:
-                        data_finalizacao_dt = FUSO_HORARIO_BRASIL.localize(data_finalizacao_dt)
-
-                    data_abertura_formatada = data_abertura_dt.strftime("%d-%m-%Y %H:%M:%S") if data_abertura_dt else "-"
-                    data_finalizacao_formatada = data_finalizacao_dt.strftime("%d-%m-%Y %H:%M:%S") if data_finalizacao_dt else "-"
-
-                    tempo_permanencia_formatado = "-"
-                    if data_abertura_dt and data_finalizacao_dt:
-                        tempo_total = calcular_diferenca_tempo(data_abertura_dt, data_finalizacao_dt)
-                        tempo_permanencia_formatado = str(tempo_total).split('.')[0]
-
                     # --- Datas manuais ---
                     data_abertura_manual = "-"
                     hora_abertura_manual = "-"
                     if ocorr.get("data_abertura_manual") and ocorr.get("hora_abertura_manual"):
                         try:
-                            abertura_dt = datetime.strptime(
-                                f"{ocorr['data_abertura_manual']} {ocorr['hora_abertura_manual']}",
-                                "%Y-%m-%d %H:%M:%S"
+                            # Criar datetime a partir das strings de data e hora manual
+                            abertura_dt = criar_datetime_manual(
+                                ocorr["data_abertura_manual"], 
+                                ocorr["hora_abertura_manual"]
                             )
-                            abertura_dt = FUSO_HORARIO_BRASIL.localize(abertura_dt)
-                            data_abertura_manual = abertura_dt.strftime("%d-%m-%Y")
-                            hora_abertura_manual = abertura_dt.strftime("%H:%M:%S")
+                            if abertura_dt:
+                                data_abertura_manual = abertura_dt.strftime("%d-%m-%Y")
+                                hora_abertura_manual = abertura_dt.strftime("%H:%M:%S")
                         except:
                             pass
 
@@ -1205,13 +1130,14 @@ with aba3:
                     hora_finalizacao_manual = "-"
                     if ocorr.get("data_finalizacao_manual") and ocorr.get("hora_finalizacao_manual"):
                         try:
-                            finalizacao_dt = datetime.strptime(
-                                f"{ocorr['data_finalizacao_manual']} {ocorr['hora_finalizacao_manual']}",
-                                "%Y-%m-%d %H:%M:%S"
+                            # Criar datetime a partir das strings de data e hora manual
+                            finalizacao_dt = criar_datetime_manual(
+                                ocorr["data_finalizacao_manual"], 
+                                ocorr["hora_finalizacao_manual"]
                             )
-                            finalizacao_dt = FUSO_HORARIO_BRASIL.localize(finalizacao_dt)
-                            data_finalizacao_manual = finalizacao_dt.strftime("%d-%m-%Y")
-                            hora_finalizacao_manual = finalizacao_dt.strftime("%H:%M:%S")
+                            if finalizacao_dt:
+                                data_finalizacao_manual = finalizacao_dt.strftime("%d-%m-%Y")
+                                hora_finalizacao_manual = finalizacao_dt.strftime("%H:%M:%S")
                         except:
                             pass
 
@@ -1220,7 +1146,6 @@ with aba3:
 
                 except Exception as e:
                     st.error(f"Erro ao processar ocorrência (NF {ocorr.get('nota_fiscal', '-')}) — {e}")
-                    data_abertura_formatada = data_finalizacao_formatada = tempo_permanencia_formatado = "-"
                     data_abertura_manual = hora_abertura_manual = "-"
                     data_finalizacao_manual = hora_finalizacao_manual = "-"
                     status = "Erro"
@@ -1309,13 +1234,16 @@ with aba5:
 
                         if data_abertura_manual and hora_abertura_manual:
                             try:
-                                data_manual_str = f"{data_abertura_manual} {hora_abertura_manual}"
-                                dt_manual = datetime.strptime(data_manual_str, "%Y-%m-%d %H:%M:%S")
-                                dt_manual = FUSO_HORARIO_BRASIL.localize(dt_manual)
-                                abertura_manual_formatada = dt_manual.strftime("%d-%m-%Y %H:%M:%S")
+                                # Criar datetime a partir das strings de data e hora manual
+                                dt_manual = criar_datetime_manual(data_abertura_manual, hora_abertura_manual)
+                                if dt_manual:
+                                    abertura_manual_formatada = dt_manual.strftime("%d-%m-%Y %H:%M:%S")
 
-                                # Classificação por tempo com base nas datas manuais
-                                status, cor = classificar_ocorrencia_por_tempo(data_abertura_manual, hora_abertura_manual)
+                                    # Classificação por tempo com base nas datas manuais
+                                    status, cor = classificar_ocorrencia_por_tempo(data_abertura_manual, hora_abertura_manual)
+                                else:
+                                    status = "Erro"
+                                    cor = "gray"
 
                             except Exception as e:
                                 st.error(f"Erro ao processar data/hora manual da ocorrência {ocorr.get('nota_fiscal', '-')}: {e}")
