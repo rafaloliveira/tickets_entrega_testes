@@ -29,12 +29,12 @@ from streamlit_cookies_manager import EncryptedCookieManager
 
 from supabase import create_client, Client as SupabaseClient
 
-# --- CONFIGURAÇÕES DE E-MAIL DA KINGHOST ---
+# --- CONFIGURAÇÕES DE E-MAIL DA BREVO ---
 # Estas configurações podem ser movidas para um arquivo .env se preferir
-EMAIL_REMETENTE = "ticket@clicklogtransportes.com.br"
-EMAIL_SENHA = "Clicklogi9up@360"
-SMTP_HOST = "smtp.kinghost.net"
-SMTP_PORT = 587
+EMAIL_REMETENTE="ticket@clicklogtransportes.com.br"
+EMAIL_SENHA="xsmtpsib-d8e9da027f533dc56bbda7fa955d19b80a9bd75f54cadc2303e40169f12700e2-vgbxZN7RckDAYyaS"
+SMTP_HOST="smtp-relay.brevo.com"
+SMTP_PORT=587
 
 # Configurar timeout para operações de socket
 socket.setdefaulttimeout(10)  # 10 segundos de timeout
@@ -497,7 +497,7 @@ def marcar_email_como_enviado(ocorrencia_id, tipo="abertura"):
         return False
 
 def enviar_email(destinatario, copia, assunto, corpo):
-    """Envia e-mail usando as configurações da KingHost."""
+    """Envia e-mail usando as configurações da Brevo."""
     try:
         # Criar mensagem
         msg = MIMEMultipart()
@@ -1504,7 +1504,7 @@ if st.session_state.is_admin and 'aba6' in locals():
         
         Os e-mails são enviados utilizando:
         - **Remetente:** ticket@clicklogtransportes.com.br
-        - **Servidor SMTP:** smtp.kinghost.net
+        - **Servidor SMTP:** smtp-relay.brevo.com
         
         Os destinatários são obtidos da planilha de clientes:
         - **E-mail principal:** Coluna C (enviar_para_email)
