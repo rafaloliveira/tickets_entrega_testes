@@ -1552,3 +1552,4 @@ ocorrencias_abertas = carregar_ocorrencias_abertas()
 for ocorr in ocorrencias_abertas:
     if not ocorr.get("email_abertura_enviado", False):
         verificar_e_enviar_email_abertura(ocorr)
+#comentario
