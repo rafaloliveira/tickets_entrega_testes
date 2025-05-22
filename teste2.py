@@ -951,6 +951,7 @@ with aba1:
                     
                     # Verificar se precisa enviar e-mail (mais de 30 minutos)
                     verificar_e_enviar_email_abertura(nova_ocorrencia)
+                    print("Verificando e-mails...")
                 else:
                     st.error(f"Erro ao salvar ocorrência no Supabase: {response.error if response else 'Erro desconhecido'}")
 
