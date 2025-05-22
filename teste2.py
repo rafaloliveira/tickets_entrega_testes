@@ -636,7 +636,9 @@ def verificar_e_enviar_email_abertura(ocorrencia):
                             <h2>Notificação de Ocorrência Aberta</h2>
                         </div>
                         <p>Prezado cliente <strong>{cliente}</strong>,</p>
-                        <p>Informamos que a seguinte ocorrência está aberta há mais de 30 minutos:</p>
+                        <p>O veículo com a entrega abaixo identificada encontra-se no ponto de descarga a 30min.</p>
+                        <p>Após 45 min de tempo de permanência haverá aplicação da TDE conforme especificado</p>
+                        <p>em tabela. Pedimos sua interferência no processo de descarga para evitar custos extras.</p>
                         <table>
                             <tr>
                                 <th>Ticket</th>
@@ -1547,46 +1549,3 @@ ocorrencias_abertas = carregar_ocorrencias_abertas()
 for ocorr in ocorrencias_abertas:
     if not ocorr.get("email_abertura_enviado", False):
         verificar_e_enviar_email_abertura(ocorr)
-import smtplib
-import socket
-
-st.subheader("🧪 Teste SMTP com Brevo (com log detalhado)")
-
-DESTINATARIO_TESTE = st.text_input("E-mail de destino para teste", "seuemail@gmail.com")
-
-if st.button("Enviar E-mail de Teste"):
-    try:
-        st.code(f"Tentando conectar em {SMTP_HOST}:{SMTP_PORT} com {EMAIL_REMETENTE}")
-
-        # Resolução DNS
-        try:
-            ip = socket.gethostbyname(SMTP_HOST)
-            st.success(f"✅ DNS OK: {SMTP_HOST} → {ip}")
-        except Exception as e:
-            st.error(f"❌ Erro DNS: {e}")
-
-        # Conexão SMTP com STARTTLS (587)
-        server = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10)
-        server.set_debuglevel(1)  # Habilita log SMTP no terminal (não aparece no app)
-        server.ehlo()
-        server.starttls()
-        server.ehlo()
-        server.login(EMAIL_REMETENTE, EMAIL_SENHA)
-
-        # Mensagem simples
-        msg = f"""From: {EMAIL_REMETENTE}
-To: {DESTINATARIO_TESTE}
-Subject: Teste SMTP via Brevo
-
-Este é um teste de envio via Brevo com SMTP autenticado.
-"""
-        server.sendmail(EMAIL_REMETENTE, DESTINATARIO_TESTE, msg)
-        server.quit()
-        st.success(f"✅ E-mail enviado com sucesso para {DESTINATARIO_TESTE}!")
-
-    except smtplib.SMTPAuthenticationError as e:
-        st.error("❌ Erro de autenticação SMTP. Verifique a chave SMTP e o remetente.")
-        st.code(str(e))
-    except Exception as e:
-        st.error("❌ Erro inesperado ao enviar e-mail:")
-        st.code(str(e))
