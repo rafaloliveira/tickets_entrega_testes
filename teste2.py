@@ -272,7 +272,8 @@ def inserir_ocorrencia_supabase(dados):
     if data_hora_manual:
         # Usar a data/hora manual para todos os campos de data/hora
         data_hora_str = data_hora_manual.strftime("%Y-%m-%d %H:%M:%S")
-        timestamp_iso = data_hora_manual.isoformat()
+        agora = obter_data_hora_atual_brasil()
+        #timestamp_iso = data_hora_manual.isoformat()
         
         response = supabase.table("ocorrencias").insert([{
             "id": dados["id"],
@@ -287,7 +288,7 @@ def inserir_ocorrencia_supabase(dados):
             "responsavel": dados["responsavel"],
             "status": "Aberta",
             "data_hora_abertura": data_hora_str,  # Usar data/hora manual
-            "abertura_timestamp": data_hora_str,  # Usar data/hora manual
+            "abertura_timestamp": agora,  # Usar data/hora manual
             "permanencia": dados["permanencia"],
             "complementar": dados["complementar"],
             "data_abertura_manual": dados["data_abertura_manual"],
