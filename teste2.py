@@ -33,18 +33,11 @@ from supabase import create_client, Client as SupabaseClient
 # --- CONFIGURAÇÕES DE E-MAIL DA KINGHOST ---
 # Estas configurações podem ser movidas para um arquivo .env se preferir
 
-load_dotenv()
 EMAIL_REMETENTE = "ticket@clicklogtransportes.com.br"
-print(f"Remetente: {EMAIL_REMETENTE}")
-
 EMAIL_SENHA = "Clicklogi9up@360"
-print(f"Senha: {EMAIL_SENHA}")
-
 SMTP_HOST = "smtp.kinghost.net"
-print(f"Host: {SMTP_HOST}")
-
 SMTP_PORT = 587
-print(f"Porta: {SMTP_PORT}")
+
 
 print(os.getcwd())
 
@@ -1562,13 +1555,3 @@ if st.session_state.is_admin and 'aba6' in locals():
         else:
             st.info("Nenhum e-mail enviado ainda.")
 
-# Verificar e enviar e-mails para ocorrências abertas há mais de 30 minutos
-ocorrencias_abertas = carregar_ocorrencias_abertas()
-for ocorr in ocorrencias_abertas:
-    if not ocorr.get("email_abertura_enviado", False):
-        verificar_e_enviar_email_abertura(ocorr)
-    try:
-        ip = socket.gethostbyname(SMTP_HOST)
-        st.success(f"DNS resolvido: {SMTP_HOST} → {ip}")
-    except Exception as e:
-        st.error(f"Erro ao resolver DNS: {e}")
