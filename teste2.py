@@ -1,7 +1,9 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 # funcionando com envio de e-mail 21-05
 # versão completa com todas as funcionalidades solicitadas
-# versão liberada para usuário com correção de fuso horário e uso exclusivo de datas manuais
-
+# versão liberada para usuário com correção de fuso horário, uso exclusivo de datas manuais
+# e otimização de performance
 
 import streamlit as st
 st.set_page_config(page_title="Entregas - Tempo de Permanência", layout="wide")
@@ -16,13 +18,15 @@ import hashlib
 import psycopg2
 import smtplib
 import socket
+import logging
+import threading
+import queue
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta, timezone
 from dateutil import parser
 from psycopg2 import sql
 from io import BytesIO
-from dotenv import load_dotenv
 
 from streamlit_autorefresh import st_autorefresh
 import streamlit_authenticator as stauth
@@ -30,16 +34,24 @@ from streamlit_cookies_manager import EncryptedCookieManager
 
 from supabase import create_client, Client as SupabaseClient
 
+# --- CONFIGURAÇÃO DE LOGGING ---
+# Configurar logging para rastrear problemas
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("app_log.txt"),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger("clicklog_app")
+
 # --- CONFIGURAÇÕES DE E-MAIL DA KINGHOST ---
 # Estas configurações podem ser movidas para um arquivo .env se preferir
-
-
 EMAIL_REMETENTE = "ticket@clicklogtransportes.com.br"
 EMAIL_SENHA = "Clicklogi9up@360"
 SMTP_HOST = "smtp.kinghost.net"
 SMTP_PORT = 587
-
-print(os.getcwd())
 
 # Configurar timeout para operações de socket
 socket.setdefaulttimeout(10)  # 10 segundos de timeout
@@ -56,6 +68,9 @@ cookies = EncryptedCookieManager(
 if not cookies.ready():
     st.stop()
 
+# --- Fila de e-mails para envio assíncrono ---
+email_queue = queue.Queue()
+email_worker_running = False
 
 # --- Função para verificar se o cookie expirou ---
 def is_cookie_expired(expiry_time_str):
@@ -77,7 +92,8 @@ def autenticar_usuario(nome_usuario, senha):
             if verificar_senha(senha, usuario["senha_hash"]):
                 return usuario
         return None
-    except Exception:
+    except Exception as e:
+        logger.error(f"Erro na autenticação: {e}")
         return None
 
 # --- CONEXÃO COM O SUPABASE ---
@@ -117,6 +133,7 @@ def autenticar_usuario(nome_usuario, senha):
         return None
 
     except Exception as e:
+        logger.error(f"Erro ao autenticar: {e}")
         st.error("Erro ao autenticar.")
         return None
 
@@ -213,6 +230,7 @@ def get_db_connection():
         )
         return conn
     except Exception as e:
+        logger.error(f"Erro ao conectar ao banco de dados: {e}")
         st.error(f"Erro ao conectar ao banco de dados: {e}")
         return None
 
@@ -245,16 +263,39 @@ def calcular_diferenca_tempo(data_hora_inicial, data_hora_final=None):
     else:
         data_hora_final = data_hora_final.astimezone(FUSO_HORARIO_BRASIL)
     
-    return data_hora_final - data_hora_inicial
+    # Logar para diagnóstico
+    logger.info(f"Calculando diferença: Inicial={data_hora_inicial}, Final={data_hora_final}")
+    diferenca = data_hora_final - data_hora_inicial
+    logger.info(f"Diferença calculada: {diferenca}")
+    
+    return diferenca
 
 def criar_datetime_manual(data_str, hora_str):
     """Cria um objeto datetime a partir de strings de data e hora, com fuso horário do Brasil."""
     try:
-        data_hora_str = f"{data_str} {hora_str}"
-        data_hora = datetime.strptime(data_hora_str, "%Y-%m-%d %H:%M:%S")
-        return FUSO_HORARIO_BRASIL.localize(data_hora)
+        # Verificar formato da data
+        if "-" in data_str:  # Formato YYYY-MM-DD
+            data_hora_str = f"{data_str} {hora_str}"
+            formato = "%Y-%m-%d %H:%M:%S"
+        else:  # Assumir formato DD-MM-YYYY
+            data_hora_str = f"{data_str} {hora_str}"
+            formato = "%d-%m-%Y %H:%M:%S"
+        
+        # Garantir que hora_str tenha segundos
+        if hora_str.count(":") == 1:
+            hora_str = f"{hora_str}:00"
+            data_hora_str = f"{data_str} {hora_str}"
+        
+        # Logar para diagnóstico
+        logger.info(f"Criando datetime manual: data_str={data_str}, hora_str={hora_str}, formato={formato}")
+        
+        data_hora = datetime.strptime(data_hora_str, formato)
+        data_hora_tz = FUSO_HORARIO_BRASIL.localize(data_hora)
+        
+        logger.info(f"Datetime criado: {data_hora_tz}")
+        return data_hora_tz
     except Exception as e:
-        st.error(f"Erro ao criar datetime manual: {e}")
+        logger.error(f"Erro ao criar datetime manual: {e}, data_str={data_str}, hora_str={hora_str}")
         return None
 
 # Função de inserção no Supabase
@@ -267,29 +308,39 @@ def inserir_ocorrencia_supabase(dados):
         data_hora_str = data_hora_manual.strftime("%Y-%m-%d %H:%M:%S")
         timestamp_iso = data_hora_manual.isoformat()
         
-        response = supabase.table("ocorrencias").insert([{
-            "id": dados["id"],
-            "nota_fiscal": dados["nota_fiscal"],
-            "cliente": dados["cliente"],
-            "focal": dados["focal"],
-            "destinatario": dados["destinatario"],
-            "cidade": dados["cidade"],
-            "motorista": dados["motorista"],
-            "tipo_de_ocorrencia": dados["tipo_de_ocorrencia"],
-            "observacoes": dados["observacoes"],
-            "responsavel": dados["responsavel"],
-            "status": "Aberta",
-            "data_hora_abertura": data_hora_str,  # Usar data/hora manual
-            "abertura_timestamp": timestamp_iso,  # Usar data/hora manual
-            "permanencia": dados["permanencia"],
-            "complementar": dados["complementar"],
-            "data_abertura_manual": dados["data_abertura_manual"],
-            "hora_abertura_manual": dados["hora_abertura_manual"],
-            "email_abertura_enviado": False,
-            "email_finalizacao_enviado": False
-        }]).execute()
-        return response
+        try:
+            logger.info(f"Inserindo ocorrência: NF={dados['nota_fiscal']}, Cliente={dados['cliente']}, Data/Hora={data_hora_str}")
+            
+            response = supabase.table("ocorrencias").insert([{
+                "id": dados["id"],
+                "numero_ticket": dados["numero_ticket"],
+                "nota_fiscal": dados["nota_fiscal"],
+                "cliente": dados["cliente"],
+                "focal": dados["focal"],
+                "destinatario": dados["destinatario"],
+                "cidade": dados["cidade"],
+                "motorista": dados["motorista"],
+                "tipo_de_ocorrencia": dados["tipo_de_ocorrencia"],
+                "observacoes": dados["observacoes"],
+                "responsavel": dados["responsavel"],
+                "status": "Aberta",
+                "data_hora_abertura": data_hora_str,  # Usar data/hora manual
+                "abertura_timestamp": timestamp_iso,  # Usar data/hora manual
+                "permanencia": dados["permanencia"],
+                "complementar": dados["complementar"],
+                "data_abertura_manual": dados["data_abertura_manual"],
+                "hora_abertura_manual": dados["hora_abertura_manual"],
+                "email_abertura_enviado": False,
+                "email_finalizacao_enviado": False
+            }]).execute()
+            
+            logger.info(f"Ocorrência inserida com sucesso: ID={dados['id']}")
+            return response
+        except Exception as e:
+            logger.error(f"Erro ao inserir ocorrência: {e}")
+            return None
     else:
+        logger.error("Erro ao criar data/hora manual para inserção no banco")
         st.error("Erro ao criar data/hora manual para inserção no banco")
         return None
 
@@ -298,532 +349,40 @@ def inserir_ocorrencia_supabase(dados):
 import pandas as pd
 
 # Carrega a aba "clientes" do arquivo clientes.xlsx
-df_clientes = pd.read_excel("data/clientes.xlsx", sheet_name="clientes")
-df_clientes.columns = df_clientes.columns.str.strip()  # Remove espaços extras nas colunas
-df_clientes = df_clientes[["Cliente", "Focal"]].dropna(subset=["Cliente"])
+try:
+    df_clientes = pd.read_excel("data/clientes.xlsx", sheet_name="clientes")
+    df_clientes.columns = df_clientes.columns.str.strip()  # Remove espaços extras nas colunas
+    df_clientes = df_clientes[["Cliente", "Focal"]].dropna(subset=["Cliente"])
+    logger.info(f"Carregados {len(df_clientes)} clientes da planilha")
+except Exception as e:
+    logger.error(f"Erro ao carregar planilha de clientes: {e}")
+    df_clientes = pd.DataFrame(columns=["Cliente", "Focal"])
 
 # Carrega a lista de cidades do arquivo cidade.xlsx
-df_cidades = pd.read_excel("data/cidade.xlsx")
-df_cidades.columns = df_cidades.columns.str.strip()
-cidades = df_cidades["cidade"].dropna().unique().tolist()
+try:
+    df_cidades = pd.read_excel("data/cidade.xlsx")
+    df_cidades.columns = df_cidades.columns.str.strip()
+    cidades = df_cidades["cidade"].dropna().unique().tolist()
+    logger.info(f"Carregadas {len(cidades)} cidades da planilha")
+except Exception as e:
+    logger.error(f"Erro ao carregar planilha de cidades: {e}")
+    cidades = []
 
 # Cria dicionário Cliente -> Focal e lista de clientes
 cliente_to_focal = dict(zip(df_clientes["Cliente"], df_clientes["Focal"]))
 clientes = df_clientes["Cliente"].tolist()
 
 # Carrega a aba "motoristas" do arquivo motoristas.xlsx
-df_motoristas = pd.read_excel("data/motoristas.xlsx", sheet_name="motoristas")
-df_motoristas.columns = df_motoristas.columns.str.strip()
-motoristas = df_motoristas["Motorista"].dropna().tolist()
+try:
+    df_motoristas = pd.read_excel("data/motoristas.xlsx", sheet_name="motoristas")
+    df_motoristas.columns = df_motoristas.columns.str.strip()
+    motoristas = df_motoristas["Motorista"].dropna().tolist()
+    logger.info(f"Carregados {len(motoristas)} motoristas da planilha")
+except Exception as e:
+    logger.error(f"Erro ao carregar planilha de motoristas: {e}")
+    motoristas = []
 
 # --- FORMULÁRIO PARA NOVA OCORRÊNCIA ---
-
-
-
-
-# Função de classificação
-from datetime import datetime
-import pytz
-
-# =========================
-#    FUNÇÃO CLASSIFICAÇÃO
-# =========================
-def classificar_ocorrencia_por_tempo(data_str, hora_str):
-    try:
-        # Criar datetime a partir das strings de data e hora
-        data_hora = criar_datetime_manual(data_str, hora_str)
-        if not data_hora:
-            return "Erro", "gray"
-        
-        # Calcula a diferença de tempo com a hora atual do Brasil
-        agora = obter_data_hora_atual_brasil()
-        diferenca = calcular_diferenca_tempo(data_hora, agora)
-        
-        # Classifica com base no tempo decorrido (novos intervalos)
-        if diferenca <= timedelta(minutes=15):
-            return "Até 15min", "#2ecc71"  # Verde
-        elif diferenca <= timedelta(minutes=30):
-            return "15-30min", "#f39c12"  # Laranja
-        elif diferenca <= timedelta(minutes=45):
-            return "30-45min", "#e74c3c"  # Vermelho
-        else:
-            return "Mais de 45min", "#800000"  # Vermelho escuro
-            
-    except Exception as e:
-        print(f"Erro ao classificar ocorrência: {e}")
-        return "Erro", "gray"
-
-
-# =========================
-#    FUNÇÕES DE E-MAIL
-# =========================
-
-def carregar_dados_clientes_email():
-    """Carrega os dados dos clientes da planilha, incluindo e-mails."""
-    try:
-        df = pd.read_excel('data/clientes.xlsx')
-        # Criar um dicionário com Cliente como chave e e-mails como valores
-        clientes_emails = {}
-        for _, row in df.iterrows():
-            cliente = row['Cliente']
-            email_principal = row.get('enviar_para_email')
-            email_copia = row.get('email_copia')
-            
-            # Só adiciona se tiver pelo menos um e-mail principal
-            if pd.notna(email_principal):
-                clientes_emails[cliente] = {
-                    'principal': email_principal,
-                    'copia': email_copia if pd.notna(email_copia) else None
-                }
-        
-        return clientes_emails
-    except Exception as e:
-        st.error(f"Erro ao carregar dados dos clientes: {e}")
-        return {}
-
-def obter_ocorrencias_abertas_30min():
-    """Obtém ocorrências abertas há mais de 30 minutos que ainda não receberam e-mail."""
-    try:
-        # Obter todas as ocorrências abertas que ainda não receberam e-mail
-        response = supabase.table("ocorrencias").select("*").eq("status", "Aberta").eq("email_abertura_enviado", False).execute()
-        ocorrencias = response.data
-        
-        # Filtrar ocorrências abertas há mais de 30 minutos
-        ocorrencias_30min = []
-        agora = obter_data_hora_atual_brasil()
-        
-        for ocorr in ocorrencias:
-            # Verificar se tem data e hora manual
-            if ocorr.get("data_abertura_manual") and ocorr.get("hora_abertura_manual"):
-                try:
-                    # Criar datetime a partir das strings de data e hora manual
-                    data_hora_abertura = criar_datetime_manual(
-                        ocorr["data_abertura_manual"], 
-                        ocorr["hora_abertura_manual"]
-                    )
-                    
-                    if data_hora_abertura:
-                        # Verificar se passou mais de 30 minutos
-                        diferenca = calcular_diferenca_tempo(data_hora_abertura, agora)
-                        if diferenca > timedelta(minutes=30):
-                            ocorrencias_30min.append(ocorr)
-                except Exception as e:
-                    st.error(f"Erro ao processar data/hora da ocorrência {ocorr.get('nota_fiscal', '-')}: {e}")
-        
-        return ocorrencias_30min
-    except Exception as e:
-        st.error(f"Erro ao obter ocorrências abertas: {e}")
-        return []
-
-def marcar_email_como_enviado(ocorrencia_id, tipo="abertura"):
-    """Marca a ocorrência como tendo recebido e-mail."""
-    try:
-        campo = "email_abertura_enviado" if tipo == "abertura" else "email_finalizacao_enviado"
-        response = supabase.table("ocorrencias").update({
-            campo: True
-        }).eq("id", ocorrencia_id).execute()
-        
-        return response.data is not None
-    except Exception as e:
-        st.error(f"Erro ao atualizar status de e-mail enviado: {e}")
-        return False
-
-def enviar_email(destinatario, copia, assunto, corpo):
-    """Envia e-mail usando as configurações da KingHost."""
-    try:
-        # Criar mensagem
-        msg = MIMEMultipart()
-        msg['From'] = EMAIL_REMETENTE
-        msg['To'] = destinatario
-        
-        # Adicionar cópias se existirem
-        if copia:
-            # Separar múltiplos e-mails em CC (separados por ponto e vírgula)
-            emails_cc = [email.strip() for email in copia.split(';') if email.strip()]
-            if emails_cc:
-                msg['Cc'] = ', '.join(emails_cc)
-        
-        msg['Subject'] = assunto
-        
-        # Adicionar corpo do e-mail
-        msg.attach(MIMEText(corpo, 'html'))
-        
-        # Conectar ao servidor SMTP com timeout
-        server = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10)
-        server.starttls()
-        server.login(EMAIL_REMETENTE, EMAIL_SENHA)
-        
-        # Determinar todos os destinatários (principal + cópias)
-        todos_destinatarios = [destinatario]
-        if copia:
-            todos_destinatarios.extend([email.strip() for email in copia.split(';') if email.strip()])
-        
-        # Enviar e-mail
-        server.sendmail(EMAIL_REMETENTE, todos_destinatarios, msg.as_string())
-        server.quit()
-        
-        return True, "E-mail enviado com sucesso"
-    except socket.timeout:
-        return False, "Timeout ao conectar ao servidor SMTP. Possível bloqueio de firewall."
-    except smtplib.SMTPAuthenticationError:
-        return False, "Falha na autenticação. Verifique usuário e senha."
-    except Exception as e:
-        return False, f"Erro ao enviar e-mail: {e}"
-
-def verificar_e_enviar_email_abertura(ocorrencia):
-    """Verifica se a ocorrência precisa de e-mail e envia se necessário."""
-    try:
-        # Verificar se já passou 30 minutos desde a abertura
-        agora = obter_data_hora_atual_brasil()
-        
-        if ocorrencia.get("data_abertura_manual") and ocorrencia.get("hora_abertura_manual"):
-            # Criar datetime a partir das strings de data e hora manual
-            data_hora_abertura = criar_datetime_manual(
-                ocorrencia["data_abertura_manual"], 
-                ocorrencia["hora_abertura_manual"]
-            )
-            
-            if not data_hora_abertura:
-                return False, "Erro ao criar datetime a partir de data/hora manual"
-            
-            # Verificar se passou mais de 30 minutos
-            diferenca = calcular_diferenca_tempo(data_hora_abertura, agora)
-            if diferenca > timedelta(minutes=30):
-                # Carregar dados do cliente
-                clientes_emails = carregar_dados_clientes_email()
-                cliente = ocorrencia.get('cliente')
-                
-                if cliente in clientes_emails:
-                    email_info = clientes_emails[cliente]
-                    email_principal = email_info['principal']
-                    email_copia = email_info['copia']
-                    
-                    # Formatar data/hora para exibição
-                    data_hora_str = f"{ocorrencia['data_abertura_manual']} {ocorrencia['hora_abertura_manual']}"
-                    
-                    # Criar corpo do e-mail
-                    corpo_html = f"""
-                    <html>
-                    <head>
-                        <style>
-                            body {{ font-family: Arial, sans-serif; }}
-                            table {{ border-collapse: collapse; width: 100%; }}
-                            th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
-                            th {{ background-color: #f2f2f2; }}
-                            .header {{ background-color: #4CAF50; color: white; padding: 10px; }}
-                        </style>
-                    </head>
-                    <body>
-                        <div class="header">
-                            <h2>Notificação de Ocorrência Aberta</h2>
-                        </div>
-                        <p>Prezado cliente <strong>{cliente}</strong>,</p>
-                        <p>Informamos que a seguinte ocorrência está aberta há mais de 30 minutos:</p>
-                        <table>
-                            <tr>
-                                <th>Ticket</th>
-                                <th>Nota Fiscal</th>
-                                <th>Destinatário</th>
-                                <th>Cidade</th>
-                                <th>Motorista</th>
-                                <th>Tipo</th>
-                                <th>Data/Hora Abertura</th>
-                            </tr>
-                            <tr>
-                                <td>{ocorrencia.get('numero_ticket', '-')}</td>
-                                <td>{ocorrencia.get('nota_fiscal', '-')}</td>
-                                <td>{ocorrencia.get('destinatario', '-')}</td>
-                                <td>{ocorrencia.get('cidade', '-')}</td>
-                                <td>{ocorrencia.get('motorista', '-')}</td>
-                                <td>{ocorrencia.get('tipo_de_ocorrencia', '-')}</td>
-                                <td>{data_hora_str}</td>
-                            </tr>
-                        </table>
-                        <p>Por favor, entre em contato conosco para mais informações.</p>
-                        <p>Atenciosamente,<br>Equipe de Suporte</p>
-                    </body>
-                    </html>
-                    """
-                    
-                    # Enviar e-mail
-                    assunto = f"Notificação: Ocorrência Aberta - {cliente} - NF {ocorrencia.get('nota_fiscal', '-')}"
-                    sucesso, mensagem = enviar_email(email_principal, email_copia, assunto, corpo_html)
-                    
-                    if sucesso:
-                        # Marcar como enviado no banco
-                        marcar_email_como_enviado(ocorrencia["id"], "abertura")
-                        
-                        # Registrar no histórico
-                        st.session_state.historico_emails.append({
-                            "data": obter_data_hora_atual_brasil().strftime("%d-%m-%Y %H:%M:%S"),
-                            "tipo": "Abertura",
-                            "cliente": cliente,
-                            "email": email_principal,
-                            "ticket": ocorrencia.get('numero_ticket', '-'),
-                            "nota_fiscal": ocorrencia.get('nota_fiscal', '-'),
-                            "status": "Enviado"
-                        })
-                        
-                        return True, "E-mail enviado com sucesso"
-                    else:
-                        return False, mensagem
-                else:
-                    return False, "Cliente não possui e-mail cadastrado"
-            else:
-                return False, f"Ocorrência aberta há menos de 30 minutos (diferença: {diferenca})"
-        else:
-            return False, "Dados de data/hora de abertura ausentes"
-    except Exception as e:
-        return False, f"Erro ao verificar e enviar e-mail: {e}"
-
-def enviar_email_finalizacao(ocorrencia):
-    """Envia e-mail de finalização para o cliente."""
-    try:
-        # Carregar dados do cliente
-        clientes_emails = carregar_dados_clientes_email()
-        cliente = ocorrencia.get('cliente')
-        
-        if cliente in clientes_emails:
-            email_info = clientes_emails[cliente]
-            email_principal = email_info['principal']
-            email_copia = email_info['copia']
-            
-            # Obter dados de abertura e finalização
-            data_abertura = f"{ocorrencia.get('data_abertura_manual', '-')} {ocorrencia.get('hora_abertura_manual', '-')}"
-            data_finalizacao = f"{ocorrencia.get('data_finalizacao_manual', '-')} {ocorrencia.get('hora_finalizacao_manual', '-')}"
-            
-            # Criar corpo do e-mail
-            corpo_html = f"""
-            <html>
-            <head>
-                <style>
-                    body {{ font-family: Arial, sans-serif; }}
-                    table {{ border-collapse: collapse; width: 100%; }}
-                    th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
-                    th {{ background-color: #f2f2f2; }}
-                    .header {{ background-color: #4CAF50; color: white; padding: 10px; }}
-                </style>
-            </head>
-            <body>
-                <div class="header">
-                    <h2>Notificação de Ocorrência Finalizada</h2>
-                </div>
-                <p>Prezado cliente <strong>{cliente}</strong>,</p>
-                <p>Informamos que a seguinte ocorrência foi finalizada:</p>
-                <table>
-                    <tr>
-                        <th>Ticket</th>
-                        <th>Nota Fiscal</th>
-                        <th>Destinatário</th>
-                        <th>Cidade</th>
-                        <th>Motorista</th>
-                        <th>Tipo</th>
-                        <th>Data/Hora Abertura</th>
-                        <th>Data/Hora Finalização</th>
-                        <th>Permanência</th>
-                    </tr>
-                    <tr>
-                        <td>{ocorrencia.get('numero_ticket', '-')}</td>
-                        <td>{ocorrencia.get('nota_fiscal', '-')}</td>
-                        <td>{ocorrencia.get('destinatario', '-')}</td>
-                        <td>{ocorrencia.get('cidade', '-')}</td>
-                        <td>{ocorrencia.get('motorista', '-')}</td>
-                        <td>{ocorrencia.get('tipo_de_ocorrencia', '-')}</td>
-                        <td>{data_abertura}</td>
-                        <td>{data_finalizacao}</td>
-                        <td>{ocorrencia.get('permanencia_manual', '-')}</td>
-                    </tr>
-                </table>
-                <p><strong>Complemento:</strong> {ocorrencia.get('complementar', 'Sem complemento.')}</p>
-                <p>Atenciosamente,<br>Equipe de Suporte</p>
-            </body>
-            </html>
-            """
-            
-            # Enviar e-mail
-            assunto = f"Notificação: Ocorrência Finalizada - {cliente} - NF {ocorrencia.get('nota_fiscal', '-')}"
-            sucesso, mensagem = enviar_email(email_principal, email_copia, assunto, corpo_html)
-            
-            if sucesso:
-                # Marcar como enviado no banco
-                marcar_email_como_enviado(ocorrencia["id"], "finalizacao")
-                
-                # Registrar no histórico
-                st.session_state.historico_emails.append({
-                    "data": obter_data_hora_atual_brasil().strftime("%d-%m-%Y %H:%M:%S"),
-                    "tipo": "Finalização",
-                    "cliente": cliente,
-                    "email": email_principal,
-                    "ticket": ocorrencia.get('numero_ticket', '-'),
-                    "nota_fiscal": ocorrencia.get('nota_fiscal', '-'),
-                    "status": "Enviado"
-                })
-                
-                return True, "E-mail de finalização enviado com sucesso"
-            else:
-                return False, mensagem
-        else:
-            return False, "Cliente não possui e-mail cadastrado"
-    except Exception as e:
-        return False, f"Erro ao enviar e-mail de finalização: {e}"
-
-def notificar_ocorrencias_abertas():
-    """Notifica clientes sobre ocorrências abertas há mais de 30 minutos e atualiza o status no banco."""
-    resultados = []
-    
-    # Obter ocorrências abertas há mais de 30 minutos que ainda não receberam e-mail
-    ocorrencias = obter_ocorrencias_abertas_30min()
-    
-    if not ocorrencias:
-        return [{"status": "info", "mensagem": "Não há ocorrências abertas há mais de 30 minutos que precisem de notificação."}]
-    
-    # Enviar e-mail para cada ocorrência individualmente
-    for ocorr in ocorrencias:
-        sucesso, mensagem = verificar_e_enviar_email_abertura(ocorr)
-        
-        resultados.append({
-            "cliente": ocorr.get('cliente'),
-            "ticket": ocorr.get('numero_ticket', '-'),
-            "nota_fiscal": ocorr.get('nota_fiscal', '-'),
-            "status": "sucesso" if sucesso else "erro",
-            "mensagem": mensagem
-        })
-    
-    return resultados
-
-def testar_conexao_smtp():
-        """Testa a conexão com o servidor SMTP, com fallback e debug."""
-        if not EMAIL_REMETENTE or not EMAIL_SENHA or not SMTP_HOST or not SMTP_PORT:
-            return False, "❌ Variáveis de ambiente não carregadas corretamente. Verifique o arquivo .env."
-
-        try:
-            # Primeira tentativa: porta 587 com STARTTLS
-            server = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10)
-            server.set_debuglevel(1)
-            server.ehlo()
-            server.starttls()
-            server.ehlo()
-            server.login(EMAIL_REMETENTE, EMAIL_SENHA)
-            server.quit()
-            return True, "✅ Conexão SMTP (TLS na porta 587) bem-sucedida!"
-        except Exception as e1:
-            print("❗ Falha na porta 587. Tentando fallback para SSL 465...")
-            try:
-                # Segunda tentativa: porta 465 com SSL
-                server = smtplib.SMTP_SSL(SMTP_HOST, 465, timeout=10)
-                server.set_debuglevel(1)
-                server.login(EMAIL_REMETENTE, EMAIL_SENHA)
-                server.quit()
-                return True, "✅ Conexão SMTP (SSL na porta 465) bem-sucedida!"
-            except Exception as e2:
-                return False, f"❌ Falha nas duas tentativas de conexão SMTP.\nErro TLS (587): {e1}\nErro SSL (465): {e2}"
-
-# Função para carregar ocorrências abertas
-def carregar_ocorrencias_abertas():
-    try:
-        response = supabase.table("ocorrencias").select("*").eq("status", "Aberta").order("data_hora_abertura", desc=True).execute()
-        return response.data
-    except Exception as e:
-        st.error(f"Erro ao carregar ocorrências abertas: {e}")
-        return []
-
-# Função para carregar ocorrências por focal
-def carregar_ocorrencias_por_focal(focal=None):
-    try:
-        if focal:
-            response = supabase.table("ocorrencias").select("*").eq("status", "Aberta").eq("focal", focal).order("data_hora_abertura", desc=True).execute()
-        else:
-            response = supabase.table("ocorrencias").select("*").eq("status", "Aberta").order("data_hora_abertura", desc=True).execute()
-        
-        return response.data
-    except Exception as e:
-        st.error(f"Erro ao carregar ocorrências por focal: {e}")
-        return []
-
-# Função para obter lista de focais com contagem de tickets
-def obter_focais_com_contagem():
-    try:
-        ocorrencias = carregar_ocorrencias_abertas()
-        
-        # Agrupar por focal e contar
-        focais_contagem = {}
-        for ocorr in ocorrencias:
-            focal = ocorr.get('focal')
-            if focal:
-                if focal not in focais_contagem:
-                    focais_contagem[focal] = 0
-                focais_contagem[focal] += 1
-        
-        # Ordenar por contagem (decrescente)
-        focais_ordenados = sorted(focais_contagem.items(), key=lambda x: x[1], reverse=True)
-        
-        return focais_ordenados
-    except Exception as e:
-        st.error(f"Erro ao obter focais com contagem: {e}")
-        return []
-
-# Função para finalizar ocorrência
-def finalizar_ocorrencia(ocorr, complemento, data_finalizacao_manual, hora_finalizacao_manual):
-    try:
-        data_abertura_manual = ocorr.get("data_abertura_manual")
-        hora_abertura_manual = ocorr.get("hora_abertura_manual")
-        
-        if not data_abertura_manual or not hora_abertura_manual:
-            return False, "Data/hora de abertura manual ausente. Não é possível calcular a permanência."
-        
-        try:
-            # Converter string para datetime com fuso horário do Brasil
-            try:
-                data_hora_finalizacao = datetime.strptime(
-                    f"{data_finalizacao_manual} {hora_finalizacao_manual}", "%d-%m-%Y %H:%M"
-                )
-                data_hora_finalizacao = FUSO_HORARIO_BRASIL.localize(data_hora_finalizacao)
-            except ValueError:
-                return False, "Formato inválido para data/hora de finalização. Use DD-MM-AAAA para a data e HH:MM para a hora."
-            
-            # Converter data/hora de abertura para datetime com fuso horário do Brasil
-            data_hora_abertura = criar_datetime_manual(data_abertura_manual, hora_abertura_manual)
-            if not data_hora_abertura:
-                return False, "Erro ao criar datetime a partir de data/hora de abertura manual."
-            
-            if data_hora_finalizacao < data_hora_abertura:
-                return False, "Data/hora de finalização não pode ser menor que a data/hora de abertura."
-            
-            # Calcular diferença de tempo no mesmo fuso horário
-            delta = calcular_diferenca_tempo(data_hora_abertura, data_hora_finalizacao)
-            total_segundos = int(delta.total_seconds())
-            horas_totais = total_segundos // 3600
-            minutos = (total_segundos % 3600) // 60
-            permanencia_manual = f"{horas_totais:02d}:{minutos:02d}"
-            
-            # Formatar para o banco
-            data_finalizacao_banco = data_hora_finalizacao.strftime("%Y-%m-%d")
-            hora_finalizacao_banco = f"{hora_finalizacao_manual}:00"
-            
-            # Atualizar no banco
-            response = supabase.table("ocorrencias").update({
-                "data_hora_finalizacao": data_hora_finalizacao.strftime("%Y-%m-%d %H:%M"),
-                "finalizado_por": st.session_state.username,
-                "complementar": complemento,
-                "status": "Finalizada",
-                "permanencia_manual": permanencia_manual,
-                "data_finalizacao_manual": data_finalizacao_banco,
-                "hora_finalizacao_manual": hora_finalizacao_banco,
-                "email_finalizacao_enviado": False  # Inicializa como não enviado
-            }).eq("id", ocorr["id"]).execute()
-            
-            if response and response.data:
-                # Enviar e-mail de finalização
-                ocorr_atualizada = response.data[0]
-                enviar_email_finalizacao(ocorr_atualizada)
-                
-                return True, "Ocorrência finalizada com sucesso!"
-            else:
-                return False, "Erro ao salvar a finalização no banco de dados."
-        except Exception as e:
-            return False, f"Erro ao calcular ou salvar permanência manual: {e}"
-    except Exception as e:
-        return False, f"Erro ao finalizar ocorrência: {e}"
 
 # =========================
 #     ABA 1 - NOVA OCORRENCIA
@@ -946,10 +505,663 @@ with aba1:
                     sucesso.empty()
                     
                     # Verificar se precisa enviar e-mail (mais de 30 minutos)
-                    verificar_e_enviar_email_abertura(nova_ocorrencia)
-                    print("Verificando e-mails...")
+                    #verificar_e_enviar_email_abertura(nova_ocorrencia)
                 else:
                     st.error(f"Erro ao salvar ocorrência no Supabase: {response.error if response else 'Erro desconhecido'}")
+
+
+# Função de classificação
+from datetime import datetime
+import pytz
+
+# =========================
+#    FUNÇÃO CLASSIFICAÇÃO
+# =========================
+def classificar_ocorrencia_por_tempo(data_str, hora_str):
+    try:
+        # Criar datetime a partir das strings de data e hora
+        data_hora = criar_datetime_manual(data_str, hora_str)
+        if not data_hora:
+            logger.error(f"Erro ao criar datetime para classificação: data={data_str}, hora={hora_str}")
+            return "Erro", "gray"
+        
+        # Calcula a diferença de tempo com a hora atual do Brasil
+        agora = obter_data_hora_atual_brasil()
+        diferenca = calcular_diferenca_tempo(data_hora, agora)
+        
+        # Logar para diagnóstico
+        logger.info(f"Classificação: data_hora={data_hora}, agora={agora}, diferenca={diferenca}")
+        
+        # Classifica com base no tempo decorrido (novos intervalos)
+        if diferenca <= timedelta(minutes=15):
+            return "Até 15min", "#2ecc71"  # Verde
+        elif diferenca <= timedelta(minutes=30):
+            return "15-30min", "#f39c12"  # Laranja
+        elif diferenca <= timedelta(minutes=45):
+            return "30-45min", "#e74c3c"  # Vermelho
+        else:
+            return "Mais de 45min", "#800000"  # Vermelho escuro
+            
+    except Exception as e:
+        logger.error(f"Erro ao classificar ocorrência: {e}")
+        return "Erro", "gray"
+
+
+# =========================
+#    FUNÇÕES DE E-MAIL
+# =========================
+
+# Função de worker para processamento assíncrono de e-mails
+def email_worker():
+    global email_worker_running
+    email_worker_running = True
+    
+    logger.info("Iniciando worker de e-mail")
+    
+    while True:
+        try:
+            # Obter próximo e-mail da fila (bloqueia até ter um item)
+            email_data = email_queue.get(block=True, timeout=60)  # Timeout de 60 segundos
+            
+            if email_data is None:  # Sinal para encerrar o worker
+                logger.info("Recebido sinal para encerrar worker de e-mail")
+                break
+                
+            # Processar o e-mail
+            logger.info(f"Processando e-mail para {email_data.get('destinatario')}")
+            
+            # Extrair dados
+            destinatario = email_data.get('destinatario')
+            copia = email_data.get('copia')
+            assunto = email_data.get('assunto')
+            corpo = email_data.get('corpo')
+            ocorrencia_id = email_data.get('ocorrencia_id')
+            tipo = email_data.get('tipo', 'abertura')
+            
+            # Tentar enviar o e-mail
+            for tentativa in range(3):  # Tentar até 3 vezes
+                try:
+                    logger.info(f"Tentativa {tentativa+1} de envio para {destinatario}")
+                    
+                    # Criar mensagem
+                    msg = MIMEMultipart()
+                    msg['From'] = EMAIL_REMETENTE
+                    msg['To'] = destinatario
+                    
+                    # Adicionar cópias se existirem
+                    if copia:
+                        # Separar múltiplos e-mails em CC (separados por ponto e vírgula)
+                        emails_cc = [email.strip() for email in copia.split(';') if email.strip()]
+                        if emails_cc:
+                            msg['Cc'] = ', '.join(emails_cc)
+                    
+                    msg['Subject'] = assunto
+                    
+                    # Adicionar corpo do e-mail
+                    msg.attach(MIMEText(corpo, 'html'))
+                    
+                    # Conectar ao servidor SMTP com timeout
+                    server = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15)
+                    server.starttls()
+                    server.login(EMAIL_REMETENTE, EMAIL_SENHA)
+                    
+                    # Determinar todos os destinatários (principal + cópias)
+                    todos_destinatarios = [destinatario]
+                    if copia:
+                        todos_destinatarios.extend([email.strip() for email in copia.split(';') if email.strip()])
+                    
+                    # Enviar e-mail
+                    server.sendmail(EMAIL_REMETENTE, todos_destinatarios, msg.as_string())
+                    server.quit()
+                    
+                    logger.info(f"E-mail enviado com sucesso para {destinatario}")
+                    
+                    # Marcar como enviado no banco
+                    if ocorrencia_id:
+                        marcar_email_como_enviado(ocorrencia_id, tipo)
+                    
+                    # Registrar no histórico
+                    cliente = email_data.get('cliente', '-')
+                    ticket = email_data.get('ticket', '-')
+                    nota_fiscal = email_data.get('nota_fiscal', '-')
+                    
+                    if 'historico_emails' in st.session_state:
+                        st.session_state.historico_emails.append({
+                            "data": obter_data_hora_atual_brasil().strftime("%d-%m-%Y %H:%M:%S"),
+                            "tipo": tipo.capitalize(),
+                            "cliente": cliente,
+                            "email": destinatario,
+                            "ticket": ticket,
+                            "nota_fiscal": nota_fiscal,
+                            "status": "Enviado"
+                        })
+                    
+                    # Sair do loop de tentativas
+                    break
+                    
+                except socket.timeout:
+                    logger.error(f"Timeout ao conectar ao servidor SMTP (tentativa {tentativa+1})")
+                    if tentativa == 2:  # Última tentativa
+                        logger.error(f"Falha após 3 tentativas para {destinatario}")
+                except smtplib.SMTPAuthenticationError:
+                    logger.error(f"Falha na autenticação SMTP (tentativa {tentativa+1})")
+                    if tentativa == 2:  # Última tentativa
+                        logger.error(f"Falha após 3 tentativas para {destinatario}")
+                except Exception as e:
+                    logger.error(f"Erro ao enviar e-mail (tentativa {tentativa+1}): {e}")
+                    if tentativa == 2:  # Última tentativa
+                        logger.error(f"Falha após 3 tentativas para {destinatario}")
+                
+                # Esperar antes da próxima tentativa
+                time.sleep(5)
+            
+            # Marcar tarefa como concluída
+            email_queue.task_done()
+            
+        except queue.Empty:
+            # Timeout da fila, continuar esperando
+            pass
+        except Exception as e:
+            logger.error(f"Erro no worker de e-mail: {e}")
+    
+    email_worker_running = False
+    logger.info("Worker de e-mail encerrado")
+
+# Iniciar worker de e-mail em thread separada
+def iniciar_email_worker():
+    global email_worker_running
+    if not email_worker_running:
+        threading.Thread(target=email_worker, daemon=True).start()
+
+# Iniciar worker ao carregar o aplicativo
+iniciar_email_worker()
+
+def carregar_dados_clientes_email():
+    """Carrega os dados dos clientes da planilha, incluindo e-mails."""
+    try:
+        df = pd.read_excel('data/clientes.xlsx')
+        # Criar um dicionário com Cliente como chave e e-mails como valores
+        clientes_emails = {}
+        for _, row in df.iterrows():
+            cliente = row['Cliente']
+            email_principal = row.get('enviar_para_email')
+            email_copia = row.get('email_copia')
+            
+            # Só adiciona se tiver pelo menos um e-mail principal
+            if pd.notna(email_principal):
+                clientes_emails[cliente] = {
+                    'principal': email_principal,
+                    'copia': email_copia if pd.notna(email_copia) else None
+                }
+        
+        logger.info(f"Carregados dados de e-mail para {len(clientes_emails)} clientes")
+        return clientes_emails
+    except Exception as e:
+        logger.error(f"Erro ao carregar dados dos clientes: {e}")
+        return {}
+
+def obter_ocorrencias_abertas_30min():
+    """Obtém ocorrências abertas há mais de 30 minutos que ainda não receberam e-mail."""
+    try:
+        # Obter todas as ocorrências abertas que ainda não receberam e-mail
+        response = supabase.table("ocorrencias").select("*").eq("status", "Aberta").eq("email_abertura_enviado", False).execute()
+        ocorrencias = response.data
+        
+        logger.info(f"Encontradas {len(ocorrencias)} ocorrências abertas sem e-mail enviado")
+        
+        # Filtrar ocorrências abertas há mais de 30 minutos
+        ocorrencias_30min = []
+        agora = obter_data_hora_atual_brasil()
+        
+        for ocorr in ocorrencias:
+            # Verificar se tem data e hora manual
+            if ocorr.get("data_abertura_manual") and ocorr.get("hora_abertura_manual"):
+                try:
+                    # Criar datetime a partir das strings de data e hora manual
+                    data_hora_abertura = criar_datetime_manual(
+                        ocorr["data_abertura_manual"], 
+                        ocorr["hora_abertura_manual"]
+                    )
+                    
+                    if data_hora_abertura:
+                        # Verificar se passou mais de 30 minutos
+                        diferenca = calcular_diferenca_tempo(data_hora_abertura, agora)
+                        
+                        # Logar para diagnóstico
+                        logger.info(f"Ocorrência {ocorr.get('nota_fiscal')}: abertura={data_hora_abertura}, agora={agora}, diferenca={diferenca}")
+                        
+                        if diferenca > timedelta(minutes=30):
+                            logger.info(f"Ocorrência {ocorr.get('nota_fiscal')} aberta há mais de 30 minutos: {diferenca}")
+                            ocorrencias_30min.append(ocorr)
+                        else:
+                            logger.info(f"Ocorrência {ocorr.get('nota_fiscal')} aberta há menos de 30 minutos: {diferenca}")
+                except Exception as e:
+                    logger.error(f"Erro ao processar data/hora da ocorrência {ocorr.get('nota_fiscal', '-')}: {e}")
+        
+        logger.info(f"Encontradas {len(ocorrencias_30min)} ocorrências abertas há mais de 30 minutos")
+        return ocorrencias_30min
+    except Exception as e:
+        logger.error(f"Erro ao obter ocorrências abertas: {e}")
+        return []
+
+def marcar_email_como_enviado(ocorrencia_id, tipo="abertura"):
+    """Marca a ocorrência como tendo recebido e-mail."""
+    try:
+        campo = "email_abertura_enviado" if tipo == "abertura" else "email_finalizacao_enviado"
+        response = supabase.table("ocorrencias").update({
+            campo: True
+        }).eq("id", ocorrencia_id).execute()
+        
+        logger.info(f"Ocorrência {ocorrencia_id} marcada como tendo recebido e-mail de {tipo}")
+        return response.data is not None
+    except Exception as e:
+        logger.error(f"Erro ao atualizar status de e-mail enviado: {e}")
+        return False
+
+def enviar_email(destinatario, copia, assunto, corpo, ocorrencia_id=None, tipo="abertura", cliente="-", ticket="-", nota_fiscal="-"):
+    """Envia e-mail usando as configurações da KingHost."""
+    try:
+        # Adicionar à fila de e-mails para processamento assíncrono
+        email_data = {
+            'destinatario': destinatario,
+            'copia': copia,
+            'assunto': assunto,
+            'corpo': corpo,
+            'ocorrencia_id': ocorrencia_id,
+            'tipo': tipo,
+            'cliente': cliente,
+            'ticket': ticket,
+            'nota_fiscal': nota_fiscal
+        }
+        
+        # Garantir que o worker está rodando
+        iniciar_email_worker()
+        
+        # Adicionar à fila
+        email_queue.put(email_data)
+        
+        logger.info(f"E-mail para {destinatario} adicionado à fila de processamento")
+        return True, "E-mail adicionado à fila de envio"
+    except Exception as e:
+        logger.error(f"Erro ao adicionar e-mail à fila: {e}")
+        return False, f"Erro ao adicionar e-mail à fila: {e}"
+
+def verificar_e_enviar_email_abertura(ocorrencia):
+    """Verifica se a ocorrência precisa de e-mail e envia se necessário."""
+    try:
+        # Verificar se já passou 30 minutos desde a abertura
+        agora = obter_data_hora_atual_brasil()
+        
+        if ocorrencia.get("data_abertura_manual") and ocorrencia.get("hora_abertura_manual"):
+            # Criar datetime a partir das strings de data e hora manual
+            data_hora_abertura = criar_datetime_manual(
+                ocorrencia["data_abertura_manual"], 
+                ocorrencia["hora_abertura_manual"]
+            )
+            
+            if not data_hora_abertura:
+                logger.error(f"Erro ao criar datetime para ocorrência {ocorrencia.get('nota_fiscal')}")
+                return False, "Erro ao criar datetime a partir de data/hora manual"
+            
+            # Verificar se passou mais de 30 minutos
+            diferenca = calcular_diferenca_tempo(data_hora_abertura, agora)
+            
+            # Logar para diagnóstico
+            logger.info(f"Verificando e-mail para ocorrência {ocorrencia.get('nota_fiscal')}: abertura={data_hora_abertura}, agora={agora}, diferenca={diferenca}")
+            
+            if diferenca > timedelta(minutes=30):
+                logger.info(f"Ocorrência {ocorrencia.get('nota_fiscal')} aberta há mais de 30 minutos: {diferenca}")
+                
+                # Carregar dados do cliente
+                clientes_emails = carregar_dados_clientes_email()
+                cliente = ocorrencia.get('cliente')
+                
+                if cliente in clientes_emails:
+                    email_info = clientes_emails[cliente]
+                    email_principal = email_info['principal']
+                    email_copia = email_info['copia']
+                    
+                    # Formatar data/hora para exibição
+                    data_hora_str = f"{ocorrencia['data_abertura_manual']} {ocorrencia['hora_abertura_manual']}"
+                    
+                    # Criar corpo do e-mail
+                    corpo_html = f"""
+                    <html>
+                    <head>
+                        <style>
+                            body {{ font-family: Arial, sans-serif; }}
+                            table {{ border-collapse: collapse; width: 100%; }}
+                            th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
+                            th {{ background-color: #f2f2f2; }}
+                            .header {{ background-color: #4CAF50; color: white; padding: 10px; }}
+                        </style>
+                    </head>
+                    <body>
+                        <div class="header">
+                            <h2>Notificação de Ocorrência Aberta</h2>
+                        </div>
+                        <p>Prezado cliente <strong>{cliente}</strong>,</p>
+                        <p>Informamos que a seguinte ocorrência está aberta há mais de 30 minutos:</p>
+                        <table>
+                            <tr>
+                                <th>Ticket</th>
+                                <th>Nota Fiscal</th>
+                                <th>Destinatário</th>
+                                <th>Cidade</th>
+                                <th>Motorista</th>
+                                <th>Tipo</th>
+                                <th>Data/Hora Abertura</th>
+                            </tr>
+                            <tr>
+                                <td>{ocorrencia.get('numero_ticket', '-')}</td>
+                                <td>{ocorrencia.get('nota_fiscal', '-')}</td>
+                                <td>{ocorrencia.get('destinatario', '-')}</td>
+                                <td>{ocorrencia.get('cidade', '-')}</td>
+                                <td>{ocorrencia.get('motorista', '-')}</td>
+                                <td>{ocorrencia.get('tipo_de_ocorrencia', '-')}</td>
+                                <td>{data_hora_str}</td>
+                            </tr>
+                        </table>
+                        <p>Por favor, entre em contato conosco para mais informações.</p>
+                        <p>Atenciosamente,<br>Equipe de Suporte</p>
+                    </body>
+                    </html>
+                    """
+                    
+                    # Enviar e-mail
+                    assunto = f"Notificação: Ocorrência Aberta - {cliente} - NF {ocorrencia.get('nota_fiscal', '-')}"
+                    sucesso, mensagem = enviar_email(
+                        email_principal, 
+                        email_copia, 
+                        assunto, 
+                        corpo_html, 
+                        ocorrencia["id"], 
+                        "abertura",
+                        cliente,
+                        ocorrencia.get('numero_ticket', '-'),
+                        ocorrencia.get('nota_fiscal', '-')
+                    )
+                    
+                    return sucesso, mensagem
+                else:
+                    logger.warning(f"Cliente {cliente} não possui e-mail cadastrado")
+                    return False, "Cliente não possui e-mail cadastrado"
+            else:
+                logger.info(f"Ocorrência {ocorrencia.get('nota_fiscal')} aberta há menos de 30 minutos: {diferenca}")
+                return False, f"Ocorrência aberta há menos de 30 minutos (diferença: {diferenca})"
+        else:
+            logger.warning(f"Ocorrência {ocorrencia.get('nota_fiscal')} sem dados de data/hora de abertura")
+            return False, "Dados de data/hora de abertura ausentes"
+    except Exception as e:
+        logger.error(f"Erro ao verificar e enviar e-mail: {e}")
+        return False, f"Erro ao verificar e enviar e-mail: {e}"
+
+def enviar_email_finalizacao(ocorrencia):
+    """Envia e-mail de finalização para o cliente."""
+    try:
+        # Carregar dados do cliente
+        clientes_emails = carregar_dados_clientes_email()
+        cliente = ocorrencia.get('cliente')
+        
+        if cliente in clientes_emails:
+            email_info = clientes_emails[cliente]
+            email_principal = email_info['principal']
+            email_copia = email_info['copia']
+            
+            # Obter dados de abertura e finalização
+            data_abertura = f"{ocorrencia.get('data_abertura_manual', '-')} {ocorrencia.get('hora_abertura_manual', '-')}"
+            data_finalizacao = f"{ocorrencia.get('data_finalizacao_manual', '-')} {ocorrencia.get('hora_finalizacao_manual', '-')}"
+            
+            # Criar corpo do e-mail
+            corpo_html = f"""
+            <html>
+            <head>
+                <style>
+                    body {{ font-family: Arial, sans-serif; }}
+                    table {{ border-collapse: collapse; width: 100%; }}
+                    th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
+                    th {{ background-color: #f2f2f2; }}
+                    .header {{ background-color: #4CAF50; color: white; padding: 10px; }}
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h2>Notificação de Ocorrência Finalizada</h2>
+                </div>
+                <p>Prezado cliente <strong>{cliente}</strong>,</p>
+                <p>Informamos que a seguinte ocorrência foi finalizada:</p>
+                <table>
+                    <tr>
+                        <th>Ticket</th>
+                        <th>Nota Fiscal</th>
+                        <th>Destinatário</th>
+                        <th>Cidade</th>
+                        <th>Motorista</th>
+                        <th>Tipo</th>
+                        <th>Data/Hora Abertura</th>
+                        <th>Data/Hora Finalização</th>
+                        <th>Permanência</th>
+                    </tr>
+                    <tr>
+                        <td>{ocorrencia.get('numero_ticket', '-')}</td>
+                        <td>{ocorrencia.get('nota_fiscal', '-')}</td>
+                        <td>{ocorrencia.get('destinatario', '-')}</td>
+                        <td>{ocorrencia.get('cidade', '-')}</td>
+                        <td>{ocorrencia.get('motorista', '-')}</td>
+                        <td>{ocorrencia.get('tipo_de_ocorrencia', '-')}</td>
+                        <td>{data_abertura}</td>
+                        <td>{data_finalizacao}</td>
+                        <td>{ocorrencia.get('permanencia_manual', '-')}</td>
+                    </tr>
+                </table>
+                <p><strong>Complemento:</strong> {ocorrencia.get('complementar', 'Sem complemento.')}</p>
+                <p>Atenciosamente,<br>Equipe de Suporte</p>
+            </body>
+            </html>
+            """
+            
+            # Enviar e-mail
+            assunto = f"Notificação: Ocorrência Finalizada - {cliente} - NF {ocorrencia.get('nota_fiscal', '-')}"
+            sucesso, mensagem = enviar_email(
+                email_principal, 
+                email_copia, 
+                assunto, 
+                corpo_html, 
+                ocorrencia["id"], 
+                "finalizacao",
+                cliente,
+                ocorrencia.get('numero_ticket', '-'),
+                ocorrencia.get('nota_fiscal', '-')
+            )
+            
+            return sucesso, mensagem
+        else:
+            logger.warning(f"Cliente {cliente} não possui e-mail cadastrado")
+            return False, "Cliente não possui e-mail cadastrado"
+    except Exception as e:
+        logger.error(f"Erro ao enviar e-mail de finalização: {e}")
+        return False, f"Erro ao enviar e-mail de finalização: {e}"
+
+def notificar_ocorrencias_abertas():
+    """Notifica clientes sobre ocorrências abertas há mais de 30 minutos e atualiza o status no banco."""
+    resultados = []
+    
+    # Obter ocorrências abertas há mais de 30 minutos que ainda não receberam e-mail
+    ocorrencias = obter_ocorrencias_abertas_30min()
+    
+    if not ocorrencias:
+        logger.info("Não há ocorrências abertas há mais de 30 minutos que precisem de notificação")
+        return [{"status": "info", "mensagem": "Não há ocorrências abertas há mais de 30 minutos que precisem de notificação."}]
+    
+    # Enviar e-mail para cada ocorrência individualmente
+    for ocorr in ocorrencias:
+        sucesso, mensagem = verificar_e_enviar_email_abertura(ocorr)
+        
+        resultados.append({
+            "cliente": ocorr.get('cliente'),
+            "ticket": ocorr.get('numero_ticket', '-'),
+            "nota_fiscal": ocorr.get('nota_fiscal', '-'),
+            "status": "sucesso" if sucesso else "erro",
+            "mensagem": mensagem
+        })
+    
+    return resultados
+
+def testar_conexao_smtp():
+    """Testa apenas a conexão com o servidor SMTP."""
+    try:
+        logger.info("Iniciando teste de conexão SMTP")
+        
+        # Tentar conectar ao servidor
+        server = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=5)
+        
+        # Tentar iniciar TLS
+        server.starttls()
+        
+        # Tentar autenticar
+        server.login(EMAIL_REMETENTE, EMAIL_SENHA)
+        
+        # Fechar conexão
+        server.quit()
+        
+        logger.info("Teste de conexão SMTP bem-sucedido")
+        return True, "Conexão SMTP testada com sucesso!"
+    except socket.timeout:
+        logger.error("Timeout ao conectar ao servidor SMTP")
+        return False, "Timeout ao conectar ao servidor SMTP. Possível bloqueio de firewall."
+    except smtplib.SMTPAuthenticationError:
+        logger.error("Falha na autenticação SMTP")
+        return False, "Falha na autenticação. Verifique usuário e senha."
+    except smtplib.SMTPException as e:
+        logger.error(f"Erro SMTP: {e}")
+        return False, f"Erro SMTP: {e}"
+    except Exception as e:
+        logger.error(f"Erro desconhecido no teste SMTP: {e}")
+        return False, f"Erro desconhecido: {e}"
+
+# Função para carregar ocorrências abertas
+def carregar_ocorrencias_abertas():
+    try:
+        response = supabase.table("ocorrencias").select("*").eq("status", "Aberta").order("data_hora_abertura", desc=True).execute()
+        logger.info(f"Carregadas {len(response.data)} ocorrências abertas")
+        return response.data
+    except Exception as e:
+        logger.error(f"Erro ao carregar ocorrências abertas: {e}")
+        st.error(f"Erro ao carregar ocorrências abertas: {e}")
+        return []
+
+# Função para carregar ocorrências por focal
+def carregar_ocorrencias_por_focal(focal=None):
+    try:
+        if focal:
+            response = supabase.table("ocorrencias").select("*").eq("status", "Aberta").eq("focal", focal).order("data_hora_abertura", desc=True).execute()
+            logger.info(f"Carregadas {len(response.data)} ocorrências para o focal {focal}")
+        else:
+            response = supabase.table("ocorrencias").select("*").eq("status", "Aberta").order("data_hora_abertura", desc=True).execute()
+            logger.info(f"Carregadas {len(response.data)} ocorrências abertas (todos os focais)")
+        
+        return response.data
+    except Exception as e:
+        logger.error(f"Erro ao carregar ocorrências por focal: {e}")
+        st.error(f"Erro ao carregar ocorrências por focal: {e}")
+        return []
+
+# Função para obter lista de focais com contagem de tickets
+def obter_focais_com_contagem():
+    try:
+        ocorrencias = carregar_ocorrencias_abertas()
+        
+        # Agrupar por focal e contar
+        focais_contagem = {}
+        for ocorr in ocorrencias:
+            focal = ocorr.get('focal')
+            if focal:
+                if focal not in focais_contagem:
+                    focais_contagem[focal] = 0
+                focais_contagem[focal] += 1
+        
+        # Ordenar por contagem (decrescente)
+        focais_ordenados = sorted(focais_contagem.items(), key=lambda x: x[1], reverse=True)
+        
+        logger.info(f"Obtidos {len(focais_ordenados)} focais com contagem")
+        return focais_ordenados
+    except Exception as e:
+        logger.error(f"Erro ao obter focais com contagem: {e}")
+        st.error(f"Erro ao obter focais com contagem: {e}")
+        return []
+
+# Função para finalizar ocorrência
+def finalizar_ocorrencia(ocorr, complemento, data_finalizacao_manual, hora_finalizacao_manual):
+    try:
+        data_abertura_manual = ocorr.get("data_abertura_manual")
+        hora_abertura_manual = ocorr.get("hora_abertura_manual")
+        
+        if not data_abertura_manual or not hora_abertura_manual:
+            logger.error(f"Data/hora de abertura manual ausente para ocorrência {ocorr.get('id')}")
+            return False, "Data/hora de abertura manual ausente. Não é possível calcular a permanência."
+        
+        try:
+            # Converter string para datetime com fuso horário do Brasil
+            try:
+                data_hora_finalizacao = datetime.strptime(
+                    f"{data_finalizacao_manual} {hora_finalizacao_manual}", "%d-%m-%Y %H:%M"
+                )
+                data_hora_finalizacao = FUSO_HORARIO_BRASIL.localize(data_hora_finalizacao)
+            except ValueError:
+                logger.error(f"Formato inválido para data/hora de finalização: {data_finalizacao_manual} {hora_finalizacao_manual}")
+                return False, "Formato inválido para data/hora de finalização. Use DD-MM-AAAA para a data e HH:MM para a hora."
+            
+            # Converter data/hora de abertura para datetime com fuso horário do Brasil
+            data_hora_abertura = criar_datetime_manual(data_abertura_manual, hora_abertura_manual)
+            if not data_hora_abertura:
+                logger.error(f"Erro ao criar datetime a partir de data/hora de abertura manual: {data_abertura_manual} {hora_abertura_manual}")
+                return False, "Erro ao criar datetime a partir de data/hora de abertura manual."
+            
+            if data_hora_finalizacao < data_hora_abertura:
+                logger.error(f"Data/hora de finalização menor que abertura: finalização={data_hora_finalizacao}, abertura={data_hora_abertura}")
+                return False, "Data/hora de finalização não pode ser menor que a data/hora de abertura."
+            
+            # Calcular diferença de tempo no mesmo fuso horário
+            delta = calcular_diferenca_tempo(data_hora_abertura, data_hora_finalizacao)
+            total_segundos = int(delta.total_seconds())
+            horas_totais = total_segundos // 3600
+            minutos = (total_segundos % 3600) // 60
+            permanencia_manual = f"{horas_totais:02d}:{minutos:02d}"
+            
+            # Formatar para o banco
+            data_finalizacao_banco = data_hora_finalizacao.strftime("%Y-%m-%d")
+            hora_finalizacao_banco = f"{hora_finalizacao_manual}:00"
+            
+            logger.info(f"Finalizando ocorrência {ocorr.get('id')}: permanência={permanencia_manual}")
+            
+            # Atualizar no banco
+            response = supabase.table("ocorrencias").update({
+                "data_hora_finalizacao": data_hora_finalizacao.strftime("%Y-%m-%d %H:%M"),
+                "finalizado_por": st.session_state.username,
+                "complementar": complemento,
+                "status": "Finalizada",
+                "permanencia_manual": permanencia_manual,
+                "data_finalizacao_manual": data_finalizacao_banco,
+                "hora_finalizacao_manual": hora_finalizacao_banco,
+                "email_finalizacao_enviado": False  # Inicializa como não enviado
+            }).eq("id", ocorr["id"]).execute()
+            
+            if response and response.data:
+                # Enviar e-mail de finalização
+                ocorr_atualizada = response.data[0]
+                enviar_email_finalizacao(ocorr_atualizada)
+                
+                logger.info(f"Ocorrência {ocorr.get('id')} finalizada com sucesso")
+                return True, "Ocorrência finalizada com sucesso!"
+            else:
+                logger.error(f"Erro ao salvar a finalização no banco de dados para ocorrência {ocorr.get('id')}")
+                return False, "Erro ao salvar a finalização no banco de dados."
+        except Exception as e:
+            logger.error(f"Erro ao calcular ou salvar permanência manual: {e}")
+            return False, f"Erro ao calcular ou salvar permanência manual: {e}"
+    except Exception as e:
+        logger.error(f"Erro ao finalizar ocorrência: {e}")
+        return False, f"Erro ao finalizar ocorrência: {e}"
 
 # =========================
 #     ABA 2 - EM ABERTO
@@ -969,7 +1181,8 @@ with aba2:
     else:
         num_colunas = 4
         colunas = st.columns(num_colunas)
-        st_autorefresh(interval=40000, key="ocorrencias_abertas_refresh")
+        # Reduzir frequência de atualização para melhorar performance
+        st_autorefresh(interval=60000, key="ocorrencias_abertas_refresh")  # 60 segundos
 
         for idx, ocorr in enumerate(ocorrencias_abertas):
             status = "Data manual ausente"
@@ -992,7 +1205,7 @@ with aba2:
                         cor = "gray"
 
                 except Exception as e:
-                    st.error(f"Erro ao processar data/hora manual da ocorrência {ocorr.get('nota_fiscal', '-')}: {e}")
+                    logger.error(f"Erro ao processar data/hora manual da ocorrência {ocorr.get('nota_fiscal', '-')}: {e}")
                     status = "Erro"
                     cor = "gray"
 
@@ -1064,8 +1277,10 @@ with aba2:
 def carregar_ocorrencias_finalizadas():
     try:
         response = supabase.table("ocorrencias").select("*").eq("status", "Finalizada").order("data_hora_finalizacao", desc=True).execute()
+        logger.info(f"Carregadas {len(response.data)} ocorrências finalizadas")
         return response.data
     except Exception as e:
+        logger.error(f"Erro ao carregar ocorrências finalizadas: {e}")
         st.error(f"Erro ao carregar ocorrências finalizadas: {e}")
         return []
 
@@ -1079,6 +1294,7 @@ with aba3:
     try:
         ocorrencias_finalizadas = carregar_ocorrencias_finalizadas()
     except Exception as e:
+        logger.error(f"Erro ao carregar ocorrências finalizadas: {e}")
         st.error(f"Erro ao carregar ocorrências finalizadas: {e}")
         st.stop()
 
@@ -1103,6 +1319,7 @@ with aba3:
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     )
                 except Exception as e:
+                    logger.error(f"Erro ao exportar para Excel: {e}")
                     st.error(f"Erro ao exportar para Excel: {e}")
 
         # --- Filtrar ---
@@ -1156,7 +1373,7 @@ with aba3:
                     cor = ocorr.get("Cor", "#34495e")
 
                 except Exception as e:
-                    st.error(f"Erro ao processar ocorrência (NF {ocorr.get('nota_fiscal', '-')}) — {e}")
+                    logger.error(f"Erro ao processar ocorrência (NF {ocorr.get('nota_fiscal', '-')}) — {e}")
                     data_abertura_manual = hora_abertura_manual = "-"
                     data_finalizacao_manual = hora_finalizacao_manual = "-"
                     status = "Erro"
@@ -1257,7 +1474,7 @@ with aba5:
                                     cor = "gray"
 
                             except Exception as e:
-                                st.error(f"Erro ao processar data/hora manual da ocorrência {ocorr.get('nota_fiscal', '-')}: {e}")
+                                logger.error(f"Erro ao processar data/hora manual da ocorrência {ocorr.get('nota_fiscal', '-')}: {e}")
                                 status = "Erro"
                                 cor = "gray"
 
@@ -1368,6 +1585,7 @@ with aba4:
                     else:
                         st.error("❌ Usuário não encontrado.")
                 except Exception as e:
+                    logger.error(f"Erro ao alterar senha: {e}")
                     st.error(f"❌ Erro ao alterar senha: {e}")
     
     # Seção de administração de usuários (apenas para admin)
@@ -1397,6 +1615,7 @@ with aba4:
                 else:
                     st.info("Nenhum usuário encontrado.")
             except Exception as e:
+                logger.error(f"Erro ao listar usuários: {e}")
                 st.error(f"Erro ao listar usuários: {e}")
         
         with admin_tab2:
@@ -1435,6 +1654,7 @@ with aba4:
                                 else:
                                     st.error("❌ Erro ao adicionar usuário.")
                         except Exception as e:
+                            logger.error(f"Erro ao adicionar usuário: {e}")
                             st.error(f"❌ Erro ao adicionar usuário: {e}")
         
         with admin_tab3:
@@ -1474,6 +1694,7 @@ with aba4:
                                         else:
                                             st.error("❌ Erro ao atualizar usuário.")
                                     except Exception as e:
+                                        logger.error(f"Erro ao atualizar usuário: {e}")
                                         st.error(f"❌ Erro ao atualizar usuário: {e}")
                                 
                                 if excluir_usuario:
@@ -1490,10 +1711,12 @@ with aba4:
                                             else:
                                                 st.error("❌ Erro ao excluir usuário.")
                                         except Exception as e:
+                                            logger.error(f"Erro ao excluir usuário: {e}")
                                             st.error(f"❌ Erro ao excluir usuário: {e}")
                 else:
                     st.info("Nenhum usuário encontrado.")
             except Exception as e:
+                logger.error(f"Erro ao carregar usuários: {e}")
                 st.error(f"Erro ao carregar usuários: {e}")
 
 # =========================
@@ -1528,6 +1751,22 @@ if st.session_state.is_admin and 'aba6' in locals():
                         st.success(mensagem)
                     else:
                         st.error(mensagem)
+                        
+                        # Mostrar informações adicionais para diagnóstico
+                        st.error("""
+                        Erro de conexão SMTP detectado. Possíveis causas:
+                        
+                        1. Bloqueio de firewall no ambiente de produção
+                        2. Restrições de rede para conexões SMTP externas
+                        3. Credenciais incorretas ou expiradas
+                        
+                        Recomendações:
+                        - Verifique se o servidor permite conexões SMTP externas
+                        - Confirme as credenciais com o provedor de e-mail
+                        - Considere usar um serviço de e-mail alternativo
+                        
+                        Detalhes técnicos foram registrados no arquivo de log para análise.
+                        """)
         
         with col2:
             st.subheader("Enviar Notificações Manualmente")
@@ -1554,7 +1793,15 @@ if st.session_state.is_admin and 'aba6' in locals():
             st.info("Nenhum e-mail enviado ainda.")
 
 # Verificar e enviar e-mails para ocorrências abertas há mais de 30 minutos
-ocorrencias_abertas = carregar_ocorrencias_abertas()
-for ocorr in ocorrencias_abertas:
-    if not ocorr.get("email_abertura_enviado", False):
-        verificar_e_enviar_email_abertura(ocorr)
+# Executar em segundo plano para não bloquear a interface
+def verificar_emails_background():
+    try:
+        ocorrencias_abertas = carregar_ocorrencias_abertas()
+        for ocorr in ocorrencias_abertas:
+            if not ocorr.get("email_abertura_enviado", False):
+                verificar_e_enviar_email_abertura(ocorr)
+    except Exception as e:
+        logger.error(f"Erro ao verificar e-mails em segundo plano: {e}")
+
+# Iniciar verificação em thread separada
+threading.Thread(target=verificar_emails_background, daemon=True).start()

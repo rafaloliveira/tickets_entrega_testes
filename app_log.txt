@@ -14725,3 +14725,530 @@ porque o host conectado não respondeu
 2025-05-22 12:50:06,615 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/configuracoes?select=valor&chave=eq.clientes_email_auto "HTTP/2 404 Not Found"
 2025-05-22 12:50:06,617 - clicklog_app - ERROR - Erro ao obter clientes para e-mail automático: {'code': '42P01', 'details': None, 'hint': None, 'message': 'relation "public.configuracoes" does not exist'}
 2025-05-22 12:50:06,617 - clicklog_app - WARNING - Ocorrência 1815 sem dados de data/hora de abertura
+2025-05-22 16:44:58,214 - clicklog_app - INFO - Carregados 44 clientes da planilha
+2025-05-22 16:44:58,238 - clicklog_app - INFO - Carregadas 496 cidades da planilha
+2025-05-22 16:44:58,365 - clicklog_app - INFO - Carregados 3084 motoristas da planilha
+2025-05-22 16:44:58,393 - clicklog_app - INFO - Iniciando worker de e-mail
+2025-05-22 16:44:59,185 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Aberta&order=data_hora_abertura.desc "HTTP/2 200 OK"
+2025-05-22 16:44:59,188 - clicklog_app - INFO - Carregadas 10 ocorrências abertas
+2025-05-22 16:44:59,189 - clicklog_app - WARNING - Ocorrência 845931 sem dados de data/hora de abertura
+2025-05-22 16:44:59,189 - clicklog_app - WARNING - Ocorrência 874366 sem dados de data/hora de abertura
+2025-05-22 16:44:59,189 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=14:45:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:44:59,190 - clicklog_app - INFO - Datetime criado: 2025-05-22 14:45:00-03:00
+2025-05-22 16:44:59,190 - clicklog_app - INFO - Calculando diferença: Inicial=2025-05-22 14:45:00-03:00, Final=2025-05-22 16:44:59.189600-03:00
+2025-05-22 16:44:59,190 - clicklog_app - INFO - Diferença calculada: 1:59:59.189600
+2025-05-22 16:44:59,190 - clicklog_app - INFO - Verificando e-mail para ocorrência 1010101010101010: abertura=2025-05-22 14:45:00-03:00, agora=2025-05-22 16:44:59.189600-03:00, diferenca=1:59:59.189600
+2025-05-22 16:44:59,190 - clicklog_app - INFO - Ocorrência 1010101010101010 aberta há mais de 30 minutos: 1:59:59.189600
+2025-05-22 16:44:59,221 - clicklog_app - INFO - Carregados dados de e-mail para 32 clientes
+2025-05-22 16:44:59,222 - clicklog_app - INFO - E-mail para controladoria@clicklogtransportes.com.br adicionado à fila de processamento
+2025-05-22 16:44:59,222 - clicklog_app - INFO - Processando e-mail para controladoria@clicklogtransportes.com.br
+2025-05-22 16:44:59,224 - clicklog_app - WARNING - Ocorrência 166720 sem dados de data/hora de abertura
+2025-05-22 16:44:59,225 - clicklog_app - INFO - Tentativa 1 de envio para controladoria@clicklogtransportes.com.br
+2025-05-22 16:44:59,225 - clicklog_app - WARNING - Ocorrência 931756 sem dados de data/hora de abertura
+2025-05-22 16:44:59,226 - clicklog_app - WARNING - Ocorrência 1797 sem dados de data/hora de abertura
+2025-05-22 16:44:59,226 - clicklog_app - WARNING - Ocorrência 931300 sem dados de data/hora de abertura
+2025-05-22 16:44:59,227 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=12:30:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:44:59,228 - clicklog_app - INFO - Datetime criado: 2025-05-22 12:30:00-03:00
+2025-05-22 16:44:59,228 - clicklog_app - INFO - Calculando diferença: Inicial=2025-05-22 12:30:00-03:00, Final=2025-05-22 16:44:59.227707-03:00
+2025-05-22 16:44:59,229 - clicklog_app - INFO - Diferença calculada: 4:14:59.227707
+2025-05-22 16:44:59,229 - clicklog_app - INFO - Verificando e-mail para ocorrência 00000: abertura=2025-05-22 12:30:00-03:00, agora=2025-05-22 16:44:59.227707-03:00, diferenca=4:14:59.227707
+2025-05-22 16:44:59,230 - clicklog_app - INFO - Ocorrência 00000 aberta há mais de 30 minutos: 4:14:59.227707
+2025-05-22 16:44:59,261 - clicklog_app - INFO - Carregados dados de e-mail para 32 clientes
+2025-05-22 16:44:59,262 - clicklog_app - INFO - E-mail para controladoria@clicklogtransportes.com.br adicionado à fila de processamento
+2025-05-22 16:44:59,262 - clicklog_app - WARNING - Ocorrência 931724 sem dados de data/hora de abertura
+2025-05-22 16:44:59,263 - clicklog_app - WARNING - Ocorrência 1835 sem dados de data/hora de abertura
+2025-05-22 16:44:59,279 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=14:45:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:44:59,280 - clicklog_app - INFO - Datetime criado: 2025-05-22 14:45:00-03:00
+2025-05-22 16:44:59,281 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=14:45:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:44:59,282 - clicklog_app - INFO - Datetime criado: 2025-05-22 14:45:00-03:00
+2025-05-22 16:44:59,283 - clicklog_app - INFO - Calculando diferença: Inicial=2025-05-22 14:45:00-03:00, Final=2025-05-22 16:44:59.282459-03:00
+2025-05-22 16:44:59,283 - clicklog_app - INFO - Diferença calculada: 1:59:59.282459
+2025-05-22 16:44:59,283 - clicklog_app - INFO - Classificação: data_hora=2025-05-22 14:45:00-03:00, agora=2025-05-22 16:44:59.282459-03:00, diferenca=1:59:59.282459
+2025-05-22 16:44:59,316 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=12:30:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:44:59,317 - clicklog_app - INFO - Datetime criado: 2025-05-22 12:30:00-03:00
+2025-05-22 16:44:59,324 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=12:30:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:44:59,325 - clicklog_app - INFO - Datetime criado: 2025-05-22 12:30:00-03:00
+2025-05-22 16:44:59,325 - clicklog_app - INFO - Calculando diferença: Inicial=2025-05-22 12:30:00-03:00, Final=2025-05-22 16:44:59.325161-03:00
+2025-05-22 16:44:59,326 - clicklog_app - INFO - Diferença calculada: 4:14:59.325161
+2025-05-22 16:44:59,326 - clicklog_app - INFO - Classificação: data_hora=2025-05-22 12:30:00-03:00, agora=2025-05-22 16:44:59.325161-03:00, diferenca=4:14:59.325161
+2025-05-22 16:44:59,483 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Finalizada&order=data_hora_finalizacao.desc "HTTP/2 200 OK"
+2025-05-22 16:44:59,508 - clicklog_app - INFO - Carregadas 376 ocorrências finalizadas
+2025-05-22 16:44:59,855 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Aberta&order=data_hora_abertura.desc "HTTP/2 200 OK"
+2025-05-22 16:44:59,868 - clicklog_app - INFO - Carregadas 10 ocorrências abertas
+2025-05-22 16:44:59,872 - clicklog_app - INFO - Obtidos 4 focais com contagem
+2025-05-22 16:44:59,938 - clicklog_app - INFO - E-mail enviado com sucesso para controladoria@clicklogtransportes.com.br
+2025-05-22 16:44:59,997 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/usuarios?select=%2A "HTTP/2 200 OK"
+2025-05-22 16:45:00,082 - httpx - INFO - HTTP Request: PATCH https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?id=eq.7cf5da5e-f903-4c0e-8525-810922809448 "HTTP/2 200 OK"
+2025-05-22 16:45:00,086 - clicklog_app - INFO - Ocorrência 7cf5da5e-f903-4c0e-8525-810922809448 marcada como tendo recebido e-mail de abertura
+2025-05-22 16:45:00,089 - clicklog_app - INFO - Processando e-mail para controladoria@clicklogtransportes.com.br
+2025-05-22 16:45:00,089 - clicklog_app - INFO - Tentativa 1 de envio para controladoria@clicklogtransportes.com.br
+2025-05-22 16:45:00,104 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/usuarios?select=%2A "HTTP/2 200 OK"
+2025-05-22 16:45:00,238 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Aberta&order=data_hora_abertura.desc "HTTP/2 200 OK"
+2025-05-22 16:45:00,307 - clicklog_app - INFO - Carregadas 10 ocorrências abertas
+2025-05-22 16:45:00,338 - clicklog_app - WARNING - Ocorrência 845931 sem dados de data/hora de abertura
+2025-05-22 16:45:00,340 - clicklog_app - WARNING - Ocorrência 874366 sem dados de data/hora de abertura
+2025-05-22 16:45:00,342 - clicklog_app - WARNING - Ocorrência 166720 sem dados de data/hora de abertura
+2025-05-22 16:45:00,344 - clicklog_app - WARNING - Ocorrência 931756 sem dados de data/hora de abertura
+2025-05-22 16:45:00,345 - clicklog_app - WARNING - Ocorrência 1797 sem dados de data/hora de abertura
+2025-05-22 16:45:00,346 - clicklog_app - WARNING - Ocorrência 931300 sem dados de data/hora de abertura
+2025-05-22 16:45:00,347 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=12:30:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:45:00,347 - clicklog_app - INFO - Datetime criado: 2025-05-22 12:30:00-03:00
+2025-05-22 16:45:00,349 - clicklog_app - INFO - Calculando diferença: Inicial=2025-05-22 12:30:00-03:00, Final=2025-05-22 16:45:00.347702-03:00
+2025-05-22 16:45:00,349 - clicklog_app - INFO - Diferença calculada: 4:15:00.347702
+2025-05-22 16:45:00,350 - clicklog_app - INFO - Verificando e-mail para ocorrência 00000: abertura=2025-05-22 12:30:00-03:00, agora=2025-05-22 16:45:00.347702-03:00, diferenca=4:15:00.347702
+2025-05-22 16:45:00,350 - clicklog_app - INFO - Ocorrência 00000 aberta há mais de 30 minutos: 4:15:00.347702
+2025-05-22 16:45:00,405 - clicklog_app - INFO - Carregados dados de e-mail para 32 clientes
+2025-05-22 16:45:00,407 - clicklog_app - INFO - E-mail para controladoria@clicklogtransportes.com.br adicionado à fila de processamento
+2025-05-22 16:45:00,407 - clicklog_app - WARNING - Ocorrência 931724 sem dados de data/hora de abertura
+2025-05-22 16:45:00,408 - clicklog_app - WARNING - Ocorrência 1835 sem dados de data/hora de abertura
+2025-05-22 16:45:00,691 - clicklog_app - INFO - E-mail enviado com sucesso para controladoria@clicklogtransportes.com.br
+2025-05-22 16:45:00,764 - httpx - INFO - HTTP Request: PATCH https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?id=eq.a67584d6-746c-471a-84ac-7082bcf6dbee "HTTP/2 200 OK"
+2025-05-22 16:45:00,765 - clicklog_app - INFO - Ocorrência a67584d6-746c-471a-84ac-7082bcf6dbee marcada como tendo recebido e-mail de abertura
+2025-05-22 16:45:00,766 - clicklog_app - INFO - Processando e-mail para controladoria@clicklogtransportes.com.br
+2025-05-22 16:45:00,767 - clicklog_app - INFO - Tentativa 1 de envio para controladoria@clicklogtransportes.com.br
+2025-05-22 16:45:02,208 - clicklog_app - INFO - E-mail enviado com sucesso para controladoria@clicklogtransportes.com.br
+2025-05-22 16:45:02,279 - httpx - INFO - HTTP Request: PATCH https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?id=eq.a67584d6-746c-471a-84ac-7082bcf6dbee "HTTP/2 200 OK"
+2025-05-22 16:45:02,281 - clicklog_app - INFO - Ocorrência a67584d6-746c-471a-84ac-7082bcf6dbee marcada como tendo recebido e-mail de abertura
+2025-05-22 16:45:48,277 - clicklog_app - INFO - Carregados 44 clientes da planilha
+2025-05-22 16:45:48,315 - clicklog_app - INFO - Carregadas 496 cidades da planilha
+2025-05-22 16:45:48,476 - clicklog_app - INFO - Carregados 3084 motoristas da planilha
+2025-05-22 16:45:48,512 - clicklog_app - INFO - Iniciando worker de e-mail
+2025-05-22 16:45:49,274 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Aberta&order=data_hora_abertura.desc "HTTP/2 200 OK"
+2025-05-22 16:45:49,275 - clicklog_app - INFO - Carregadas 10 ocorrências abertas
+2025-05-22 16:45:49,275 - clicklog_app - WARNING - Ocorrência 845931 sem dados de data/hora de abertura
+2025-05-22 16:45:49,277 - clicklog_app - WARNING - Ocorrência 874366 sem dados de data/hora de abertura
+2025-05-22 16:45:49,277 - clicklog_app - WARNING - Ocorrência 166720 sem dados de data/hora de abertura
+2025-05-22 16:45:49,277 - clicklog_app - WARNING - Ocorrência 931756 sem dados de data/hora de abertura
+2025-05-22 16:45:49,277 - clicklog_app - WARNING - Ocorrência 1797 sem dados de data/hora de abertura
+2025-05-22 16:45:49,277 - clicklog_app - WARNING - Ocorrência 931300 sem dados de data/hora de abertura
+2025-05-22 16:45:49,277 - clicklog_app - WARNING - Ocorrência 931724 sem dados de data/hora de abertura
+2025-05-22 16:45:49,277 - clicklog_app - WARNING - Ocorrência 1835 sem dados de data/hora de abertura
+2025-05-22 16:45:49,293 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=14:45:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:45:49,299 - clicklog_app - INFO - Datetime criado: 2025-05-22 14:45:00-03:00
+2025-05-22 16:45:49,305 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=14:45:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:45:49,310 - clicklog_app - INFO - Datetime criado: 2025-05-22 14:45:00-03:00
+2025-05-22 16:45:49,317 - clicklog_app - INFO - Calculando diferença: Inicial=2025-05-22 14:45:00-03:00, Final=2025-05-22 16:45:49.317312-03:00
+2025-05-22 16:45:49,319 - clicklog_app - INFO - Diferença calculada: 2:00:49.317312
+2025-05-22 16:45:49,323 - clicklog_app - INFO - Classificação: data_hora=2025-05-22 14:45:00-03:00, agora=2025-05-22 16:45:49.317312-03:00, diferenca=2:00:49.317312
+2025-05-22 16:45:49,367 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=12:30:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:45:49,371 - clicklog_app - INFO - Datetime criado: 2025-05-22 12:30:00-03:00
+2025-05-22 16:45:49,372 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=12:30:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:45:49,375 - clicklog_app - INFO - Datetime criado: 2025-05-22 12:30:00-03:00
+2025-05-22 16:45:49,376 - clicklog_app - INFO - Calculando diferença: Inicial=2025-05-22 12:30:00-03:00, Final=2025-05-22 16:45:49.376883-03:00
+2025-05-22 16:45:49,377 - clicklog_app - INFO - Diferença calculada: 4:15:49.376883
+2025-05-22 16:45:49,380 - clicklog_app - INFO - Classificação: data_hora=2025-05-22 12:30:00-03:00, agora=2025-05-22 16:45:49.376883-03:00, diferenca=4:15:49.376883
+2025-05-22 16:45:49,539 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Finalizada&order=data_hora_finalizacao.desc "HTTP/2 200 OK"
+2025-05-22 16:45:49,557 - clicklog_app - INFO - Carregadas 376 ocorrências finalizadas
+2025-05-22 16:45:50,114 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Aberta&order=data_hora_abertura.desc "HTTP/2 200 OK"
+2025-05-22 16:45:50,128 - clicklog_app - INFO - Carregadas 10 ocorrências abertas
+2025-05-22 16:45:50,129 - clicklog_app - INFO - Obtidos 4 focais com contagem
+2025-05-22 16:45:50,218 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/usuarios?select=%2A "HTTP/2 200 OK"
+2025-05-22 16:45:50,296 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/usuarios?select=%2A "HTTP/2 200 OK"
+2025-05-22 16:45:50,391 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Aberta&order=data_hora_abertura.desc "HTTP/2 200 OK"
+2025-05-22 16:45:50,401 - clicklog_app - INFO - Carregadas 10 ocorrências abertas
+2025-05-22 16:45:50,405 - clicklog_app - WARNING - Ocorrência 845931 sem dados de data/hora de abertura
+2025-05-22 16:45:50,406 - clicklog_app - WARNING - Ocorrência 874366 sem dados de data/hora de abertura
+2025-05-22 16:45:50,408 - clicklog_app - WARNING - Ocorrência 166720 sem dados de data/hora de abertura
+2025-05-22 16:45:50,412 - clicklog_app - WARNING - Ocorrência 931756 sem dados de data/hora de abertura
+2025-05-22 16:45:50,413 - clicklog_app - WARNING - Ocorrência 1797 sem dados de data/hora de abertura
+2025-05-22 16:45:50,413 - clicklog_app - WARNING - Ocorrência 931300 sem dados de data/hora de abertura
+2025-05-22 16:45:50,414 - clicklog_app - WARNING - Ocorrência 931724 sem dados de data/hora de abertura
+2025-05-22 16:45:50,415 - clicklog_app - WARNING - Ocorrência 1835 sem dados de data/hora de abertura
+2025-05-22 16:45:59,291 - clicklog_app - INFO - Carregados 44 clientes da planilha
+2025-05-22 16:45:59,360 - clicklog_app - INFO - Carregadas 496 cidades da planilha
+2025-05-22 16:45:59,530 - clicklog_app - INFO - Carregados 3084 motoristas da planilha
+2025-05-22 16:45:59,562 - clicklog_app - INFO - Iniciando worker de e-mail
+2025-05-22 16:46:00,402 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Aberta&order=data_hora_abertura.desc "HTTP/2 200 OK"
+2025-05-22 16:46:00,405 - clicklog_app - INFO - Carregadas 10 ocorrências abertas
+2025-05-22 16:46:00,405 - clicklog_app - WARNING - Ocorrência 845931 sem dados de data/hora de abertura
+2025-05-22 16:46:00,405 - clicklog_app - WARNING - Ocorrência 874366 sem dados de data/hora de abertura
+2025-05-22 16:46:00,406 - clicklog_app - WARNING - Ocorrência 166720 sem dados de data/hora de abertura
+2025-05-22 16:46:00,406 - clicklog_app - WARNING - Ocorrência 931756 sem dados de data/hora de abertura
+2025-05-22 16:46:00,406 - clicklog_app - WARNING - Ocorrência 1797 sem dados de data/hora de abertura
+2025-05-22 16:46:00,407 - clicklog_app - WARNING - Ocorrência 931300 sem dados de data/hora de abertura
+2025-05-22 16:46:00,407 - clicklog_app - WARNING - Ocorrência 931724 sem dados de data/hora de abertura
+2025-05-22 16:46:00,407 - clicklog_app - WARNING - Ocorrência 1835 sem dados de data/hora de abertura
+2025-05-22 16:46:00,421 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=14:45:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:46:00,422 - clicklog_app - INFO - Datetime criado: 2025-05-22 14:45:00-03:00
+2025-05-22 16:46:00,426 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=14:45:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:46:00,426 - clicklog_app - INFO - Datetime criado: 2025-05-22 14:45:00-03:00
+2025-05-22 16:46:00,427 - clicklog_app - INFO - Calculando diferença: Inicial=2025-05-22 14:45:00-03:00, Final=2025-05-22 16:46:00.427206-03:00
+2025-05-22 16:46:00,427 - clicklog_app - INFO - Diferença calculada: 2:01:00.427206
+2025-05-22 16:46:00,427 - clicklog_app - INFO - Classificação: data_hora=2025-05-22 14:45:00-03:00, agora=2025-05-22 16:46:00.427206-03:00, diferenca=2:01:00.427206
+2025-05-22 16:46:00,437 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=14:45:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:46:00,440 - clicklog_app - INFO - Datetime criado: 2025-05-22 14:45:00-03:00
+2025-05-22 16:46:00,443 - clicklog_app - INFO - Calculando diferença: Inicial=2025-05-22 14:45:00-03:00, Final=2025-05-22 16:46:00-03:00
+2025-05-22 16:46:00,443 - clicklog_app - INFO - Diferença calculada: 2:01:00
+2025-05-22 16:46:00,443 - clicklog_app - INFO - Finalizando ocorrência 7cf5da5e-f903-4c0e-8525-810922809448: permanência=02:01
+2025-05-22 16:46:00,523 - httpx - INFO - HTTP Request: PATCH https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?id=eq.7cf5da5e-f903-4c0e-8525-810922809448 "HTTP/2 200 OK"
+2025-05-22 16:46:00,577 - clicklog_app - INFO - Carregados dados de e-mail para 32 clientes
+2025-05-22 16:46:00,586 - clicklog_app - INFO - E-mail para controladoria@clicklogtransportes.com.br adicionado à fila de processamento
+2025-05-22 16:46:00,586 - clicklog_app - INFO - Processando e-mail para controladoria@clicklogtransportes.com.br
+2025-05-22 16:46:00,587 - clicklog_app - INFO - Ocorrência 7cf5da5e-f903-4c0e-8525-810922809448 finalizada com sucesso
+2025-05-22 16:46:00,589 - clicklog_app - INFO - Tentativa 1 de envio para controladoria@clicklogtransportes.com.br
+2025-05-22 16:46:01,311 - clicklog_app - INFO - E-mail enviado com sucesso para controladoria@clicklogtransportes.com.br
+2025-05-22 16:46:01,405 - httpx - INFO - HTTP Request: PATCH https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?id=eq.7cf5da5e-f903-4c0e-8525-810922809448 "HTTP/2 200 OK"
+2025-05-22 16:46:01,406 - clicklog_app - INFO - Ocorrência 7cf5da5e-f903-4c0e-8525-810922809448 marcada como tendo recebido e-mail de finalizacao
+2025-05-22 16:46:03,254 - clicklog_app - INFO - Carregados 44 clientes da planilha
+2025-05-22 16:46:03,292 - clicklog_app - INFO - Carregadas 496 cidades da planilha
+2025-05-22 16:46:03,469 - clicklog_app - INFO - Carregados 3084 motoristas da planilha
+2025-05-22 16:46:03,493 - clicklog_app - INFO - Iniciando worker de e-mail
+2025-05-22 16:46:04,353 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Aberta&order=data_hora_abertura.desc "HTTP/2 200 OK"
+2025-05-22 16:46:04,356 - clicklog_app - INFO - Carregadas 9 ocorrências abertas
+2025-05-22 16:46:04,358 - clicklog_app - WARNING - Ocorrência 845931 sem dados de data/hora de abertura
+2025-05-22 16:46:04,360 - clicklog_app - WARNING - Ocorrência 874366 sem dados de data/hora de abertura
+2025-05-22 16:46:04,361 - clicklog_app - WARNING - Ocorrência 166720 sem dados de data/hora de abertura
+2025-05-22 16:46:04,362 - clicklog_app - WARNING - Ocorrência 931756 sem dados de data/hora de abertura
+2025-05-22 16:46:04,363 - clicklog_app - WARNING - Ocorrência 1797 sem dados de data/hora de abertura
+2025-05-22 16:46:04,364 - clicklog_app - WARNING - Ocorrência 931300 sem dados de data/hora de abertura
+2025-05-22 16:46:04,364 - clicklog_app - WARNING - Ocorrência 931724 sem dados de data/hora de abertura
+2025-05-22 16:46:04,364 - clicklog_app - WARNING - Ocorrência 1835 sem dados de data/hora de abertura
+2025-05-22 16:46:04,435 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=12:30:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:46:04,438 - clicklog_app - INFO - Datetime criado: 2025-05-22 12:30:00-03:00
+2025-05-22 16:46:04,438 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=12:30:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:46:04,440 - clicklog_app - INFO - Datetime criado: 2025-05-22 12:30:00-03:00
+2025-05-22 16:46:04,440 - clicklog_app - INFO - Calculando diferença: Inicial=2025-05-22 12:30:00-03:00, Final=2025-05-22 16:46:04.440246-03:00
+2025-05-22 16:46:04,440 - clicklog_app - INFO - Diferença calculada: 4:16:04.440246
+2025-05-22 16:46:04,441 - clicklog_app - INFO - Classificação: data_hora=2025-05-22 12:30:00-03:00, agora=2025-05-22 16:46:04.440246-03:00, diferenca=4:16:04.440246
+2025-05-22 16:46:04,573 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Finalizada&order=data_hora_finalizacao.desc "HTTP/2 200 OK"
+2025-05-22 16:46:04,599 - clicklog_app - INFO - Carregadas 377 ocorrências finalizadas
+2025-05-22 16:46:04,624 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=14:45:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:46:04,630 - clicklog_app - INFO - Datetime criado: 2025-05-22 14:45:00-03:00
+2025-05-22 16:46:04,632 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=16:46:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:46:04,633 - clicklog_app - INFO - Datetime criado: 2025-05-22 16:46:00-03:00
+2025-05-22 16:46:05,290 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Aberta&order=data_hora_abertura.desc "HTTP/2 200 OK"
+2025-05-22 16:46:05,292 - clicklog_app - INFO - Carregadas 9 ocorrências abertas
+2025-05-22 16:46:05,293 - clicklog_app - INFO - Obtidos 4 focais com contagem
+2025-05-22 16:46:05,373 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/usuarios?select=%2A "HTTP/2 200 OK"
+2025-05-22 16:46:05,462 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/usuarios?select=%2A "HTTP/2 200 OK"
+2025-05-22 16:46:05,585 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Aberta&order=data_hora_abertura.desc "HTTP/2 200 OK"
+2025-05-22 16:46:05,589 - clicklog_app - INFO - Carregadas 9 ocorrências abertas
+2025-05-22 16:46:05,590 - clicklog_app - WARNING - Ocorrência 845931 sem dados de data/hora de abertura
+2025-05-22 16:46:05,591 - clicklog_app - WARNING - Ocorrência 874366 sem dados de data/hora de abertura
+2025-05-22 16:46:05,591 - clicklog_app - WARNING - Ocorrência 166720 sem dados de data/hora de abertura
+2025-05-22 16:46:05,591 - clicklog_app - WARNING - Ocorrência 931756 sem dados de data/hora de abertura
+2025-05-22 16:46:05,591 - clicklog_app - WARNING - Ocorrência 1797 sem dados de data/hora de abertura
+2025-05-22 16:46:05,593 - clicklog_app - WARNING - Ocorrência 931300 sem dados de data/hora de abertura
+2025-05-22 16:46:05,593 - clicklog_app - WARNING - Ocorrência 931724 sem dados de data/hora de abertura
+2025-05-22 16:46:05,596 - clicklog_app - WARNING - Ocorrência 1835 sem dados de data/hora de abertura
+2025-05-22 16:46:11,761 - clicklog_app - INFO - Carregados 44 clientes da planilha
+2025-05-22 16:46:11,826 - clicklog_app - INFO - Carregadas 496 cidades da planilha
+2025-05-22 16:46:12,089 - clicklog_app - INFO - Carregados 3084 motoristas da planilha
+2025-05-22 16:46:12,115 - clicklog_app - INFO - Iniciando worker de e-mail
+2025-05-22 16:46:12,900 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Aberta&order=data_hora_abertura.desc "HTTP/2 200 OK"
+2025-05-22 16:46:12,902 - clicklog_app - INFO - Carregadas 9 ocorrências abertas
+2025-05-22 16:46:12,902 - clicklog_app - WARNING - Ocorrência 845931 sem dados de data/hora de abertura
+2025-05-22 16:46:12,903 - clicklog_app - WARNING - Ocorrência 874366 sem dados de data/hora de abertura
+2025-05-22 16:46:12,903 - clicklog_app - WARNING - Ocorrência 166720 sem dados de data/hora de abertura
+2025-05-22 16:46:12,903 - clicklog_app - WARNING - Ocorrência 931756 sem dados de data/hora de abertura
+2025-05-22 16:46:12,903 - clicklog_app - WARNING - Ocorrência 1797 sem dados de data/hora de abertura
+2025-05-22 16:46:12,903 - clicklog_app - WARNING - Ocorrência 931300 sem dados de data/hora de abertura
+2025-05-22 16:46:12,905 - clicklog_app - WARNING - Ocorrência 931724 sem dados de data/hora de abertura
+2025-05-22 16:46:12,905 - clicklog_app - WARNING - Ocorrência 1835 sem dados de data/hora de abertura
+2025-05-22 16:46:12,955 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=12:30:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:46:12,959 - clicklog_app - INFO - Datetime criado: 2025-05-22 12:30:00-03:00
+2025-05-22 16:46:12,960 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=12:30:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:46:12,960 - clicklog_app - INFO - Datetime criado: 2025-05-22 12:30:00-03:00
+2025-05-22 16:46:12,961 - clicklog_app - INFO - Calculando diferença: Inicial=2025-05-22 12:30:00-03:00, Final=2025-05-22 16:46:12.961333-03:00
+2025-05-22 16:46:12,961 - clicklog_app - INFO - Diferença calculada: 4:16:12.961333
+2025-05-22 16:46:12,961 - clicklog_app - INFO - Classificação: data_hora=2025-05-22 12:30:00-03:00, agora=2025-05-22 16:46:12.961333-03:00, diferenca=4:16:12.961333
+2025-05-22 16:46:13,076 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Finalizada&order=data_hora_finalizacao.desc "HTTP/2 200 OK"
+2025-05-22 16:46:13,090 - clicklog_app - INFO - Carregadas 377 ocorrências finalizadas
+2025-05-22 16:46:13,101 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=14:45:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:46:13,102 - clicklog_app - INFO - Datetime criado: 2025-05-22 14:45:00-03:00
+2025-05-22 16:46:13,103 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=16:46:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:46:13,104 - clicklog_app - INFO - Datetime criado: 2025-05-22 16:46:00-03:00
+2025-05-22 16:46:13,584 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Aberta&order=data_hora_abertura.desc "HTTP/2 200 OK"
+2025-05-22 16:46:13,587 - clicklog_app - INFO - Carregadas 9 ocorrências abertas
+2025-05-22 16:46:13,589 - clicklog_app - INFO - Obtidos 4 focais com contagem
+2025-05-22 16:46:13,696 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/usuarios?select=%2A "HTTP/2 200 OK"
+2025-05-22 16:46:13,769 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/usuarios?select=%2A "HTTP/2 200 OK"
+2025-05-22 16:46:13,929 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Aberta&order=data_hora_abertura.desc "HTTP/2 200 OK"
+2025-05-22 16:46:13,933 - clicklog_app - INFO - Carregadas 9 ocorrências abertas
+2025-05-22 16:46:13,938 - clicklog_app - WARNING - Ocorrência 845931 sem dados de data/hora de abertura
+2025-05-22 16:46:13,939 - clicklog_app - WARNING - Ocorrência 874366 sem dados de data/hora de abertura
+2025-05-22 16:46:13,947 - clicklog_app - WARNING - Ocorrência 166720 sem dados de data/hora de abertura
+2025-05-22 16:46:13,948 - clicklog_app - WARNING - Ocorrência 931756 sem dados de data/hora de abertura
+2025-05-22 16:46:13,953 - clicklog_app - WARNING - Ocorrência 1797 sem dados de data/hora de abertura
+2025-05-22 16:46:13,956 - clicklog_app - WARNING - Ocorrência 931300 sem dados de data/hora de abertura
+2025-05-22 16:46:13,957 - clicklog_app - WARNING - Ocorrência 931724 sem dados de data/hora de abertura
+2025-05-22 16:46:13,959 - clicklog_app - WARNING - Ocorrência 1835 sem dados de data/hora de abertura
+2025-05-22 16:46:14,475 - clicklog_app - INFO - Carregados 44 clientes da planilha
+2025-05-22 16:46:14,511 - clicklog_app - INFO - Carregadas 496 cidades da planilha
+2025-05-22 16:46:14,633 - clicklog_app - INFO - Carregados 3084 motoristas da planilha
+2025-05-22 16:46:14,654 - clicklog_app - INFO - Iniciando worker de e-mail
+2025-05-22 16:46:15,323 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Aberta&order=data_hora_abertura.desc "HTTP/2 200 OK"
+2025-05-22 16:46:15,324 - clicklog_app - INFO - Carregadas 9 ocorrências abertas
+2025-05-22 16:46:15,325 - clicklog_app - WARNING - Ocorrência 845931 sem dados de data/hora de abertura
+2025-05-22 16:46:15,327 - clicklog_app - WARNING - Ocorrência 874366 sem dados de data/hora de abertura
+2025-05-22 16:46:15,328 - clicklog_app - WARNING - Ocorrência 166720 sem dados de data/hora de abertura
+2025-05-22 16:46:15,328 - clicklog_app - WARNING - Ocorrência 931756 sem dados de data/hora de abertura
+2025-05-22 16:46:15,328 - clicklog_app - WARNING - Ocorrência 1797 sem dados de data/hora de abertura
+2025-05-22 16:46:15,328 - clicklog_app - WARNING - Ocorrência 931300 sem dados de data/hora de abertura
+2025-05-22 16:46:15,328 - clicklog_app - WARNING - Ocorrência 931724 sem dados de data/hora de abertura
+2025-05-22 16:46:15,329 - clicklog_app - WARNING - Ocorrência 1835 sem dados de data/hora de abertura
+2025-05-22 16:46:15,393 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=12:30:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:46:15,397 - clicklog_app - INFO - Datetime criado: 2025-05-22 12:30:00-03:00
+2025-05-22 16:46:15,397 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=12:30:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:46:15,400 - clicklog_app - INFO - Datetime criado: 2025-05-22 12:30:00-03:00
+2025-05-22 16:46:15,401 - clicklog_app - INFO - Calculando diferença: Inicial=2025-05-22 12:30:00-03:00, Final=2025-05-22 16:46:15.401390-03:00
+2025-05-22 16:46:15,401 - clicklog_app - INFO - Diferença calculada: 4:16:15.401390
+2025-05-22 16:46:15,401 - clicklog_app - INFO - Classificação: data_hora=2025-05-22 12:30:00-03:00, agora=2025-05-22 16:46:15.401390-03:00, diferenca=4:16:15.401390
+2025-05-22 16:46:15,406 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=12:30:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:46:15,410 - clicklog_app - INFO - Datetime criado: 2025-05-22 12:30:00-03:00
+2025-05-22 16:46:15,411 - clicklog_app - INFO - Calculando diferença: Inicial=2025-05-22 12:30:00-03:00, Final=2025-05-22 16:46:00-03:00
+2025-05-22 16:46:15,412 - clicklog_app - INFO - Diferença calculada: 4:16:00
+2025-05-22 16:46:15,413 - clicklog_app - INFO - Finalizando ocorrência a67584d6-746c-471a-84ac-7082bcf6dbee: permanência=04:16
+2025-05-22 16:46:15,485 - httpx - INFO - HTTP Request: PATCH https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?id=eq.a67584d6-746c-471a-84ac-7082bcf6dbee "HTTP/2 200 OK"
+2025-05-22 16:46:15,535 - clicklog_app - INFO - Carregados dados de e-mail para 32 clientes
+2025-05-22 16:46:15,536 - clicklog_app - INFO - E-mail para controladoria@clicklogtransportes.com.br adicionado à fila de processamento
+2025-05-22 16:46:15,536 - clicklog_app - INFO - Processando e-mail para controladoria@clicklogtransportes.com.br
+2025-05-22 16:46:15,537 - clicklog_app - INFO - Ocorrência a67584d6-746c-471a-84ac-7082bcf6dbee finalizada com sucesso
+2025-05-22 16:46:15,539 - clicklog_app - INFO - Tentativa 1 de envio para controladoria@clicklogtransportes.com.br
+2025-05-22 16:46:16,063 - clicklog_app - INFO - E-mail enviado com sucesso para controladoria@clicklogtransportes.com.br
+2025-05-22 16:46:16,147 - httpx - INFO - HTTP Request: PATCH https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?id=eq.a67584d6-746c-471a-84ac-7082bcf6dbee "HTTP/2 200 OK"
+2025-05-22 16:46:16,149 - clicklog_app - INFO - Ocorrência a67584d6-746c-471a-84ac-7082bcf6dbee marcada como tendo recebido e-mail de finalizacao
+2025-05-22 16:46:18,004 - clicklog_app - INFO - Carregados 44 clientes da planilha
+2025-05-22 16:46:18,053 - clicklog_app - INFO - Carregadas 496 cidades da planilha
+2025-05-22 16:46:18,214 - clicklog_app - INFO - Carregados 3084 motoristas da planilha
+2025-05-22 16:46:18,247 - clicklog_app - INFO - Iniciando worker de e-mail
+2025-05-22 16:46:18,963 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Aberta&order=data_hora_abertura.desc "HTTP/2 200 OK"
+2025-05-22 16:46:18,968 - clicklog_app - INFO - Carregadas 8 ocorrências abertas
+2025-05-22 16:46:18,971 - clicklog_app - WARNING - Ocorrência 845931 sem dados de data/hora de abertura
+2025-05-22 16:46:18,971 - clicklog_app - WARNING - Ocorrência 874366 sem dados de data/hora de abertura
+2025-05-22 16:46:18,972 - clicklog_app - WARNING - Ocorrência 166720 sem dados de data/hora de abertura
+2025-05-22 16:46:18,974 - clicklog_app - WARNING - Ocorrência 931756 sem dados de data/hora de abertura
+2025-05-22 16:46:18,974 - clicklog_app - WARNING - Ocorrência 1797 sem dados de data/hora de abertura
+2025-05-22 16:46:18,974 - clicklog_app - WARNING - Ocorrência 931300 sem dados de data/hora de abertura
+2025-05-22 16:46:18,975 - clicklog_app - WARNING - Ocorrência 931724 sem dados de data/hora de abertura
+2025-05-22 16:46:18,975 - clicklog_app - WARNING - Ocorrência 1835 sem dados de data/hora de abertura
+2025-05-22 16:46:19,140 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Finalizada&order=data_hora_finalizacao.desc "HTTP/2 200 OK"
+2025-05-22 16:46:19,161 - clicklog_app - INFO - Carregadas 378 ocorrências finalizadas
+2025-05-22 16:46:19,172 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=12:30:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:46:19,174 - clicklog_app - INFO - Datetime criado: 2025-05-22 12:30:00-03:00
+2025-05-22 16:46:19,175 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=16:46:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:46:19,176 - clicklog_app - INFO - Datetime criado: 2025-05-22 16:46:00-03:00
+2025-05-22 16:46:19,180 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=14:45:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:46:19,185 - clicklog_app - INFO - Datetime criado: 2025-05-22 14:45:00-03:00
+2025-05-22 16:46:19,186 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=16:46:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:46:19,187 - clicklog_app - INFO - Datetime criado: 2025-05-22 16:46:00-03:00
+2025-05-22 16:46:19,584 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Aberta&order=data_hora_abertura.desc "HTTP/2 200 OK"
+2025-05-22 16:46:19,585 - clicklog_app - INFO - Carregadas 8 ocorrências abertas
+2025-05-22 16:46:19,585 - clicklog_app - INFO - Obtidos 3 focais com contagem
+2025-05-22 16:46:19,651 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/usuarios?select=%2A "HTTP/2 200 OK"
+2025-05-22 16:46:19,719 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/usuarios?select=%2A "HTTP/2 200 OK"
+2025-05-22 16:46:19,811 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Aberta&order=data_hora_abertura.desc "HTTP/2 200 OK"
+2025-05-22 16:46:19,815 - clicklog_app - INFO - Carregadas 8 ocorrências abertas
+2025-05-22 16:46:19,815 - clicklog_app - WARNING - Ocorrência 845931 sem dados de data/hora de abertura
+2025-05-22 16:46:19,816 - clicklog_app - WARNING - Ocorrência 874366 sem dados de data/hora de abertura
+2025-05-22 16:46:19,816 - clicklog_app - WARNING - Ocorrência 166720 sem dados de data/hora de abertura
+2025-05-22 16:46:19,817 - clicklog_app - WARNING - Ocorrência 931756 sem dados de data/hora de abertura
+2025-05-22 16:46:19,820 - clicklog_app - WARNING - Ocorrência 1797 sem dados de data/hora de abertura
+2025-05-22 16:46:19,821 - clicklog_app - WARNING - Ocorrência 931300 sem dados de data/hora de abertura
+2025-05-22 16:46:19,821 - clicklog_app - WARNING - Ocorrência 931724 sem dados de data/hora de abertura
+2025-05-22 16:46:19,822 - clicklog_app - WARNING - Ocorrência 1835 sem dados de data/hora de abertura
+2025-05-22 16:46:54,291 - clicklog_app - INFO - Carregados 44 clientes da planilha
+2025-05-22 16:46:54,323 - clicklog_app - INFO - Carregadas 496 cidades da planilha
+2025-05-22 16:46:54,533 - clicklog_app - INFO - Carregados 3084 motoristas da planilha
+2025-05-22 16:46:54,548 - clicklog_app - INFO - Iniciando worker de e-mail
+2025-05-22 16:46:55,361 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Aberta&order=data_hora_abertura.desc "HTTP/2 200 OK"
+2025-05-22 16:46:55,365 - clicklog_app - INFO - Carregadas 8 ocorrências abertas
+2025-05-22 16:46:55,367 - clicklog_app - WARNING - Ocorrência 845931 sem dados de data/hora de abertura
+2025-05-22 16:46:55,368 - clicklog_app - WARNING - Ocorrência 874366 sem dados de data/hora de abertura
+2025-05-22 16:46:55,369 - clicklog_app - WARNING - Ocorrência 166720 sem dados de data/hora de abertura
+2025-05-22 16:46:55,369 - clicklog_app - WARNING - Ocorrência 931756 sem dados de data/hora de abertura
+2025-05-22 16:46:55,371 - clicklog_app - WARNING - Ocorrência 1797 sem dados de data/hora de abertura
+2025-05-22 16:46:55,371 - clicklog_app - WARNING - Ocorrência 931300 sem dados de data/hora de abertura
+2025-05-22 16:46:55,371 - clicklog_app - WARNING - Ocorrência 931724 sem dados de data/hora de abertura
+2025-05-22 16:46:55,372 - clicklog_app - WARNING - Ocorrência 1835 sem dados de data/hora de abertura
+2025-05-22 16:46:55,551 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Finalizada&order=data_hora_finalizacao.desc "HTTP/2 200 OK"
+2025-05-22 16:46:55,578 - clicklog_app - INFO - Carregadas 378 ocorrências finalizadas
+2025-05-22 16:46:55,586 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=12:30:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:46:55,589 - clicklog_app - INFO - Datetime criado: 2025-05-22 12:30:00-03:00
+2025-05-22 16:46:55,590 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=16:46:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:46:55,590 - clicklog_app - INFO - Datetime criado: 2025-05-22 16:46:00-03:00
+2025-05-22 16:46:55,592 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=14:45:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:46:55,593 - clicklog_app - INFO - Datetime criado: 2025-05-22 14:45:00-03:00
+2025-05-22 16:46:55,594 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=16:46:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:46:55,594 - clicklog_app - INFO - Datetime criado: 2025-05-22 16:46:00-03:00
+2025-05-22 16:46:56,018 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Aberta&order=data_hora_abertura.desc "HTTP/2 200 OK"
+2025-05-22 16:46:56,021 - clicklog_app - INFO - Carregadas 8 ocorrências abertas
+2025-05-22 16:46:56,021 - clicklog_app - INFO - Obtidos 3 focais com contagem
+2025-05-22 16:46:56,112 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/usuarios?select=%2A "HTTP/2 200 OK"
+2025-05-22 16:46:56,184 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/usuarios?select=%2A "HTTP/2 200 OK"
+2025-05-22 16:46:56,281 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Aberta&order=data_hora_abertura.desc "HTTP/2 200 OK"
+2025-05-22 16:46:56,283 - clicklog_app - INFO - Carregadas 8 ocorrências abertas
+2025-05-22 16:46:56,283 - clicklog_app - WARNING - Ocorrência 845931 sem dados de data/hora de abertura
+2025-05-22 16:46:56,284 - clicklog_app - WARNING - Ocorrência 874366 sem dados de data/hora de abertura
+2025-05-22 16:46:56,284 - clicklog_app - WARNING - Ocorrência 166720 sem dados de data/hora de abertura
+2025-05-22 16:46:56,284 - clicklog_app - WARNING - Ocorrência 931756 sem dados de data/hora de abertura
+2025-05-22 16:46:56,284 - clicklog_app - WARNING - Ocorrência 1797 sem dados de data/hora de abertura
+2025-05-22 16:46:56,284 - clicklog_app - WARNING - Ocorrência 931300 sem dados de data/hora de abertura
+2025-05-22 16:46:56,285 - clicklog_app - WARNING - Ocorrência 931724 sem dados de data/hora de abertura
+2025-05-22 16:46:56,285 - clicklog_app - WARNING - Ocorrência 1835 sem dados de data/hora de abertura
+2025-05-22 16:47:54,233 - clicklog_app - INFO - Carregados 44 clientes da planilha
+2025-05-22 16:47:54,313 - clicklog_app - INFO - Carregadas 496 cidades da planilha
+2025-05-22 16:47:54,529 - clicklog_app - INFO - Carregados 3084 motoristas da planilha
+2025-05-22 16:47:54,553 - clicklog_app - INFO - Iniciando worker de e-mail
+2025-05-22 16:47:55,109 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Aberta&order=data_hora_abertura.desc "HTTP/2 200 OK"
+2025-05-22 16:47:55,110 - clicklog_app - INFO - Carregadas 9 ocorrências abertas
+2025-05-22 16:47:55,110 - clicklog_app - WARNING - Ocorrência 1842 sem dados de data/hora de abertura
+2025-05-22 16:47:55,110 - clicklog_app - WARNING - Ocorrência 845931 sem dados de data/hora de abertura
+2025-05-22 16:47:55,111 - clicklog_app - WARNING - Ocorrência 874366 sem dados de data/hora de abertura
+2025-05-22 16:47:55,111 - clicklog_app - WARNING - Ocorrência 166720 sem dados de data/hora de abertura
+2025-05-22 16:47:55,117 - clicklog_app - WARNING - Ocorrência 931756 sem dados de data/hora de abertura
+2025-05-22 16:47:55,117 - clicklog_app - WARNING - Ocorrência 1797 sem dados de data/hora de abertura
+2025-05-22 16:47:55,118 - clicklog_app - WARNING - Ocorrência 931300 sem dados de data/hora de abertura
+2025-05-22 16:47:55,118 - clicklog_app - WARNING - Ocorrência 931724 sem dados de data/hora de abertura
+2025-05-22 16:47:55,118 - clicklog_app - WARNING - Ocorrência 1835 sem dados de data/hora de abertura
+2025-05-22 16:47:55,299 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Finalizada&order=data_hora_finalizacao.desc "HTTP/2 200 OK"
+2025-05-22 16:47:55,338 - clicklog_app - INFO - Carregadas 378 ocorrências finalizadas
+2025-05-22 16:47:55,342 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=12:30:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:47:55,345 - clicklog_app - INFO - Datetime criado: 2025-05-22 12:30:00-03:00
+2025-05-22 16:47:55,350 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=16:46:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:47:55,350 - clicklog_app - INFO - Datetime criado: 2025-05-22 16:46:00-03:00
+2025-05-22 16:47:55,353 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=14:45:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:47:55,355 - clicklog_app - INFO - Datetime criado: 2025-05-22 14:45:00-03:00
+2025-05-22 16:47:55,355 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=16:46:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:47:55,356 - clicklog_app - INFO - Datetime criado: 2025-05-22 16:46:00-03:00
+2025-05-22 16:47:55,725 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Aberta&order=data_hora_abertura.desc "HTTP/2 200 OK"
+2025-05-22 16:47:55,727 - clicklog_app - INFO - Carregadas 9 ocorrências abertas
+2025-05-22 16:47:55,727 - clicklog_app - INFO - Obtidos 3 focais com contagem
+2025-05-22 16:47:55,822 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/usuarios?select=%2A "HTTP/2 200 OK"
+2025-05-22 16:47:55,922 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/usuarios?select=%2A "HTTP/2 200 OK"
+2025-05-22 16:47:56,004 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Aberta&order=data_hora_abertura.desc "HTTP/2 200 OK"
+2025-05-22 16:47:56,006 - clicklog_app - INFO - Carregadas 9 ocorrências abertas
+2025-05-22 16:47:56,007 - clicklog_app - WARNING - Ocorrência 1842 sem dados de data/hora de abertura
+2025-05-22 16:47:56,007 - clicklog_app - WARNING - Ocorrência 845931 sem dados de data/hora de abertura
+2025-05-22 16:47:56,008 - clicklog_app - WARNING - Ocorrência 874366 sem dados de data/hora de abertura
+2025-05-22 16:47:56,008 - clicklog_app - WARNING - Ocorrência 166720 sem dados de data/hora de abertura
+2025-05-22 16:47:56,008 - clicklog_app - WARNING - Ocorrência 931756 sem dados de data/hora de abertura
+2025-05-22 16:47:56,008 - clicklog_app - WARNING - Ocorrência 1797 sem dados de data/hora de abertura
+2025-05-22 16:47:56,009 - clicklog_app - WARNING - Ocorrência 931300 sem dados de data/hora de abertura
+2025-05-22 16:47:56,009 - clicklog_app - WARNING - Ocorrência 931724 sem dados de data/hora de abertura
+2025-05-22 16:47:56,009 - clicklog_app - WARNING - Ocorrência 1835 sem dados de data/hora de abertura
+2025-05-22 16:48:54,203 - clicklog_app - INFO - Carregados 44 clientes da planilha
+2025-05-22 16:48:54,226 - clicklog_app - INFO - Carregadas 496 cidades da planilha
+2025-05-22 16:48:54,457 - clicklog_app - INFO - Carregados 3084 motoristas da planilha
+2025-05-22 16:48:54,478 - clicklog_app - INFO - Iniciando worker de e-mail
+2025-05-22 16:48:55,248 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Aberta&order=data_hora_abertura.desc "HTTP/2 200 OK"
+2025-05-22 16:48:55,249 - clicklog_app - INFO - Carregadas 9 ocorrências abertas
+2025-05-22 16:48:55,249 - clicklog_app - WARNING - Ocorrência 1842 sem dados de data/hora de abertura
+2025-05-22 16:48:55,250 - clicklog_app - WARNING - Ocorrência 845931 sem dados de data/hora de abertura
+2025-05-22 16:48:55,250 - clicklog_app - WARNING - Ocorrência 874366 sem dados de data/hora de abertura
+2025-05-22 16:48:55,250 - clicklog_app - WARNING - Ocorrência 166720 sem dados de data/hora de abertura
+2025-05-22 16:48:55,250 - clicklog_app - WARNING - Ocorrência 931756 sem dados de data/hora de abertura
+2025-05-22 16:48:55,250 - clicklog_app - WARNING - Ocorrência 1797 sem dados de data/hora de abertura
+2025-05-22 16:48:55,250 - clicklog_app - WARNING - Ocorrência 931300 sem dados de data/hora de abertura
+2025-05-22 16:48:55,252 - clicklog_app - WARNING - Ocorrência 931724 sem dados de data/hora de abertura
+2025-05-22 16:48:55,252 - clicklog_app - WARNING - Ocorrência 1835 sem dados de data/hora de abertura
+2025-05-22 16:48:55,394 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Finalizada&order=data_hora_finalizacao.desc "HTTP/2 200 OK"
+2025-05-22 16:48:55,418 - clicklog_app - INFO - Carregadas 378 ocorrências finalizadas
+2025-05-22 16:48:55,425 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=12:30:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:48:55,427 - clicklog_app - INFO - Datetime criado: 2025-05-22 12:30:00-03:00
+2025-05-22 16:48:55,428 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=16:46:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:48:55,428 - clicklog_app - INFO - Datetime criado: 2025-05-22 16:46:00-03:00
+2025-05-22 16:48:55,429 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=14:45:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:48:55,433 - clicklog_app - INFO - Datetime criado: 2025-05-22 14:45:00-03:00
+2025-05-22 16:48:55,436 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=16:46:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:48:55,438 - clicklog_app - INFO - Datetime criado: 2025-05-22 16:46:00-03:00
+2025-05-22 16:48:55,796 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Aberta&order=data_hora_abertura.desc "HTTP/2 200 OK"
+2025-05-22 16:48:55,800 - clicklog_app - INFO - Carregadas 9 ocorrências abertas
+2025-05-22 16:48:55,802 - clicklog_app - INFO - Obtidos 3 focais com contagem
+2025-05-22 16:48:55,883 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/usuarios?select=%2A "HTTP/2 200 OK"
+2025-05-22 16:48:55,964 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/usuarios?select=%2A "HTTP/2 200 OK"
+2025-05-22 16:48:56,196 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Aberta&order=data_hora_abertura.desc "HTTP/2 200 OK"
+2025-05-22 16:48:56,202 - clicklog_app - INFO - Carregadas 9 ocorrências abertas
+2025-05-22 16:48:56,219 - clicklog_app - WARNING - Ocorrência 1842 sem dados de data/hora de abertura
+2025-05-22 16:48:56,221 - clicklog_app - WARNING - Ocorrência 845931 sem dados de data/hora de abertura
+2025-05-22 16:48:56,221 - clicklog_app - WARNING - Ocorrência 874366 sem dados de data/hora de abertura
+2025-05-22 16:48:56,222 - clicklog_app - WARNING - Ocorrência 166720 sem dados de data/hora de abertura
+2025-05-22 16:48:56,222 - clicklog_app - WARNING - Ocorrência 931756 sem dados de data/hora de abertura
+2025-05-22 16:48:56,222 - clicklog_app - WARNING - Ocorrência 1797 sem dados de data/hora de abertura
+2025-05-22 16:48:56,223 - clicklog_app - WARNING - Ocorrência 931300 sem dados de data/hora de abertura
+2025-05-22 16:48:56,223 - clicklog_app - WARNING - Ocorrência 931724 sem dados de data/hora de abertura
+2025-05-22 16:48:56,223 - clicklog_app - WARNING - Ocorrência 1835 sem dados de data/hora de abertura
+2025-05-22 16:49:54,255 - clicklog_app - INFO - Carregados 44 clientes da planilha
+2025-05-22 16:49:54,290 - clicklog_app - INFO - Carregadas 496 cidades da planilha
+2025-05-22 16:49:54,497 - clicklog_app - INFO - Carregados 3084 motoristas da planilha
+2025-05-22 16:49:54,511 - clicklog_app - INFO - Iniciando worker de e-mail
+2025-05-22 16:49:55,296 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Aberta&order=data_hora_abertura.desc "HTTP/2 200 OK"
+2025-05-22 16:49:55,299 - clicklog_app - INFO - Carregadas 9 ocorrências abertas
+2025-05-22 16:49:55,299 - clicklog_app - WARNING - Ocorrência 1842 sem dados de data/hora de abertura
+2025-05-22 16:49:55,299 - clicklog_app - WARNING - Ocorrência 845931 sem dados de data/hora de abertura
+2025-05-22 16:49:55,300 - clicklog_app - WARNING - Ocorrência 874366 sem dados de data/hora de abertura
+2025-05-22 16:49:55,300 - clicklog_app - WARNING - Ocorrência 166720 sem dados de data/hora de abertura
+2025-05-22 16:49:55,300 - clicklog_app - WARNING - Ocorrência 931756 sem dados de data/hora de abertura
+2025-05-22 16:49:55,300 - clicklog_app - WARNING - Ocorrência 1797 sem dados de data/hora de abertura
+2025-05-22 16:49:55,300 - clicklog_app - WARNING - Ocorrência 931300 sem dados de data/hora de abertura
+2025-05-22 16:49:55,300 - clicklog_app - WARNING - Ocorrência 931724 sem dados de data/hora de abertura
+2025-05-22 16:49:55,300 - clicklog_app - WARNING - Ocorrência 1835 sem dados de data/hora de abertura
+2025-05-22 16:49:55,460 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Finalizada&order=data_hora_finalizacao.desc "HTTP/2 200 OK"
+2025-05-22 16:49:55,502 - clicklog_app - INFO - Carregadas 378 ocorrências finalizadas
+2025-05-22 16:49:55,508 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=12:30:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:49:55,508 - clicklog_app - INFO - Datetime criado: 2025-05-22 12:30:00-03:00
+2025-05-22 16:49:55,511 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=16:46:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:49:55,511 - clicklog_app - INFO - Datetime criado: 2025-05-22 16:46:00-03:00
+2025-05-22 16:49:55,512 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=14:45:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:49:55,514 - clicklog_app - INFO - Datetime criado: 2025-05-22 14:45:00-03:00
+2025-05-22 16:49:55,515 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=16:46:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:49:55,517 - clicklog_app - INFO - Datetime criado: 2025-05-22 16:46:00-03:00
+2025-05-22 16:49:55,809 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Aberta&order=data_hora_abertura.desc "HTTP/2 200 OK"
+2025-05-22 16:49:55,814 - clicklog_app - INFO - Carregadas 9 ocorrências abertas
+2025-05-22 16:49:55,814 - clicklog_app - INFO - Obtidos 3 focais com contagem
+2025-05-22 16:49:55,886 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/usuarios?select=%2A "HTTP/2 200 OK"
+2025-05-22 16:49:55,970 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/usuarios?select=%2A "HTTP/2 200 OK"
+2025-05-22 16:49:56,059 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Aberta&order=data_hora_abertura.desc "HTTP/2 200 OK"
+2025-05-22 16:49:56,060 - clicklog_app - INFO - Carregadas 9 ocorrências abertas
+2025-05-22 16:49:56,060 - clicklog_app - WARNING - Ocorrência 1842 sem dados de data/hora de abertura
+2025-05-22 16:49:56,061 - clicklog_app - WARNING - Ocorrência 845931 sem dados de data/hora de abertura
+2025-05-22 16:49:56,061 - clicklog_app - WARNING - Ocorrência 874366 sem dados de data/hora de abertura
+2025-05-22 16:49:56,061 - clicklog_app - WARNING - Ocorrência 166720 sem dados de data/hora de abertura
+2025-05-22 16:49:56,061 - clicklog_app - WARNING - Ocorrência 931756 sem dados de data/hora de abertura
+2025-05-22 16:49:56,062 - clicklog_app - WARNING - Ocorrência 1797 sem dados de data/hora de abertura
+2025-05-22 16:49:56,062 - clicklog_app - WARNING - Ocorrência 931300 sem dados de data/hora de abertura
+2025-05-22 16:49:56,062 - clicklog_app - WARNING - Ocorrência 931724 sem dados de data/hora de abertura
+2025-05-22 16:49:56,062 - clicklog_app - WARNING - Ocorrência 1835 sem dados de data/hora de abertura
+2025-05-22 16:50:46,023 - clicklog_app - INFO - Carregados 44 clientes da planilha
+2025-05-22 16:50:46,064 - clicklog_app - INFO - Carregadas 496 cidades da planilha
+2025-05-22 16:50:46,298 - clicklog_app - INFO - Carregados 3084 motoristas da planilha
+2025-05-22 16:50:46,340 - clicklog_app - INFO - Iniciando worker de e-mail
+2025-05-22 16:50:47,242 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Aberta&order=data_hora_abertura.desc "HTTP/2 200 OK"
+2025-05-22 16:50:47,243 - clicklog_app - INFO - Carregadas 9 ocorrências abertas
+2025-05-22 16:50:47,243 - clicklog_app - WARNING - Ocorrência 1842 sem dados de data/hora de abertura
+2025-05-22 16:50:47,244 - clicklog_app - WARNING - Ocorrência 845931 sem dados de data/hora de abertura
+2025-05-22 16:50:47,244 - clicklog_app - WARNING - Ocorrência 874366 sem dados de data/hora de abertura
+2025-05-22 16:50:47,244 - clicklog_app - WARNING - Ocorrência 166720 sem dados de data/hora de abertura
+2025-05-22 16:50:47,245 - clicklog_app - WARNING - Ocorrência 931756 sem dados de data/hora de abertura
+2025-05-22 16:50:47,245 - clicklog_app - WARNING - Ocorrência 1797 sem dados de data/hora de abertura
+2025-05-22 16:50:47,245 - clicklog_app - WARNING - Ocorrência 931300 sem dados de data/hora de abertura
+2025-05-22 16:50:47,245 - clicklog_app - WARNING - Ocorrência 931724 sem dados de data/hora de abertura
+2025-05-22 16:50:47,245 - clicklog_app - WARNING - Ocorrência 1835 sem dados de data/hora de abertura
+2025-05-22 16:50:47,410 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Finalizada&order=data_hora_finalizacao.desc "HTTP/2 200 OK"
+2025-05-22 16:50:47,436 - clicklog_app - INFO - Carregadas 378 ocorrências finalizadas
+2025-05-22 16:50:47,441 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=12:30:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:50:47,443 - clicklog_app - INFO - Datetime criado: 2025-05-22 12:30:00-03:00
+2025-05-22 16:50:47,444 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=16:46:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:50:47,445 - clicklog_app - INFO - Datetime criado: 2025-05-22 16:46:00-03:00
+2025-05-22 16:50:47,446 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=14:45:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:50:47,447 - clicklog_app - INFO - Datetime criado: 2025-05-22 14:45:00-03:00
+2025-05-22 16:50:47,447 - clicklog_app - INFO - Criando datetime manual: data_str=2025-05-22, hora_str=16:46:00, formato=%Y-%m-%d %H:%M:%S
+2025-05-22 16:50:47,447 - clicklog_app - INFO - Datetime criado: 2025-05-22 16:46:00-03:00
+2025-05-22 16:50:47,869 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Aberta&order=data_hora_abertura.desc "HTTP/2 200 OK"
+2025-05-22 16:50:47,871 - clicklog_app - INFO - Carregadas 9 ocorrências abertas
+2025-05-22 16:50:47,872 - clicklog_app - INFO - Obtidos 3 focais com contagem
+2025-05-22 16:50:47,947 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/usuarios?select=%2A "HTTP/2 200 OK"
+2025-05-22 16:50:48,012 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/usuarios?select=%2A "HTTP/2 200 OK"
+2025-05-22 16:50:48,029 - clicklog_app - INFO - Iniciando teste de conexão SMTP
+2025-05-22 16:50:48,438 - clicklog_app - INFO - Teste de conexão SMTP bem-sucedido
+2025-05-22 16:50:48,524 - httpx - INFO - HTTP Request: GET https://vismjxhlsctehpvgmata.supabase.co/rest/v1/ocorrencias?select=%2A&status=eq.Aberta&order=data_hora_abertura.desc "HTTP/2 200 OK"
+2025-05-22 16:50:48,529 - clicklog_app - INFO - Carregadas 9 ocorrências abertas
+2025-05-22 16:50:48,529 - clicklog_app - WARNING - Ocorrência 1842 sem dados de data/hora de abertura
+2025-05-22 16:50:48,529 - clicklog_app - WARNING - Ocorrência 845931 sem dados de data/hora de abertura
+2025-05-22 16:50:48,529 - clicklog_app - WARNING - Ocorrência 874366 sem dados de data/hora de abertura
+2025-05-22 16:50:48,530 - clicklog_app - WARNING - Ocorrência 166720 sem dados de data/hora de abertura
+2025-05-22 16:50:48,530 - clicklog_app - WARNING - Ocorrência 931756 sem dados de data/hora de abertura
+2025-05-22 16:50:48,530 - clicklog_app - WARNING - Ocorrência 1797 sem dados de data/hora de abertura
+2025-05-22 16:50:48,530 - clicklog_app - WARNING - Ocorrência 931300 sem dados de data/hora de abertura
+2025-05-22 16:50:48,531 - clicklog_app - WARNING - Ocorrência 931724 sem dados de data/hora de abertura
+2025-05-22 16:50:48,531 - clicklog_app - WARNING - Ocorrência 1835 sem dados de data/hora de abertura
