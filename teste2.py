@@ -272,8 +272,7 @@ def inserir_ocorrencia_supabase(dados):
     if data_hora_manual:
         # Usar a data/hora manual para todos os campos de data/hora
         data_hora_str = data_hora_manual.strftime("%Y-%m-%d %H:%M:%S")
-        agora = obter_data_hora_atual_brasil()
-        #timestamp_iso = data_hora_manual.isoformat()
+        timestamp_iso = data_hora_manual.isoformat()
         
         response = supabase.table("ocorrencias").insert([{
             "id": dados["id"],
@@ -288,7 +287,7 @@ def inserir_ocorrencia_supabase(dados):
             "responsavel": dados["responsavel"],
             "status": "Aberta",
             "data_hora_abertura": data_hora_str,  # Usar data/hora manual
-            "abertura_timestamp": agora,  # Usar data/hora manual
+            "abertura_timestamp": timestamp_iso,  # Usar data/hora manual
             "permanencia": dados["permanencia"],
             "complementar": dados["complementar"],
             "data_abertura_manual": dados["data_abertura_manual"],
@@ -326,130 +325,7 @@ motoristas = df_motoristas["Motorista"].dropna().tolist()
 
 # --- FORMULÁRIO PARA NOVA OCORRÊNCIA ---
 
-# =========================
-#     ABA 1 - NOVA OCORRENCIA
-# =========================
-with aba1:
-    st.header("Nova Ocorrência")
 
-    # Definindo sessão focal_responsavel
-    if "focal_responsavel" not in st.session_state:
-        st.session_state["focal_responsavel"] = ""
-
-    # Formulário para nova ocorrência
-    with st.form("form_nova_ocorrencia", clear_on_submit=True):
-        col1, col2 = st.columns(2)
-
-        with col1:
-            nf = st.text_input("Nota Fiscal", key="nf")
-            nf_invalida = nf != "" and not nf.isdigit()
-            if nf_invalida:
-                st.error("Por favor, insira apenas números na Nota Fiscal.")
-
-            destinatario = st.text_input("Destinatário", key="destinatario")
-
-            cliente_opcao = st.selectbox("Cliente", options=clientes + ["Outro ()"], index=None, key="cliente_opcao")
-            cliente = st.text_input("Digite o nome do cliente", key="cliente_manual") if cliente_opcao == "Outro ()" else cliente_opcao
-
-            if cliente_opcao and cliente_opcao in cliente_to_focal:
-                st.session_state["focal_responsavel"] = cliente_to_focal[cliente_opcao]
-            elif cliente_opcao:
-                st.session_state["focal_responsavel"] = ""
-
-            cidade_opcao = st.selectbox("Cidade", options=cidades + ["Outro (digitar manualmente)"], index=None, key="cidade_opcao")
-            cidade = st.text_input("Digite o nome da cidade", key="cidade_manual") if cidade_opcao == "Outro (digitar manualmente)" else cidade_opcao
-
-
-        with col2:
-            motorista_opcao = st.selectbox("Motorista", options=motoristas + ["Outro (digitar manualmente)"], index=None, key="motorista_opcao")
-            motorista = st.text_input("Digite o nome do motorista", key="motorista_manual") if motorista_opcao == "Outro (digitar manualmente)" else motorista_opcao
-            tipo = st.multiselect("Tipo de Ocorrência", options=["Chegada no Local", "Pedido Bloqueado", "Demora", "Divergência"], key="tipo_ocorrencia")
-            obs = st.text_area("Observações", key="observacoes")
-            responsavel = st.session_state.username
-            st.text_input("Quem está abrindo o ticket", value=responsavel, disabled=True)
-
-            #### data e hora de abertura inserido manual #####
-            st.markdown("")
-
-            col_data, col_hora = st.columns(2)
-            with col_data:
-                data_abertura_manual = st.date_input("Data de Abertura", format="DD/MM/YYYY")
-            with col_hora:
-                hora_abertura_manual = st.time_input("Hora de Abertura")
-
-
-        enviar = st.form_submit_button("Adicionar Ocorrência")
-
-
-        # Validações
-        if enviar:
-            campos_obrigatorios = {
-                "Nota Fiscal": nf,
-                "Cliente": cliente,
-                "Focal Responsável": st.session_state["focal_responsavel"],
-                "Destinatário": destinatario,
-                "Cidade": cidade,
-                "Motorista": motorista,
-                "Tipo de Ocorrência": tipo,
-                "Responsável": responsavel
-            }
-
-            faltando = [campo for campo, valor in campos_obrigatorios.items() if not valor]
-
-            if nf_invalida:
-                st.error("Ocorrência não adicionada: Nota Fiscal deve conter apenas números.")
-            elif faltando:
-                st.error(f"❌ Preencha todos os campos obrigatórios: {', '.join(faltando)}")
-            elif not cliente:  # Verificação adicional para o campo "Cliente"
-                st.error("❌ O campo 'Cliente' é obrigatório.")
-        
-            else:
-                # Gera número de ticket único baseado em data/hora
-                numero_ticket = obter_data_hora_atual_brasil().strftime("%Y%m%d%H%M%S%f")  # Ex: 20250513151230543210
-
-                # Formatar data e hora manual para string no formato esperado pelo banco
-                data_abertura_manual_str = data_abertura_manual.strftime("%Y-%m-%d")
-                hora_abertura_manual_str = hora_abertura_manual.strftime("%H:%M:%S")
-
-                # Montagem do dicionário de nova ocorrência
-                nova_ocorrencia = {
-                    "id": str(uuid.uuid4()),
-                    "numero_ticket": numero_ticket, #numero ticket
-                    "nota_fiscal": nf,
-                    "cliente": cliente,
-                    "focal": st.session_state["focal_responsavel"],
-                    "destinatario": destinatario,
-                    "cidade": cidade,
-                    "motorista": motorista,
-                    "tipo_de_ocorrencia": ", ".join(tipo),
-                    "observacoes": obs,
-                    "responsavel": responsavel,
-                    "data_abertura_manual": data_abertura_manual_str, # data abertura inserido manual
-                    "hora_abertura_manual": hora_abertura_manual_str, # hora abertura inserido manual
-                    "complementar": "",
-                    "permanencia": "",
-                }
-
-                # Inserção no banco de dados
-                response = inserir_ocorrencia_supabase(nova_ocorrencia)
-                
-                if response and response.data:
-                    # Adiciona localmente para exibição imediata
-                    nova_ocorrencia_local = nova_ocorrencia.copy()
-                    nova_ocorrencia_local["Data/Hora Finalização"] = ""
-                    st.session_state.ocorrencias_abertas.append(nova_ocorrencia_local)
-
-                    st.session_state["focal_responsavel"] = ""
-
-                    sucesso = st.empty()
-                    sucesso.success("✅ Ocorrência aberta com sucesso!")
-                    time.sleep(2)
-                    sucesso.empty()
-                    
-                    # Verificar se precisa enviar e-mail (mais de 30 minutos)
-                    #verificar_e_enviar_email_abertura(nova_ocorrencia)
-                else:
-                    st.error(f"Erro ao salvar ocorrência no Supabase: {response.error if response else 'Erro desconhecido'}")
 
 
 # Função de classificação
@@ -952,6 +828,131 @@ def finalizar_ocorrencia(ocorr, complemento, data_finalizacao_manual, hora_final
             return False, f"Erro ao calcular ou salvar permanência manual: {e}"
     except Exception as e:
         return False, f"Erro ao finalizar ocorrência: {e}"
+
+# =========================
+#     ABA 1 - NOVA OCORRENCIA
+# =========================
+with aba1:
+    st.header("Nova Ocorrência")
+
+    # Definindo sessão focal_responsavel
+    if "focal_responsavel" not in st.session_state:
+        st.session_state["focal_responsavel"] = ""
+
+    # Formulário para nova ocorrência
+    with st.form("form_nova_ocorrencia", clear_on_submit=True):
+        col1, col2 = st.columns(2)
+
+        with col1:
+            nf = st.text_input("Nota Fiscal", key="nf")
+            nf_invalida = nf != "" and not nf.isdigit()
+            if nf_invalida:
+                st.error("Por favor, insira apenas números na Nota Fiscal.")
+
+            destinatario = st.text_input("Destinatário", key="destinatario")
+
+            cliente_opcao = st.selectbox("Cliente", options=clientes + ["Outro ()"], index=None, key="cliente_opcao")
+            cliente = st.text_input("Digite o nome do cliente", key="cliente_manual") if cliente_opcao == "Outro ()" else cliente_opcao
+
+            if cliente_opcao and cliente_opcao in cliente_to_focal:
+                st.session_state["focal_responsavel"] = cliente_to_focal[cliente_opcao]
+            elif cliente_opcao:
+                st.session_state["focal_responsavel"] = ""
+
+            cidade_opcao = st.selectbox("Cidade", options=cidades + ["Outro (digitar manualmente)"], index=None, key="cidade_opcao")
+            cidade = st.text_input("Digite o nome da cidade", key="cidade_manual") if cidade_opcao == "Outro (digitar manualmente)" else cidade_opcao
+
+
+        with col2:
+            motorista_opcao = st.selectbox("Motorista", options=motoristas + ["Outro (digitar manualmente)"], index=None, key="motorista_opcao")
+            motorista = st.text_input("Digite o nome do motorista", key="motorista_manual") if motorista_opcao == "Outro (digitar manualmente)" else motorista_opcao
+            tipo = st.multiselect("Tipo de Ocorrência", options=["Chegada no Local", "Pedido Bloqueado", "Demora", "Divergência"], key="tipo_ocorrencia")
+            obs = st.text_area("Observações", key="observacoes")
+            responsavel = st.session_state.username
+            st.text_input("Quem está abrindo o ticket", value=responsavel, disabled=True)
+
+            #### data e hora de abertura inserido manual #####
+            st.markdown("")
+
+            col_data, col_hora = st.columns(2)
+            with col_data:
+                data_abertura_manual = st.date_input("Data de Abertura", format="DD/MM/YYYY")
+            with col_hora:
+                hora_abertura_manual = st.time_input("Hora de Abertura")
+
+
+        enviar = st.form_submit_button("Adicionar Ocorrência")
+
+
+        # Validações
+        if enviar:
+            campos_obrigatorios = {
+                "Nota Fiscal": nf,
+                "Cliente": cliente,
+                "Focal Responsável": st.session_state["focal_responsavel"],
+                "Destinatário": destinatario,
+                "Cidade": cidade,
+                "Motorista": motorista,
+                "Tipo de Ocorrência": tipo,
+                "Responsável": responsavel
+            }
+
+            faltando = [campo for campo, valor in campos_obrigatorios.items() if not valor]
+
+            if nf_invalida:
+                st.error("Ocorrência não adicionada: Nota Fiscal deve conter apenas números.")
+            elif faltando:
+                st.error(f"❌ Preencha todos os campos obrigatórios: {', '.join(faltando)}")
+            elif not cliente:  # Verificação adicional para o campo "Cliente"
+                st.error("❌ O campo 'Cliente' é obrigatório.")
+        
+            else:
+                # Gera número de ticket único baseado em data/hora
+                numero_ticket = obter_data_hora_atual_brasil().strftime("%Y%m%d%H%M%S%f")  # Ex: 20250513151230543210
+
+                # Formatar data e hora manual para string no formato esperado pelo banco
+                data_abertura_manual_str = data_abertura_manual.strftime("%Y-%m-%d")
+                hora_abertura_manual_str = hora_abertura_manual.strftime("%H:%M:%S")
+
+                # Montagem do dicionário de nova ocorrência
+                nova_ocorrencia = {
+                    "id": str(uuid.uuid4()),
+                    "numero_ticket": numero_ticket, #numero ticket
+                    "nota_fiscal": nf,
+                    "cliente": cliente,
+                    "focal": st.session_state["focal_responsavel"],
+                    "destinatario": destinatario,
+                    "cidade": cidade,
+                    "motorista": motorista,
+                    "tipo_de_ocorrencia": ", ".join(tipo),
+                    "observacoes": obs,
+                    "responsavel": responsavel,
+                    "data_abertura_manual": data_abertura_manual_str, # data abertura inserido manual
+                    "hora_abertura_manual": hora_abertura_manual_str, # hora abertura inserido manual
+                    "complementar": "",
+                    "permanencia": "",
+                }
+
+                # Inserção no banco de dados
+                response = inserir_ocorrencia_supabase(nova_ocorrencia)
+                
+                if response and response.data:
+                    # Adiciona localmente para exibição imediata
+                    nova_ocorrencia_local = nova_ocorrencia.copy()
+                    nova_ocorrencia_local["Data/Hora Finalização"] = ""
+                    st.session_state.ocorrencias_abertas.append(nova_ocorrencia_local)
+
+                    st.session_state["focal_responsavel"] = ""
+
+                    sucesso = st.empty()
+                    sucesso.success("✅ Ocorrência aberta com sucesso!")
+                    time.sleep(2)
+                    sucesso.empty()
+                    
+                    # Verificar se precisa enviar e-mail (mais de 30 minutos)
+                    verificar_e_enviar_email_abertura(nova_ocorrencia)
+                else:
+                    st.error(f"Erro ao salvar ocorrência no Supabase: {response.error if response else 'Erro desconhecido'}")
 
 # =========================
 #     ABA 2 - EM ABERTO
