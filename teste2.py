@@ -909,13 +909,16 @@ def finalizar_ocorrencia(ocorr, complemento, data_finalizacao_manual, hora_final
             # Calcular diferença de tempo no mesmo fuso horário
             delta = calcular_diferenca_tempo(data_hora_abertura, data_hora_finalizacao)
             total_segundos = int(delta.total_seconds())
-            horas_totais = total_segundos // 3600
+
+            horas = total_segundos // 3600
             minutos = (total_segundos % 3600) // 60
-            permanencia_manual = f"{horas_totais:02d}:{minutos:02d}"
-            
+            segundos = total_segundos % 60
+
+            permanencia_manual = f"{horas:02d}:{minutos:02d}:{segundos:02d}"
+
             # Formatar para o banco
             data_finalizacao_banco = data_hora_finalizacao.strftime("%Y-%m-%d")
-            hora_finalizacao_banco = f"{hora_finalizacao_manual}:00"
+            hora_finalizacao_banco = data_hora_finalizacao.strftime("%H:%M:%S")
             
             # Atualizar no banco
             response = supabase.table("ocorrencias").update({
