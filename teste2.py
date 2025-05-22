@@ -287,7 +287,7 @@ def inserir_ocorrencia_supabase(dados):
             "responsavel": dados["responsavel"],
             "status": "Aberta",
             "data_hora_abertura": data_hora_str,  # Usar data/hora manual
-            "abertura_timestamp": timestamp_iso,  # Usar data/hora manual
+            "abertura_timestamp": data_hora_str,  # Usar data/hora manual
             "permanencia": dados["permanencia"],
             "complementar": dados["complementar"],
             "data_abertura_manual": dados["data_abertura_manual"],
