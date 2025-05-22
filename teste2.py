@@ -699,28 +699,33 @@ def notificar_ocorrencias_abertas():
     return resultados
 
 def testar_conexao_smtp():
-    """Testa apenas a conexão com o servidor SMTP."""
-    try:
-        # Tentar conectar ao servidor
-        server = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=5)
-        
-        # Tentar iniciar TLS
-        server.starttls()
-        
-        # Tentar autenticar
-        server.login(EMAIL_REMETENTE, EMAIL_SENHA)
-        
-        # Fechar conexão
-        server.quit()
-        return True, "Conexão SMTP testada com sucesso!"
-    except socket.timeout:
-        return False, "Timeout ao conectar ao servidor SMTP. Possível bloqueio de firewall."
-    except smtplib.SMTPAuthenticationError:
-        return False, "Falha na autenticação. Verifique usuário e senha."
-    except smtplib.SMTPException as e:
-        return False, f"Erro SMTP: {e}"
-    except Exception as e:
-        return False, f"Erro desconhecido: {e}"
+        """Testa a conexão com o servidor SMTP, com fallback e debug."""
+        if not EMAIL_REMETENTE or not EMAIL_SENHA or not SMTP_HOST or not SMTP_PORT:
+            return False, "❌ Variáveis de ambiente não carregadas corretamente. Verifique o arquivo .env."
+
+        try:
+            # Primeira tentativa: porta 587 com STARTTLS
+            server = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10)
+            server.set_debuglevel(1)
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+            server.login(EMAIL_REMETENTE, EMAIL_SENHA)
+            server.quit()
+            return True, "✅ Conexão SMTP (TLS na porta 587) bem-sucedida!"
+        except Exception as e1:
+            print("❗ Falha na porta 587. Tentando fallback para SSL 465...")
+            try:
+                # Segunda tentativa: porta 465 com SSL
+                server = smtplib.SMTP_SSL(SMTP_HOST, 465, timeout=10)
+                server.set_debuglevel(1)
+                server.login(EMAIL_REMETENTE, EMAIL_SENHA)
+                server.quit()
+                return True, "✅ Conexão SMTP (SSL na porta 465) bem-sucedida!"
+            except Exception as e2:
+                return False, f"❌ Falha nas duas tentativas de conexão SMTP.\nErro TLS (587): {e1}\nErro SSL (465): {e2}"
+            
+           
 
 # Função para carregar ocorrências abertas
 def carregar_ocorrencias_abertas():
@@ -1562,3 +1567,8 @@ ocorrencias_abertas = carregar_ocorrencias_abertas()
 for ocorr in ocorrencias_abertas:
     if not ocorr.get("email_abertura_enviado", False):
         verificar_e_enviar_email_abertura(ocorr)
+    try:
+        ip = socket.gethostbyname(SMTP_HOST)
+        st.success(f"DNS resolvido: {SMTP_HOST} → {ip}")
+    except Exception as e:
+        st.error(f"Erro ao resolver DNS: {e}")
