@@ -34,16 +34,22 @@ from supabase import create_client, Client as SupabaseClient
 # Estas configurações podem ser movidas para um arquivo .env se preferir
 
 load_dotenv()
-EMAIL_REMETENTE = os.getenv("EMAIL_REMETENTE")
+
+
+EMAIL_REMETENTE = "ticket@clicklogtransportes.com.br"
+
+EMAIL_SENHA = "Clicklogi9up@360"
+
+SMTP_HOST = "smtp.kinghost.net"
+
+SMTP_PORT = 587
+
 print(f"Remetente: {EMAIL_REMETENTE}")
 
-EMAIL_SENHA = os.getenv("EMAIL_SENHA")
 print(f"Senha: {EMAIL_SENHA}")
 
-SMTP_HOST = os.getenv("SMTP_HOST")
 print(f"Host: {SMTP_HOST}")
 
-SMTP_PORT = int(os.getenv("SMTP_PORT", 587))  # com fallback padrão
 print(f"Porta: {SMTP_PORT}")
 
 print(os.getcwd())
