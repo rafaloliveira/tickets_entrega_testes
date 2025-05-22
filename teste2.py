@@ -1192,73 +1192,63 @@ with aba3:
 with aba5:
     st.header("Tickets por Focal")
     
-    # Obter lista de focais com contagem
     focais_contagem = obter_focais_com_contagem()
     
     if not focais_contagem:
         st.info("ℹ️ Nenhuma ocorrência aberta no momento.")
     else:
-        # Exibir lista de focais com contagem
-        col1, col2 = st.columns([1, 3])
-        
-        with col1:
-            st.subheader("Focais")
-            
-            # Botão para limpar seleção
-            if st.button("Limpar seleção"):
-                st.session_state.focal_selecionado = None
+        # Botões de seleção dos focais em linha
+        st.subheader("👤 Focais")
+
+        cols_focais = st.columns(len(focais_contagem) + 1)
+
+        # Botão para limpar
+        if cols_focais[0].button("Limpar seleção"):
+            st.session_state.focal_selecionado = None
+            st.rerun()
+
+        # Botões de focais
+        for i, (focal, contagem) in enumerate(focais_contagem):
+            if cols_focais[i + 1].button(f"{focal} ({contagem})", key=f"focal_{focal}"):
+                st.session_state.focal_selecionado = focal
                 st.rerun()
-            
-            # Exibir lista de focais com contagem
-            for focal, contagem in focais_contagem:
-                if st.button(f"{focal} ({contagem})", key=f"focal_{focal}"):
-                    st.session_state.focal_selecionado = focal
-                    st.rerun()
-        
-        with col2:
-            # Exibir ocorrências do focal selecionado
-            if st.session_state.focal_selecionado:
-                st.subheader(f"Ocorrências de {st.session_state.focal_selecionado}")
-                
-                # Carregar ocorrências do focal selecionado
-                ocorrencias_focal = carregar_ocorrencias_por_focal(st.session_state.focal_selecionado)
-                
-                if not ocorrencias_focal:
-                    st.info(f"ℹ️ Nenhuma ocorrência aberta para {st.session_state.focal_selecionado}.")
-                else:
-                    # Exibir ocorrências em cards
-                    for idx, ocorr in enumerate(ocorrencias_focal):
-                        status = "Data manual ausente"
-                        cor = "gray"
-                        abertura_manual_formatada = "Não informada"
-                        data_abertura_manual = ocorr.get("data_abertura_manual")
-                        hora_abertura_manual = ocorr.get("hora_abertura_manual")
 
-                        if data_abertura_manual and hora_abertura_manual:
-                            try:
-                                # Criar datetime a partir das strings de data e hora manual
-                                dt_manual = criar_datetime_manual(data_abertura_manual, hora_abertura_manual)
-                                if dt_manual:
-                                    abertura_manual_formatada = dt_manual.strftime("%d-%m-%Y %H:%M:%S")
+        st.markdown("---")
 
-                                    # Classificação por tempo com base nas datas manuais
-                                    status, cor = classificar_ocorrencia_por_tempo(data_abertura_manual, hora_abertura_manual)
-                                else:
+        # Exibição das ocorrências
+        if st.session_state.focal_selecionado:
+            st.subheader(f"📋 Ocorrências de {st.session_state.focal_selecionado}")
+            ocorrencias_focal = carregar_ocorrencias_por_focal(st.session_state.focal_selecionado)
+
+            if not ocorrencias_focal:
+                st.info(f"ℹ️ Nenhuma ocorrência aberta para {st.session_state.focal_selecionado}.")
+            else:
+                for linha in range(0, len(ocorrencias_focal), 4):
+                    colunas = st.columns(4)
+                    for i, ocorr in enumerate(ocorrencias_focal[linha:linha+4]):
+                        with colunas[i]:
+                            status = "Data manual ausente"
+                            cor = "gray"
+                            abertura_manual_formatada = "Não informada"
+                            data_abertura_manual = ocorr.get("data_abertura_manual")
+                            hora_abertura_manual = ocorr.get("hora_abertura_manual")
+
+                            if data_abertura_manual and hora_abertura_manual:
+                                try:
+                                    dt_manual = criar_datetime_manual(data_abertura_manual, hora_abertura_manual)
+                                    if dt_manual:
+                                        abertura_manual_formatada = dt_manual.strftime("%d-%m-%Y %H:%M:%S")
+                                        status, cor = classificar_ocorrencia_por_tempo(data_abertura_manual, hora_abertura_manual)
+                                    else:
+                                        status = "Erro"
+                                except Exception as e:
+                                    st.error(f"Erro na data/hora manual da NF {ocorr.get('nota_fiscal', '-')}: {e}")
                                     status = "Erro"
-                                    cor = "gray"
 
-                            except Exception as e:
-                                st.error(f"Erro ao processar data/hora manual da ocorrência {ocorr.get('nota_fiscal', '-')}: {e}")
-                                status = "Erro"
-                                cor = "gray"
-
-                        safe_idx = f"focal_{idx}_{ocorr.get('nota_fiscal', '')}"
-
-                        with st.container():
-                            # Adicionar indicador de e-mail enviado
                             email_enviado = ocorr.get('email_abertura_enviado', False)
                             email_status = "📧 E-mail enviado" if email_enviado else ""
-                            
+                            safe_idx = f"focal_{linha}_{i}_{ocorr.get('nota_fiscal', '')}"
+
                             st.markdown(
                                 f"""
                                 <div style='background-color:{cor};padding:10px;border-radius:10px;color:white;
@@ -1281,38 +1271,35 @@ with aba5:
                                 unsafe_allow_html=True
                             )
 
-                        with st.expander("Finalizar Ocorrência"):
-                            data_atual = obter_data_hora_atual_brasil().strftime("%d-%m-%Y")
-                            hora_atual = obter_data_hora_atual_brasil().strftime("%H:%M")
-                            data_finalizacao_manual = st.text_input("Data Finalização (DD-MM-AAAA)", value=data_atual, key=f"data_final_{safe_idx}")
-                            hora_finalizacao_manual = st.text_input("Hora Finalização (HH:MM)", value=hora_atual, key=f"hora_final_{safe_idx}")
+                            with st.expander("Finalizar Ocorrência"):
+                                data_atual = obter_data_hora_atual_brasil().strftime("%d-%m-%Y")
+                                hora_atual = obter_data_hora_atual_brasil().strftime("%H:%M")
+                                data_finalizacao_manual = st.text_input("Data Finalização", value=data_atual, key=f"data_final_{safe_idx}")
+                                hora_finalizacao_manual = st.text_input("Hora Finalização", value=hora_atual, key=f"hora_final_{safe_idx}")
 
-                            complemento_key = f"complemento_final_{safe_idx}"
-                            if complemento_key not in st.session_state:
-                                st.session_state[complemento_key] = ""
+                                complemento_key = f"complemento_final_{safe_idx}"
+                                if complemento_key not in st.session_state:
+                                    st.session_state[complemento_key] = ""
 
-                            complemento = st.text_area("Complementar", key=complemento_key, value=st.session_state[complemento_key])
-                            finalizar_disabled = not complemento.strip()
+                                complemento = st.text_area("Complementar", key=complemento_key, value=st.session_state[complemento_key])
+                                finalizar_disabled = not complemento.strip()
 
-                            if st.button("Finalizar", key=f"finalizar_{safe_idx}", disabled=finalizar_disabled):
-                                if finalizar_disabled:
-                                    st.error("❌ O campo 'Complementar' é obrigatório para finalizar a ocorrência.")
-                                else:
-                                    sucesso, mensagem = finalizar_ocorrencia(
-                                        ocorr, 
-                                        complemento, 
-                                        data_finalizacao_manual, 
-                                        hora_finalizacao_manual
-                                    )
-                                    
-                                    if sucesso:
-                                        st.success(mensagem)
-                                        time.sleep(2)
-                                        st.rerun()
+                                if st.button("Finalizar", key=f"finalizar_{safe_idx}", disabled=finalizar_disabled):
+                                    if finalizar_disabled:
+                                        st.error("❌ O campo 'Complementar' é obrigatório.")
                                     else:
-                                        st.error(mensagem)
-            else:
-                st.info("👈 Selecione um focal para ver suas ocorrências.")
+                                        sucesso, mensagem = finalizar_ocorrencia(
+                                            ocorr, complemento, data_finalizacao_manual, hora_finalizacao_manual
+                                        )
+                                        if sucesso:
+                                            st.success(mensagem)
+                                            time.sleep(2)
+                                            st.rerun()
+                                        else:
+                                            st.error(mensagem)
+        else:
+            st.info("👈 Selecione um focal para ver suas ocorrências.")
+
 
 # =========================
 #     ABA 4 - CONFIGURAÇÕES
