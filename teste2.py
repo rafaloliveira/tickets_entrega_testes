@@ -1568,13 +1568,3 @@ if st.session_state.is_admin and 'aba6' in locals():
         else:
             st.info("Nenhum e-mail enviado ainda.")
 
-# Verificar e enviar e-mails para ocorrências abertas há mais de 30 minutos
-ocorrencias_abertas = carregar_ocorrencias_abertas()
-for ocorr in ocorrencias_abertas:
-    if not ocorr.get("email_abertura_enviado", False):
-        verificar_e_enviar_email_abertura(ocorr)
-    try:
-        ip = socket.gethostbyname(SMTP_HOST)
-        st.success(f"DNS resolvido: {SMTP_HOST} → {ip}")
-    except Exception as e:
-        st.error(f"Erro ao resolver DNS: {e}")
