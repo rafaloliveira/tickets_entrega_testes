@@ -414,20 +414,10 @@ with aba1:
             st.markdown("")
 
             col_data, col_hora = st.columns(2)
-            agora_brasil = obter_data_hora_atual_brasil()
-
             with col_data:
-                data_abertura_manual = st.date_input(
-                    "Data de Abertura",
-                    value=agora_brasil.date(),
-                    format="DD/MM/YYYY"
-                )
-
+                data_abertura_manual = st.date_input("Data de Abertura", format="DD/MM/YYYY")
             with col_hora:
-                hora_abertura_manual = st.time_input(
-                    "Hora de Abertura",
-                    value=agora_brasil.time()
-                )
+                hora_abertura_manual = st.time_input("Hora de Abertura")
 
 
         enviar = st.form_submit_button("Adicionar Ocorrência")
