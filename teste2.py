@@ -397,9 +397,9 @@ with aba1:
 
 
         with col2:
-            opcoes_motoristas = motoristas + ["Outro (digitar manualmente)"], index=None,
+            opcoes_motoristas = motoristas + ["Outro (digitar manualmente)"]
             if opcoes_motoristas:
-                motorista_opcao = st.selectbox("Motorista", options=opcoes_motoristas, key="motorista_opcao")
+                motorista_opcao = st.selectbox("Motorista", options=opcoes_motoristas, index=None, key="motorista_opcao")
             else:
                 st.warning("⚠️ Nenhum motorista disponível.")
                 motorista_opcao = None
