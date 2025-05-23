@@ -1014,7 +1014,7 @@ def testar_conexao_smtp():
     except Exception as e:
         return False, f"Erro desconhecido: {e}"
     
-@st.cache_data(ttl=40)
+
 # Função para carregar ocorrências abertas
 def carregar_ocorrencias_abertas():
     
@@ -1221,22 +1221,27 @@ with aba2:
 
                     # Botão Finalizar: apenas exibe mensagem se clicado com campo vazio
                     if st.button("Finalizar", key=f"finalizar_{safe_idx}"):
-                        if not st.session_state.get(complemento_key, "").strip():
-                            st.warning("❌ O campo 'Complementar' é obrigatório para finalizar a ocorrência.")
+                        complemento = st.session_state.get(complemento_key, "").strip()
+                        if not complemento:
+                            st.warning("❌ O campo 'Complementar' é obrigatório.")
                         else:
-                            # Continua com a finalização
+                            st.toast("✅ Ticket sendo finalizado...")
+
+                            # Finaliza no banco
                             sucesso, mensagem = finalizar_ocorrencia(
                                 ocorr, 
-                                st.session_state[complemento_key], 
+                                complemento, 
                                 data_finalizacao_manual, 
                                 hora_finalizacao_manual
                             )
+
                             if sucesso:
-                                st.success(mensagem)
-                                time.sleep(0.5)
-                                st.rerun()
+                                from streamlit.runtime.caching import cache_data
+                                cache_data.clear()  # limpa o cache da lista de ocorrências abertas
+                                st.rerun()  # recarrega a página com dados atualizados
                             else:
-                                st.error(mensagem)
+                                st.warning(f"⚠️ A finalização falhou: {mensagem}")
+
 
 
 # =============================== 
