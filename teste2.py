@@ -33,10 +33,10 @@ from supabase import create_client, Client as SupabaseClient
 load_dotenv()
 # --- CONFIGURAÇÕES DE E-MAIL DA KINGHOST ---
 # Estas configurações podem ser movidas para um arquivo .env se preferir
-EMAIL_REMETENTE = os.getenv("EMAIL_REMETENTE")
-EMAIL_SENHA = os.getenv("EMAIL_SENHA")
-SMTP_HOST = os.getenv("SMTP_HOST")
-SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
+EMAIL_REMETENTE = "ticketclicklogtransportes@gmail.com"
+EMAIL_SENHA = "hlossktfkqlsxepo"
+SMTP_HOST = "smtp.gmail.com"
+SMTP_PORT = 587
 # Configurar timeout para operações de socket
 socket.setdefaulttimeout(10)  # 10 segundos de timeout
 
