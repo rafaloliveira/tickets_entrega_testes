@@ -198,7 +198,7 @@ if "tempo_envio_email" not in st.session_state:
 if st.session_state.is_admin:
     aba1, aba2, aba3, aba5, aba4, aba6, aba7, aba8 = st.tabs(["📝 Nova Ocorrência", "📌 Ocorrências em Aberto", "✅ Ocorrências Finalizadas", "📝 Tickets por Focal", "📊 Configurações", "📧 Notificações por E-mail", "🔄 Cadastros",  "📊 Estatística"])
 else:
-    aba1, aba2, aba3, aba5, aba4, aba7 = st.tabs(["📝 Nova Ocorrência", "📌 Ocorrências em Aberto", "✅ Ocorrências Finalizadas", "📝 Tickets por Focal", "📊 Configurações", "🔄 Cadastros"])
+    aba1, aba2, aba3, aba5, aba4, aba7, aba8 = st.tabs(["📝 Nova Ocorrência", "📌 Ocorrências em Aberto", "✅ Ocorrências Finalizadas", "📝 Tickets por Focal", "📊 Configurações", "🔄 Cadastros", "📊 Estatística"])
 
 # Definindo a conexão com o banco de dados (ajuste com as suas credenciais)
 def get_db_connection():
