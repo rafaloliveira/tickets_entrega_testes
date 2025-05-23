@@ -405,6 +405,7 @@ with aba1:
                 motorista_opcao = None
 
             motorista = st.text_input("Digite o nome do motorista", key="motorista_manual") if motorista_opcao == "Outro (digitar manualmente)" else motorista_opcao
+            
             tipo = st.multiselect("Tipo de Ocorrência", options=["Chegada no Local", "Pedido Bloqueado", "Demora", "Divergência"], key="tipo_ocorrencia")
             obs = st.text_area("Observações", key="observacoes")
             responsavel = st.session_state.username
