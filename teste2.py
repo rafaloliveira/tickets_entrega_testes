@@ -765,19 +765,20 @@ def enviar_email_finalizacao(ocorrencia):
             sucesso, mensagem = enviar_email(email_principal, email_copia, assunto, corpo_html)
             
             if sucesso:
-                # Marcar como enviado no banco
                 marcar_email_como_enviado(ocorrencia["id"], "finalizacao")
-                
-                # Registrar no histórico
-                st.session_state.historico_emails.append({
-                    "data": obter_data_hora_atual_brasil().strftime("%d-%m-%Y %H:%M:%S"),
+
+                # Registrar no Supabase
+                supabase.table("emails_enviados").insert({
+                    "data_hora": obter_data_hora_atual_brasil().isoformat(),
                     "tipo": "Finalização",
                     "cliente": cliente,
                     "email": email_principal,
                     "ticket": ocorrencia.get('numero_ticket', '-'),
                     "nota_fiscal": ocorrencia.get('nota_fiscal', '-'),
                     "status": "Enviado"
-                })
+                }).execute()
+
+
                 
                 return True, "E-mail de finalização enviado com sucesso"
             else:
