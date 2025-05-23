@@ -417,17 +417,13 @@ with aba1:
             agora_brasil = obter_data_hora_atual_brasil()
 
             with col_data:
-                data_abertura_manual = st.date_input(
-                    "Data de Abertura",
-                    value=agora_brasil.date(),
-                    format="DD/MM/YYYY"
-                )
+                st.caption(f"📅 Sugestão: {agora_brasil.strftime('%d/%m/%Y')}")
+                data_abertura_manual = st.date_input("Data de Abertura", format="DD/MM/YYYY")
 
             with col_hora:
-                hora_abertura_manual = st.time_input(
-                    "Hora de Abertura",
-                    value=agora_brasil.time()
-                )
+                st.caption(f"⏰ Sugestão: {agora_brasil.strftime('%H:%M')}")
+                hora_abertura_manual = st.time_input("Hora de Abertura")
+
 
 
         enviar = st.form_submit_button("Adicionar Ocorrência")
@@ -684,7 +680,7 @@ def verificar_e_enviar_email_abertura(ocorrencia):
                             table {{ border-collapse: collapse; width: 100%; }}
                             th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
                             th {{ background-color: #f2f2f2; }}
-                            .header {{ background-color: #4CAF50; color: white; padding: 10px; }}
+                            .header {{ background-color: #f08104; color: white; padding: 10px; }}
                         </style>
                     </head>
                     <body>
