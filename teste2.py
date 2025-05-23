@@ -397,7 +397,7 @@ with aba1:
 
 
         with col2:
-            opcoes_motoristas = motoristas + ["Outro (digitar manualmente)"]
+            opcoes_motoristas = motoristas + ["Outro (digitar manualmente)"], index=None,
             if opcoes_motoristas:
                 motorista_opcao = st.selectbox("Motorista", options=opcoes_motoristas, key="motorista_opcao")
             else:
@@ -706,7 +706,7 @@ def verificar_e_enviar_email_abertura(ocorrencia):
                             </tr>
                         </table>
                         <p>Por favor, entre em contato conosco para mais informações.</p>
-                        <p>Atenciosamente,<br>Equipe de Suporte</p>
+                        <p>Atenciosamente,<br>Equipe de Monitoramento ClikLog Transportes</p>
                     </body>
                     </html>
                     """
@@ -801,7 +801,7 @@ def enviar_email_finalizacao(ocorrencia):
                     </tr>
                 </table>
                 <p><strong>Complemento:</strong> {ocorrencia.get('complementar', 'Sem complemento.')}</p>
-                <p>Atenciosamente,<br>Equipe de Suporte</p>
+                <p>Atenciosamente,<br>Equipe de Monitoramento ClikLog Transportes</p>
             </body>
             </html>
             """
