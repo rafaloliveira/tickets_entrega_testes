@@ -417,11 +417,11 @@ with aba1:
             agora_brasil = obter_data_hora_atual_brasil()
 
             with col_data:
-                st.caption(f"📅 Sugestão: {agora_brasil.strftime('%d/%m/%Y')}")
+                
                 data_abertura_manual = st.date_input("Data de Abertura", format="DD/MM/YYYY")
 
             with col_hora:
-                st.caption(f"⏰ Sugestão: {agora_brasil.strftime('%H:%M')}")
+                
                 hora_abertura_manual = st.time_input("Hora de Abertura")
 
 
