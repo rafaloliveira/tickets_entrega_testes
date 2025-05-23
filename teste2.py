@@ -1013,9 +1013,11 @@ def testar_conexao_smtp():
         return False, f"Erro SMTP: {e}"
     except Exception as e:
         return False, f"Erro desconhecido: {e}"
-
+    
+@st.cache_data(ttl=40)
 # Função para carregar ocorrências abertas
 def carregar_ocorrencias_abertas():
+    
     try:
         response = supabase.table("ocorrencias").select("*").eq("status", "Aberta").order("data_hora_abertura", desc=True).execute()
         return response.data
@@ -1035,6 +1037,7 @@ def carregar_ocorrencias_por_focal(focal=None):
     except Exception as e:
         st.error(f"Erro ao carregar ocorrências por focal: {e}")
         return []
+    
 
 # Função para obter lista de focais com contagem de tickets
 def obter_focais_com_contagem():
@@ -1142,7 +1145,7 @@ with aba2:
     else:
         num_colunas = 4
         colunas = st.columns(num_colunas)
-        st_autorefresh(interval=40000, key="ocorrencias_abertas_refresh")
+        st_autorefresh(interval=50000, key="ocorrencias_abertas_refresh")
 
         for idx, ocorr in enumerate(ocorrencias_abertas):
             status = "Data manual ausente"
@@ -1206,30 +1209,35 @@ with aba2:
                     data_finalizacao_manual = st.text_input("Data Finalização (DD-MM-AAAA)", value=data_atual, key=f"data_final_{safe_idx}")
                     hora_finalizacao_manual = st.text_input("Hora Finalização (HH:MM)", value=hora_atual, key=f"hora_final_{safe_idx}")
 
+                    # Chave única para o campo complementar
                     complemento_key = f"complemento_final_{safe_idx}"
-                    if complemento_key not in st.session_state:
-                        st.session_state[complemento_key] = ""
 
-                    complemento = st.text_area("Complementar", key=complemento_key, value=st.session_state[complemento_key])
-                    finalizar_disabled = not complemento.strip()
+                    # Campo de texto: mantido sempre atualizado no session_state
+                    complemento = st.text_area(
+                        "Complementar não Fiscal", 
+                        key=complemento_key, 
+                        placeholder="Descreva aqui o complemento da ocorrência..."
+                    )
 
-                    if st.button("Finalizar", key=f"finalizar_{safe_idx}", disabled=finalizar_disabled):
-                        if finalizar_disabled:
-                            st.error("❌ O campo 'Complementar' é obrigatório para finalizar a ocorrência.")
+                    # Botão Finalizar: apenas exibe mensagem se clicado com campo vazio
+                    if st.button("Finalizar", key=f"finalizar_{safe_idx}"):
+                        if not st.session_state.get(complemento_key, "").strip():
+                            st.warning("❌ O campo 'Complementar' é obrigatório para finalizar a ocorrência.")
                         else:
+                            # Continua com a finalização
                             sucesso, mensagem = finalizar_ocorrencia(
                                 ocorr, 
-                                complemento, 
+                                st.session_state[complemento_key], 
                                 data_finalizacao_manual, 
                                 hora_finalizacao_manual
                             )
-                            
                             if sucesso:
                                 st.success(mensagem)
-                                time.sleep(2)
+                                time.sleep(0.5)
                                 st.rerun()
                             else:
                                 st.error(mensagem)
+
 
 # =============================== 
 #    FUNÇÃO CARREGAR FINALIZADAS 
