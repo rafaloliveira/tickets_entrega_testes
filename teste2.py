@@ -290,26 +290,75 @@ def inserir_ocorrencia_supabase(dados):
 
 
 # --- CARREGAMENTO DE DADOS Tabelas com nomes de motorista e clientes ---
-import pandas as pd
+def carregar_clientes_supabase():
+    try:
+        response = supabase.table("clientes").select("cliente, focal, enviar_para_email, email_copia").execute()
+        if response.data:
+            df_clientes = pd.DataFrame(response.data)
+            df_clientes = df_clientes.dropna(subset=["cliente"])
+            return df_clientes
+        else:
+            return pd.DataFrame(columns=["cliente", "focal", "enviar_para_email", "email_copia"])
+    except Exception as e:
+        st.error(f"Erro ao carregar clientes do banco: {e}")
+        return pd.DataFrame(columns=["cliente", "focal", "enviar_para_email", "email_copia"])
 
-# Carrega a aba "clientes" do arquivo clientes.xlsx
-df_clientes = pd.read_excel("data/clientes.xlsx", sheet_name="clientes")
-df_clientes.columns = df_clientes.columns.str.strip()  # Remove espaços extras nas colunas
-df_clientes = df_clientes[["Cliente", "Focal"]].dropna(subset=["Cliente"])
+# Carregar dados
+df_clientes = carregar_clientes_supabase()
 
-# Carrega a lista de cidades do arquivo cidade.xlsx
-df_cidades = pd.read_excel("data/cidade.xlsx")
-df_cidades.columns = df_cidades.columns.str.strip()
-cidades = df_cidades["cidade"].dropna().unique().tolist()
+# Dicionários úteis
+cliente_to_focal = dict(zip(df_clientes["cliente"], df_clientes["focal"]))
+cliente_to_emails = {
+    row["cliente"]: {
+        "principal": row.get("enviar_para_email", ""),
+        "copia": row.get("email_copia", "")
+    }
+    for _, row in df_clientes.iterrows()
+}
+clientes = df_clientes["cliente"].tolist()
 
-# Cria dicionário Cliente -> Focal e lista de clientes
-cliente_to_focal = dict(zip(df_clientes["Cliente"], df_clientes["Focal"]))
-clientes = df_clientes["Cliente"].tolist()
 
-# Carrega a aba "motoristas" do arquivo motoristas.xlsx
-df_motoristas = pd.read_excel("data/motoristas.xlsx", sheet_name="motoristas")
-df_motoristas.columns = df_motoristas.columns.str.strip()
-motoristas = df_motoristas["Motorista"].dropna().tolist()
+
+# Buscar lista de cidades diretamente do Supabase
+def carregar_cidades_supabase():
+    try:
+        response = supabase.table("cidades").select("cidade").execute()
+        #st.write("✅ Cidades no banco:", response.data)  # para debug
+        if response.data:
+            cidades = [item["cidade"] for item in response.data if item.get("cidade")]
+            return sorted(set(cidades))  # Ordena e remove duplicados
+        else:
+            return []
+    except Exception as e:
+        st.error(f"Erro ao carregar cidades do banco: {e}")
+        return []
+
+cidades = carregar_cidades_supabase()
+
+
+# Buscar lista de motoristas diretamente do Supabase
+def carregar_motoristas_supabase():
+    try:
+        response = supabase.table("motoristas").select("motorista").execute()
+    
+        if response.data:
+            motoristas = [item["motorista"] for item in response.data if item.get("motorista")]
+            return sorted(set(motoristas))
+        else:
+            return []
+    except Exception as e:
+        st.error(f"Erro ao carregar motoristas do banco: {e}")
+        return []
+
+motoristas = carregar_motoristas_supabase()
+
+try:
+    resposta = supabase.table("motoristas").select("*").execute()
+    
+except Exception as e:
+    st.error(f"Erro ao consultar a tabela motoristas: {e}")
+
+
 
 # --- FORMULÁRIO PARA NOVA OCORRÊNCIA ---
 
@@ -348,7 +397,13 @@ with aba1:
 
 
         with col2:
-            motorista_opcao = st.selectbox("Motorista", options=motoristas + ["Outro (digitar manualmente)"], index=None, key="motorista_opcao")
+            opcoes_motoristas = motoristas + ["Outro (digitar manualmente)"]
+            if opcoes_motoristas:
+                motorista_opcao = st.selectbox("Motorista", options=opcoes_motoristas, key="motorista_opcao")
+            else:
+                st.warning("⚠️ Nenhum motorista disponível.")
+                motorista_opcao = None
+
             motorista = st.text_input("Digite o nome do motorista", key="motorista_manual") if motorista_opcao == "Outro (digitar manualmente)" else motorista_opcao
             tipo = st.multiselect("Tipo de Ocorrência", options=["Chegada no Local", "Pedido Bloqueado", "Demora", "Divergência"], key="tipo_ocorrencia")
             obs = st.text_area("Observações", key="observacoes")
@@ -359,10 +414,20 @@ with aba1:
             st.markdown("")
 
             col_data, col_hora = st.columns(2)
+            agora_brasil = obter_data_hora_atual_brasil()
+
             with col_data:
-                data_abertura_manual = st.date_input("Data de Abertura", format="DD/MM/YYYY")
+                data_abertura_manual = st.date_input(
+                    "Data de Abertura",
+                    value=agora_brasil.date(),
+                    format="DD/MM/YYYY"
+                )
+
             with col_hora:
-                hora_abertura_manual = st.time_input("Hora de Abertura")
+                hora_abertura_manual = st.time_input(
+                    "Hora de Abertura",
+                    value=agora_brasil.time()
+                )
 
 
         enviar = st.form_submit_button("Adicionar Ocorrência")
@@ -439,10 +504,6 @@ with aba1:
                     st.error(f"Erro ao salvar ocorrência no Supabase: {response.error if response else 'Erro desconhecido'}")
 
 
-# Função de classificação
-from datetime import datetime
-import pytz
-
 # =========================
 #    FUNÇÃO CLASSIFICAÇÃO
 # =========================
@@ -477,27 +538,22 @@ def classificar_ocorrencia_por_tempo(data_str, hora_str):
 # =========================
 
 def carregar_dados_clientes_email():
-    """Carrega os dados dos clientes da planilha, incluindo e-mails."""
     try:
-        df = pd.read_excel('data/clientes.xlsx')
-        # Criar um dicionário com Cliente como chave e e-mails como valores
-        clientes_emails = {}
-        for _, row in df.iterrows():
-            cliente = row['Cliente']
-            email_principal = row.get('enviar_para_email')
-            email_copia = row.get('email_copia')
-            
-            # Só adiciona se tiver pelo menos um e-mail principal
-            if pd.notna(email_principal):
-                clientes_emails[cliente] = {
-                    'principal': email_principal,
-                    'copia': email_copia if pd.notna(email_copia) else None
+        response = supabase.table("clientes").select("cliente, enviar_para_email, email_copia").execute()
+        if response.data:
+            return {
+                item["cliente"]: {
+                    "principal": item.get("enviar_para_email", ""),
+                    "copia": item.get("email_copia", "")
                 }
-        
-        return clientes_emails
+                for item in response.data if item.get("enviar_para_email")
+            }
+        else:
+            return {}
     except Exception as e:
-        st.error(f"Erro ao carregar dados dos clientes: {e}")
+        st.error(f"Erro ao carregar e-mails dos clientes: {e}")
         return {}
+
 
 def obter_ocorrencias_abertas_30min():
     """Obtém ocorrências abertas há mais de 30 minutos que ainda não receberam e-mail."""
