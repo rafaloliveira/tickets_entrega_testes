@@ -1,6 +1,7 @@
 # funcionando com envio de e-mail 21-05
 # versão completa com todas as funcionalidades solicitadas
 # versão liberada para usuário com correção de fuso horário e uso exclusivo de datas manuais
+# envio de email atraves do gmail
 
 
 import streamlit as st
