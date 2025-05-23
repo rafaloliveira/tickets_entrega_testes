@@ -189,12 +189,16 @@ if "historico_emails" not in st.session_state:
 if "focal_selecionado" not in st.session_state:
     st.session_state.focal_selecionado = None
 
+# Inicialização da configuração de tempo de envio de e-mail
+if "tempo_envio_email" not in st.session_state:
+    st.session_state.tempo_envio_email = 30  # Valor padrão: 30 minutos
+
 # --- ABA NOVA OCORRÊNCIA ---
 # Definir abas - a aba de notificações só aparece para admin
 if st.session_state.is_admin:
-    aba1, aba2, aba3, aba5, aba4, aba6 = st.tabs(["📝 Nova Ocorrência", "📌 Ocorrências em Aberto", "✅ Ocorrências Finalizadas", "📝 Tickets por Focal", "📊 Configurações", "📧 Notificações por E-mail"])
+    aba1, aba2, aba3, aba5, aba4, aba6, aba7, aba8 = st.tabs(["📝 Nova Ocorrência", "📌 Ocorrências em Aberto", "✅ Ocorrências Finalizadas", "📝 Tickets por Focal", "📊 Configurações", "📧 Notificações por E-mail", "🔄 Cadastros",  "📊 Estatística"])
 else:
-    aba1, aba2, aba3, aba5, aba4 = st.tabs(["📝 Nova Ocorrência", "📌 Ocorrências em Aberto", "✅ Ocorrências Finalizadas", "📝 Tickets por Focal", "📊 Configurações"])
+    aba1, aba2, aba3, aba5, aba4, aba7 = st.tabs(["📝 Nova Ocorrência", "📌 Ocorrências em Aberto", "✅ Ocorrências Finalizadas", "📝 Tickets por Focal", "📊 Configurações", "🔄 Cadastros"])
 
 # Definindo a conexão com o banco de dados (ajuste com as suas credenciais)
 def get_db_connection():
@@ -339,16 +343,30 @@ cidades = carregar_cidades_supabase()
 # Buscar lista de motoristas diretamente do Supabase
 def carregar_motoristas_supabase():
     try:
-        response = supabase.table("motoristas").select("motorista").execute()
-    
-        if response.data:
-            motoristas = [item["motorista"] for item in response.data if item.get("motorista")]
-            return sorted(set(motoristas))
-        else:
-            return []
+        motoristas = []
+        pagina = 0
+        pagina_tamanho = 1000  # Supabase retorna no máximo 1000 por requisição
+
+        while True:
+            resposta = supabase.table("motoristas") \
+                .select("motorista") \
+                .range(pagina * pagina_tamanho, (pagina + 1) * pagina_tamanho - 1) \
+                .execute()
+
+            dados = resposta.data
+            if not dados:
+                break
+
+            motoristas.extend([item["motorista"].strip() for item in dados if item.get("motorista")])
+            pagina += 1
+
+        return sorted(set(motoristas))
+
     except Exception as e:
         st.error(f"Erro ao carregar motoristas do banco: {e}")
         return []
+
+
 
 motoristas = carregar_motoristas_supabase()
 
@@ -358,7 +376,103 @@ try:
 except Exception as e:
     st.error(f"Erro ao consultar a tabela motoristas: {e}")
 
+# Buscar lista de focais diretamente do Supabase
+def carregar_focal_supabase():
+    try:
+        response = supabase.table("clientes").select("focal").execute()
+        if response.data:
+            focais = [item["focal"] for item in response.data if item.get("focal")]
+            return sorted(set(focais))
+        else:
+            return []
+    except Exception as e:
+        st.error(f"Erro ao carregar focais do banco: {e}")
+        return []
 
+# --- FUNÇÕES PARA A ABA CADASTROS ---
+
+def validar_texto_maiusculo(texto):
+    """Verifica se o texto está em letras maiúsculas."""
+    return texto == texto.upper()
+
+def validar_email(email):
+    """Verifica se o e-mail tem um formato válido."""
+    import re
+    padrao = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(padrao, email) is not None
+
+def validar_emails_multiplos(emails):
+    """Verifica se múltiplos e-mails separados por ; têm formato válido."""
+    if not emails:
+        return True
+    
+    import re
+    padrao = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    
+    for email in emails.split(';'):
+        email = email.strip()
+        if email and not re.match(padrao, email):
+            return False
+    
+    return True
+
+def inserir_motorista(motorista):
+    """Insere um novo motorista no Supabase."""
+    try:
+        response = supabase.table("motoristas").insert({"motorista": motorista}).execute()
+        return True, "Motorista cadastrado com sucesso!"
+    except Exception as e:
+        return False, f"Erro ao cadastrar motorista: {e}"
+
+def inserir_cidade(cidade):
+    """Insere uma nova cidade no Supabase."""
+    try:
+        response = supabase.table("cidades").insert({"cidade": cidade}).execute()
+        return True, "Cidade cadastrada com sucesso!"
+    except Exception as e:
+        return False, f"Erro ao cadastrar cidade: {e}"
+
+def inserir_cliente(cliente, focal, enviar_email, email_principal, email_copia):
+    """Insere um novo cliente no Supabase."""
+    try:
+        response = supabase.table("clientes").insert({
+            "cliente": cliente,
+            "focal": focal,
+            "enviar_para_email": email_principal,
+            "email_copia": email_copia,
+            "receber_emails": enviar_email
+        }).execute()
+        return True, "Cliente cadastrado com sucesso!"
+    except Exception as e:
+        return False, f"Erro ao cadastrar cliente: {e}"
+
+def atualizar_tempo_envio_email(minutos):
+    """Atualiza o tempo de envio de e-mail na configuração."""
+    try:
+        # Atualiza na sessão
+        st.session_state.tempo_envio_email = minutos
+        
+        # Atualiza no banco de dados (supondo que exista uma tabela de configurações)
+        response = supabase.table("configuracoes").upsert({
+            "chave": "tempo_envio_email",
+            "valor": str(minutos)
+        }).execute()
+        
+        return True, f"Tempo de envio de e-mail atualizado para {minutos} minutos!"
+    except Exception as e:
+        return False, f"Erro ao atualizar tempo de envio de e-mail: {e}"
+
+def carregar_tempo_envio_email():
+    """Carrega o tempo de envio de e-mail da configuração."""
+    try:
+        response = supabase.table("configuracoes").select("valor").eq("chave", "tempo_envio_email").execute()
+        if response.data:
+            return int(response.data[0]["valor"])
+        else:
+            return 30  # Valor padrão
+    except Exception as e:
+        st.error(f"Erro ao carregar tempo de envio de e-mail: {e}")
+        return 30  # Valor padrão em caso de erro
 
 # --- FORMULÁRIO PARA NOVA OCORRÊNCIA ---
 
@@ -397,14 +511,31 @@ with aba1:
 
 
         with col2:
-            opcoes_motoristas = motoristas + ["Outro (digitar manualmente)"]
-            if opcoes_motoristas:
-                motorista_opcao = st.selectbox("Motorista", options=opcoes_motoristas, index=None, key="motorista_opcao")
-            else:
-                st.warning("⚠️ Nenhum motorista disponível.")
-                motorista_opcao = None
+    # Depuração: carregar todos os motoristas do banco e exibir a lista completa
+            motoristas_brutos = supabase.table("motoristas").select("motorista").limit(40000).execute()
 
+            if motoristas_brutos.data:
+                # Extrai os nomes, remove nulos e espaços extras
+                motoristas = [item["motorista"].strip() for item in motoristas_brutos.data if item.get("motorista")]
+                motoristas = sorted(set(motoristas))  # remove duplicatas e ordena
+
+                # Exibir para depuração (remova se não quiser mostrar)
+                motoristas = carregar_motoristas_supabase()
+                #st.write("🔍 Total de motoristas encontrados:", len(motoristas))
+                #st.write("📋 Lista de motoristas:", motoristas)
+            else:
+                motoristas = []  # garante que a variável exista mesmo em caso de erro
+                st.warning("⚠️ Nenhum motorista encontrado no banco.")
+
+            # Criar lista final de opções
+            opcoes_motoristas = motoristas + ["Outro (digitar manualmente)"]
+
+            # Exibir selectbox com chave única
+            motorista_opcao = st.selectbox("Motorista", options=opcoes_motoristas, index=None, key="motorista_opcao")
+
+            # Campo extra se escolher "Outro"
             motorista = st.text_input("Digite o nome do motorista", key="motorista_manual") if motorista_opcao == "Outro (digitar manualmente)" else motorista_opcao
+
             tipo = st.multiselect("Tipo de Ocorrência", options=["Chegada no Local", "Pedido Bloqueado", "Demora", "Divergência"], key="tipo_ocorrencia")
             obs = st.text_area("Observações", key="observacoes")
             responsavel = st.session_state.username
@@ -418,6 +549,7 @@ with aba1:
                 data_abertura_manual = st.date_input("Data de Abertura", format="DD/MM/YYYY")
             with col_hora:
                 hora_abertura_manual = st.time_input("Hora de Abertura")
+
 
 
         enviar = st.form_submit_button("Adicionar Ocorrência")
@@ -492,7 +624,6 @@ with aba1:
                     #verificar_e_enviar_email_abertura(nova_ocorrencia)
                 else:
                     st.error(f"Erro ao salvar ocorrência no Supabase: {response.error if response else 'Erro desconhecido'}")
-
 
 # =========================
 #    FUNÇÃO CLASSIFICAÇÃO
@@ -1596,3 +1727,229 @@ for ocorr in ocorrencias_abertas:
     if not ocorr.get("email_abertura_enviado", False):
         verificar_e_enviar_email_abertura(ocorr)
 
+# =========================
+#     ABA 8 - ESTATÍSTICAS
+# =========================
+with aba8:
+    st.header("📊 Estatísticas de Ocorrências Finalizadas")
+
+    # Carrega as ocorrências finalizadas
+    ocorrencias_finalizadas = carregar_ocorrencias_finalizadas()
+
+    if not ocorrencias_finalizadas:
+        st.info("ℹ️ Nenhuma ocorrência finalizada para gerar estatísticas.")
+        st.stop()
+
+    df_finalizadas = pd.DataFrame(ocorrencias_finalizadas)
+
+    # --- Limpeza e conversões ---
+    df_finalizadas["data_hora_abertura"] = pd.to_datetime(
+        df_finalizadas.get("abertura_ticket") or df_finalizadas.get("abertura_timestamp"), errors="coerce"
+    )
+    df_finalizadas["data_hora_finalizacao"] = pd.to_datetime(df_finalizadas["data_hora_finalizacao"], errors="coerce")
+    df_finalizadas = df_finalizadas.dropna(subset=["data_hora_abertura", "data_hora_finalizacao"])
+
+    # Calcula tempo de permanência
+   # Remove timezone (caso exista)
+    df_finalizadas["data_hora_abertura"] = df_finalizadas["data_hora_abertura"].dt.tz_localize(None)
+    df_finalizadas["data_hora_finalizacao"] = df_finalizadas["data_hora_finalizacao"].dt.tz_localize(None)
+
+    # Calcula permanência
+    df_finalizadas["permanencia_horas"] = (
+        df_finalizadas["data_hora_finalizacao"] - df_finalizadas["data_hora_abertura"]
+    ).dt.total_seconds() / 3600
+
+    # --- Estatísticas Gerais ---
+    st.subheader("⏱️ Tempo Médio de Permanência")
+    tempo_medio = df_finalizadas["permanencia_horas"].mean()
+    st.metric("Tempo Médio de Permanência (h)", f"{tempo_medio:.2f} h")
+
+    # --- Gráfico por Tipo de Ocorrência ---
+    st.subheader("📌 Ocorrências por Tipo")
+    tipo_counts = df_finalizadas["tipo_de_ocorrencia"].value_counts()
+    st.bar_chart(tipo_counts)
+
+    # --- Gráfico por Cliente ---
+    st.subheader("🏢 Ocorrências por Cliente")
+    cliente_counts = df_finalizadas["cliente"].value_counts()
+    st.bar_chart(cliente_counts)
+
+    # --- Gráfico de Tempo Médio por Focal ---
+    st.subheader("👤 Tempo Médio por Focal")
+    tempo_por_focal = df_finalizadas.groupby("focal")["permanencia_horas"].mean().sort_values(ascending=False)
+    st.bar_chart(tempo_por_focal)
+
+
+# =========================
+#     ABA 7 - CADASTROS
+# =========================
+with aba7:
+    st.header("Cadastros")
+    
+    # Criar abas dentro da aba Cadastros
+    cadastro_tab1, cadastro_tab2, cadastro_tab3, cadastro_tab4 = st.tabs(["Motoristas", "Cidades", "Clientes", "Configurações de E-mail"])
+    
+    # Aba de Cadastro de Motoristas
+    with cadastro_tab1:
+        st.subheader("Cadastro de Motoristas")
+        
+        # Formulário para cadastro de motoristas
+        with st.form("form_cadastro_motorista", clear_on_submit=True):
+            motorista_nome = st.text_input("Nome do Motorista (LETRAS MAIÚSCULAS)", key="motorista_nome")
+            
+            submit_motorista = st.form_submit_button("Cadastrar Motorista")
+        
+        # Processamento do formulário de motoristas
+        if submit_motorista:
+            if not motorista_nome:
+                st.error("❌ Por favor, informe o nome do motorista.")
+            elif not validar_texto_maiusculo(motorista_nome):
+                st.error("❌ O nome do motorista deve estar em LETRAS MAIÚSCULAS.")
+            else:
+                sucesso, mensagem = inserir_motorista(motorista_nome)
+                if sucesso:
+                    st.success(mensagem)
+                    # Recarregar a lista de motoristas
+                    motoristas = carregar_motoristas_supabase()
+                else:
+                    st.error(mensagem)
+        
+        # Exibir lista de motoristas cadastrados
+        st.subheader("Motoristas Cadastrados")
+        motoristas_atuais = carregar_motoristas_supabase()
+        if motoristas_atuais:
+            for motorista in motoristas_atuais:
+                st.text(motorista)
+        else:
+            st.info("Nenhum motorista cadastrado.")
+    
+    # Aba de Cadastro de Cidades
+    with cadastro_tab2:
+        st.subheader("Cadastro de Cidades")
+        
+        # Formulário para cadastro de cidades
+        with st.form("form_cadastro_cidade", clear_on_submit=True):
+            cidade_nome = st.text_input("Nome da Cidade", key="cidade_nome")
+            
+            submit_cidade = st.form_submit_button("Cadastrar Cidade")
+        
+        # Processamento do formulário de cidades
+        if submit_cidade:
+            if not cidade_nome:
+                st.error("❌ Por favor, informe o nome da cidade.")
+            else:
+                sucesso, mensagem = inserir_cidade(cidade_nome)
+                if sucesso:
+                    st.success(mensagem)
+                    # Recarregar a lista de cidades
+                    cidades = carregar_cidades_supabase()
+                else:
+                    st.error(mensagem)
+        
+        # Exibir lista de cidades cadastradas
+        st.subheader("Cidades Cadastradas")
+        cidades_atuais = carregar_cidades_supabase()
+        if cidades_atuais:
+            for cidade in cidades_atuais:
+                st.text(cidade)
+        else:
+            st.info("Nenhuma cidade cadastrada.")
+    
+    # Aba de Cadastro de Clientes
+    with cadastro_tab3:
+        st.subheader("Cadastro de Clientes")
+        
+        # Carregar lista de focais
+        focal = carregar_focal_supabase()
+        
+        # Formulário para cadastro de clientes
+        with st.form("form_cadastro_cliente", clear_on_submit=True):
+            cliente_nome = st.text_input("Nome do Cliente (LETRAS MAIÚSCULAS)", key="cliente_nome")
+            
+            # Seleção de focal
+            focal_selecionado = st.selectbox("Focal Responsável", options=focal, index=None, key="focal_cliente")
+            
+            # Checkbox para receber e-mails
+            receber_emails = st.checkbox("Cliente deve receber e-mails de abertura/finalização", key="receber_emails")
+            
+            # Campos de e-mail
+            email_principal = st.text_input("E-mail Principal", key="email_principal")
+            email_copia = st.text_input("E-mails em Cópia (separados por ;)", key="email_copia")
+            
+            submit_cliente = st.form_submit_button("Cadastrar Cliente")
+        
+        # Processamento do formulário de clientes
+        if submit_cliente:
+            erros = []
+            
+            if not cliente_nome:
+                erros.append("Por favor, informe o nome do cliente.")
+            elif not validar_texto_maiusculo(cliente_nome):
+                erros.append("O nome do cliente deve estar em LETRAS MAIÚSCULAS.")
+            
+            if not focal_selecionado:
+                erros.append("Por favor, selecione um focal responsável.")
+            
+            if receber_emails:
+                if not email_principal:
+                    erros.append("Por favor, informe o e-mail principal do cliente.")
+                elif not validar_email(email_principal):
+                    erros.append("O e-mail principal informado não é válido.")
+                
+                if email_copia and not validar_emails_multiplos(email_copia):
+                    erros.append("Um ou mais e-mails em cópia não são válidos.")
+            
+            if erros:
+                for erro in erros:
+                    st.error(f"❌ {erro}")
+            else:
+                sucesso, mensagem = inserir_cliente(
+                    cliente_nome, 
+                    focal_selecionado, 
+                    receber_emails, 
+                    email_principal if receber_emails else "", 
+                    email_copia if receber_emails else ""
+                )
+                
+                if sucesso:
+                    st.success(mensagem)
+                    # Recarregar a lista de clientes
+                    df_clientes = carregar_clientes_supabase()
+                    clientes = df_clientes["cliente"].tolist()
+                else:
+                    st.error(mensagem)
+        
+        # Exibir lista de clientes cadastrados
+        st.subheader("Clientes Cadastrados")
+        df_clientes_atuais = carregar_clientes_supabase()
+        if not df_clientes_atuais.empty:
+            st.dataframe(df_clientes_atuais)
+        else:
+            st.info("Nenhum cliente cadastrado.")
+    
+    # Aba de Configurações de E-mail
+    with cadastro_tab4:
+        st.subheader("Configurações de Tempo de Envio de E-mail")
+        
+        # Carregar configuração atual
+        tempo_atual = carregar_tempo_envio_email()
+        
+        # Slider para configurar o tempo de envio
+        tempo_envio = st.slider(
+            "Tempo de envio dos e-mails (minutos)",
+            min_value=1,
+            max_value=60,
+            value=tempo_atual,
+            step=1,
+            key="tempo_envio_slider"
+        )
+        
+        # Botão para salvar configuração
+        if st.button("Salvar Configuração"):
+            sucesso, mensagem = atualizar_tempo_envio_email(tempo_envio)
+            if sucesso:
+                st.success(mensagem)
+            else:
+                st.error(mensagem)
+        
+        st.info(f"Configuração atual: E-mails serão enviados após {tempo_atual} minutos.")
