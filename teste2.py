@@ -674,7 +674,7 @@ def verificar_e_enviar_email_abertura(ocorrencia):
                         marcar_email_como_enviado(ocorrencia["id"], "abertura")
                         
                         # Registrar no histórico
-                        st.session_state.historico_emails.append({
+                        supabase.table("emails_enviados").insert({
                             "data": obter_data_hora_atual_brasil().strftime("%d-%m-%Y %H:%M:%S"),
                             "tipo": "Abertura",
                             "cliente": cliente,
@@ -1524,12 +1524,21 @@ if st.session_state.is_admin and 'aba6' in locals():
                             st.success(f"✅ E-mail enviado para {resultado.get('cliente')} - Ticket {resultado.get('ticket')} - NF {resultado.get('nota_fiscal')}")
                         else:
                             st.error(f"❌ Erro ao enviar para {resultado.get('cliente')}: {resultado.get('mensagem')}")
-        
+
         # Exibir histórico de e-mails enviados
         st.subheader("Histórico de E-mails Enviados")
-        
-        if st.session_state.historico_emails:
-            df_historico = pd.DataFrame(st.session_state.historico_emails)
+
+        # Buscar dados da tabela
+        resposta = supabase.table("emails_enviados").select("*").order("data_hora", desc=True).execute()
+        dados = resposta.data
+
+        if dados:
+            df_historico = pd.DataFrame(dados)
+            
+            # Formatar coluna de data/hora se necessário
+            if "data_hora" in df_historico.columns:
+                df_historico["data_hora"] = pd.to_datetime(df_historico["data_hora"]).dt.strftime("%d/%m/%Y %H:%M:%S")
+            
             st.dataframe(df_historico)
         else:
             st.info("Nenhum e-mail enviado ainda.")
@@ -1539,3 +1548,4 @@ ocorrencias_abertas = carregar_ocorrencias_abertas()
 for ocorr in ocorrencias_abertas:
     if not ocorr.get("email_abertura_enviado", False):
         verificar_e_enviar_email_abertura(ocorr)
+
