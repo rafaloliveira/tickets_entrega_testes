@@ -1335,7 +1335,7 @@ with aba2:
 
 
                         complemento_key = f"complemento_final_{safe_idx}"
-                        complemento = st.text_area("Complementar não Fiscal", key=complemento_key, placeholder="Descreva aqui o complemento da ocorrência...")
+                        complemento = st.text_area("Complementar não Fiscal", key=complemento_key, placeholder="Número CTRC Complementar...")
 
                         observacao_key = f"observacao_final_{safe_idx}"
                         observacao_final = st.text_area("Observação", key=observacao_key, placeholder="Observações adicionais...")
@@ -1569,12 +1569,17 @@ def carregar_ocorrencias_por_focal_cached(focal):
 with aba5:
     st.header("Tickets por Focal")
 
-    if st.button("🔄 Atualizar", key="btn_atualizar_focais", use_container_width=True):
-        st.cache_data.clear()
-        st.session_state.focal_selecionado = None
-        st.session_state.ticket_em_finalizacao = None
-        st.session_state.ocorrencias_focal = None
-        st.rerun()
+    col_titulo, col_botao = st.columns([6, 1])
+    with col_titulo:
+        st.header("Tickets por Focal")
+    with col_botao:
+        if st.button("🔄 Atualizar", key="btn_atualizar_focais", use_container_width=True):
+            st.cache_data.clear()
+            st.session_state.focal_selecionado = None
+            st.session_state.ticket_em_finalizacao = None
+            st.session_state.ocorrencias_focal = None
+            st.rerun()
+
 
     focais_contagem = obter_focais_com_contagem()
 
