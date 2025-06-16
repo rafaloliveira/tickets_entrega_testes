@@ -1273,7 +1273,15 @@ with aba2:
                     tem_imagem = bool(imagem_abertura_url)
 
                     email_status = "📧 E-mail enviado" if email_enviado else ""
-                    imagem_download = f'<br>📸 Abertura: <a href="{imagem_abertura_url}" target="_blank" style="color:white;text-decoration:underline;">Baixar</a>' if tem_imagem else ""
+        
+
+                    imagem_abertura_url = ocorr.get("imagem_url", "")
+                    imagem_finalizacao_url = ocorr.get("imagem_finalizacao_url", "")
+
+                    indicador_imagem = ""
+                    if imagem_abertura_url:
+                        indicador_imagem += f'<br>📸 Abertura: <a href="{imagem_abertura_url}" target="_blank" style="text-decoration:underline;color:white;">Baixar</a>'
+                    
 
                     st.markdown(
                         f"""
@@ -1281,8 +1289,9 @@ with aba2:
                         box-shadow: 0 4px 10px rgba(0,0,0,0.3);margin-bottom:5px;min-height:250px;font-size:15px;'>
 
                         <strong>Ticket #:</strong> {ocorr.get('numero_ticket', 'N/A')}<br>
+                        {imagem_abertura_url}
                         <strong>Status:</strong> <span style='background-color:#2c3e50;padding:4px 8px;
-                        border-radius:1px;color:white;'>{status}</span> {email_status}{imagem_download}<br>
+                        border-radius:1px;color:white;'>{status}</span> {email_status}<br>
                         <strong>NF:</strong> {ocorr.get('nota_fiscal', '-')}<br>
                         <strong>Cliente:</strong> {ocorr.get('cliente', '-')}<br>
                         <strong>Destinatário:</strong> {ocorr.get('destinatario', '-')}<br>
@@ -1298,7 +1307,6 @@ with aba2:
                         """,
                         unsafe_allow_html=True
                     )
-
 
 
                 # Controle do fluxo de finalização
@@ -1516,7 +1524,7 @@ with aba3:
 
                         <strong>Ticket #:</strong> {ocorr.get('numero_ticket', 'N/A')}{indicador_imagem}<br>
                         <strong>Status:</strong> <span style='background-color:#2c3e50;padding:4px 8px;
-                        border-radius:1px;color:white;'>{status}</span> {email_status}{imagem_download}<br>
+                        border-radius:1px;color:white;'>{status}</span> {email_status}{imagem_abertura_url}<br>
                         border-radius:1px;color:white;'>{status}</span><br>
                         {email_abertura}<br>{email_finalizacao}<br>
                         <strong>NF:</strong> {ocorr.get('nota_fiscal', '-')}<br>
