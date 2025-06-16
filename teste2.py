@@ -1337,6 +1337,9 @@ with aba2:
                         complemento_key = f"complemento_final_{safe_idx}"
                         complemento = st.text_area("Complementar não Fiscal", key=complemento_key, placeholder="Descreva aqui o complemento da ocorrência...")
 
+                        observacao_key = f"observacao_final_{safe_idx}"
+                        observacao_final = st.text_area("Observação", key=observacao_key, placeholder="Observações adicionais...")
+
                         imagem_finalizacao = st.file_uploader(
                             "📎 Anexar imagem da finalização (opcional)",
                             type=["png", "jpg", "jpeg"],
@@ -1376,6 +1379,7 @@ with aba2:
                                     data_finalizacao_manual,
                                     hora_finalizacao_manual,
                                     imagem_url_finalizacao,
+                                    observacao_final
                                     
                                 )
 
