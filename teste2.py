@@ -1514,6 +1514,7 @@ with aba3:
 
                         <strong>Ticket #:</strong> {ocorr.get('numero_ticket', 'N/A')}{indicador_imagem}<br>
                         <strong>Status:</strong> <span style='background-color:#2c3e50;padding:4px 8px;
+                        border-radius:1px;color:white;'>{status}</span> {email_status}{imagem_download}<br>
                         border-radius:1px;color:white;'>{status}</span><br>
                         {email_abertura}<br>{email_finalizacao}<br>
                         <strong>NF:</strong> {ocorr.get('nota_fiscal', '-')}<br>
@@ -1539,18 +1540,22 @@ with aba3:
 
 
 
+@st.cache_data(ttl=60)
+def carregar_ocorrencias_por_focal_cached(focal):
+    return carregar_ocorrencias_por_focal(focal)
+
 # =========================
 #     ABA 5 - TICKETS POR FOCAL
 # =========================
 with aba5:
-    col_titulo, col_botao = st.columns([6, 1])
-    with col_titulo:
-        st.header("Tickets por Focal")
-    with col_botao:
-        if st.button("🔄 Atualizar", key="btn_atualizar_focais", use_container_width=True):
-            with st.spinner("🔄 Atualizando..."):
-                time.sleep(1)  # tempo suficiente pro spinner aparecer
-                st.rerun()
+    st.header("Tickets por Focal")
+
+    if st.button("🔄 Atualizar", key="btn_atualizar_focais", use_container_width=True):
+        st.cache_data.clear()
+        st.session_state.focal_selecionado = None
+        st.session_state.ticket_em_finalizacao = None
+        st.session_state.ocorrencias_focal = None
+        st.rerun()
 
     focais_contagem = obter_focais_com_contagem()
 
@@ -1558,34 +1563,35 @@ with aba5:
         st.info("ℹ️ Nenhuma ocorrência aberta no momento.")
     else:
         st.subheader("👤 Focais")
-
         cols_focais = st.columns(len(focais_contagem) + 1)
 
         if cols_focais[0].button("Limpar seleção"):
             st.session_state.focal_selecionado = None
             st.session_state.ticket_em_finalizacao = None
+            st.session_state.ocorrencias_focal = None
             st.rerun()
 
         for i, (focal, contagem) in enumerate(focais_contagem):
             if cols_focais[i + 1].button(f"{focal} ({contagem})", key=f"focal_{focal}"):
                 st.session_state.focal_selecionado = focal
                 st.session_state.ticket_em_finalizacao = None
-                st.rerun()
+                st.session_state.ocorrencias_focal = carregar_ocorrencias_por_focal_cached(focal)
 
         st.markdown("---")
 
-        if st.session_state.focal_selecionado:
+        if st.session_state.get("focal_selecionado"):
             st.subheader(f"📋 Ocorrências de {st.session_state.focal_selecionado}")
-            ocorrencias_focal = carregar_ocorrencias_por_focal(st.session_state.focal_selecionado)
+            ocorrencias = st.session_state.get("ocorrencias_focal", [])
 
-            if not ocorrencias_focal:
+            if not ocorrencias:
                 st.info(f"ℹ️ Nenhuma ocorrência aberta para {st.session_state.focal_selecionado}.")
             else:
-                for linha in range(0, len(ocorrencias_focal), 4):
-                    colunas = st.columns(4)
-                    for i, ocorr in enumerate(ocorrencias_focal[linha:linha+4]):
-
-                        with colunas[i]:
+                max_por_linha = 4
+                for linha in range(0, len(ocorrencias), max_por_linha):
+                    cols = st.columns(max_por_linha)
+                    for idx, ocorr in enumerate(ocorrencias[linha:linha + max_por_linha]):
+                        with cols[idx]:
+                            # Renderizar cartão
                             status = "Data manual ausente"
                             cor = "gray"
                             abertura_manual_formatada = "Não informada"
@@ -1609,12 +1615,12 @@ with aba5:
                             imagem_abertura_url = ocorr.get('imagem_abertura_url', '')
                             imagem_download = f'<br>📸 Abertura: <a href="{imagem_abertura_url}" target="_blank" style="text-decoration:underline;color:white;">Baixar</a>' if imagem_abertura_url else ""
 
-                            safe_idx = f"focal_{linha}_{i}_{ocorr.get('nota_fiscal', '')}"
+                            safe_idx = f"focal_{linha}_{idx}_{ocorr.get('nota_fiscal', '')}"
 
                             st.markdown(
                                 f"""
                                 <div style='background-color:{cor};padding:10px;border-radius:10px;color:white;
-                                box-shadow: 0 4px 10px rgba(0,0,0,0.3);margin-bottom:5px;font-size:15px;'>
+                                box-shadow: 0 4px 10px rgba(0,0,0,0.3);margin-bottom:5px;min-height:250px;font-size:15px;'>
                                 <strong>Ticket #:</strong> {ocorr.get('numero_ticket', 'N/A')}<br>
                                 <strong>Status:</strong> <span style='background-color:#2c3e50;padding:4px 8px;
                                 border-radius:1px;color:white;'>{status}</span> {email_status}{imagem_download}<br>
@@ -1626,7 +1632,7 @@ with aba5:
                                 <strong>Tipo:</strong> {ocorr.get('tipo_de_ocorrencia', '-')}<br>
                                 <strong>Aberto por:</strong> {ocorr.get('responsavel', '-')}<br>
                                 <strong>Data Abertura:</strong> {abertura_manual_formatada.split(" ")[0] if abertura_manual_formatada != "Não informada" else 'Não informada'}<br>
-                                <strong>Hora Abertura:</strong> {hora_abertura_manual or 'Não informada'}<br> 
+                                <strong>Hora Abertura:</strong> {hora_abertura_manual or 'Não informada'}<br>
                                 <strong>Observações:</strong> {ocorr.get('observacoes', 'Sem observações.')}<br>
                                 </div>
                                 """,
@@ -1634,69 +1640,33 @@ with aba5:
                             )
 
                             if st.session_state.get("ticket_em_finalizacao") == safe_idx:
-
-                                # Armazenar valores fixos na primeira exibição
-                                form_prefix = f"{safe_idx}_form"
-                                if f"{form_prefix}_data" not in st.session_state:
-                                    st.session_state[f"{form_prefix}_data"] = obter_data_hora_atual_brasil().strftime("%d-%m-%Y")
-                                if f"{form_prefix}_hora" not in st.session_state:
-                                    st.session_state[f"{form_prefix}_hora"] = obter_data_hora_atual_brasil().strftime("%H:%M")
-
                                 with st.form(f"form_{safe_idx}"):
-                                    data_finalizacao_manual = st.text_input(
-                                        "Data Finalização (DD-MM-AAAA)",
-                                        value=st.session_state[f"{form_prefix}_data"],
-                                        key=f"data_final_{safe_idx}"
-                                    )
-                                    hora_finalizacao_manual = st.text_input(
-                                        "Hora Finalização (HH:MM)",
-                                        value=st.session_state[f"{form_prefix}_hora"],
-                                        key=f"hora_final_{safe_idx}"
-                                    )
-
+                                    data_finalizacao_manual = st.text_input("Data Finalização (DD-MM-AAAA)", value=obter_data_hora_atual_brasil().strftime("%d-%m-%Y"), key=f"data_final_{safe_idx}")
+                                    hora_finalizacao_manual = st.text_input("Hora Finalização (HH:MM)", value=obter_data_hora_atual_brasil().strftime("%H:%M"), key=f"hora_final_{safe_idx}")
                                     complemento_key = f"complemento_final_{safe_idx}"
                                     complemento = st.text_area("Complementar não Fiscal", key=complemento_key, placeholder="Descreva aqui o complemento da ocorrência...")
 
-                                    imagem_finalizacao = st.file_uploader(
-                                        "📎 Anexar imagem da finalização (opcional)",
-                                        type=["png", "jpg", "jpeg"],
-                                        key=f"imagem_finalizacao_{safe_idx}"
-                                    )
+                                    imagem_finalizacao = st.file_uploader("📎 Anexar imagem da finalização (opcional)", type=["png", "jpg", "jpeg"], key=f"imagem_finalizacao_{safe_idx}")
 
-                                    submitted = st.form_submit_button("Finalizar")
-
-                                    if submitted:
-                                        complemento = st.session_state.get(complemento_key, "").strip()
-                                        if not complemento:
+                                    if st.form_submit_button("Finalizar"):
+                                        if not complemento.strip():
                                             st.warning("❌ O campo 'Complementar' é obrigatório.")
                                         else:
                                             st.toast("✅ Ticket sendo finalizado...")
                                             imagem_url_finalizacao = ""
-
                                             if imagem_finalizacao:
                                                 try:
-                                                    nome_arquivo_original = imagem_finalizacao.name
-                                                    nome_arquivo_limpo = limpar_nome_arquivo(nome_arquivo_original)
-                                                    nome_arquivo = f"{ocorr['id']}_finalizacao_{nome_arquivo_limpo}"
-
-                                                    # Tenta remover o arquivo anterior (ignora falha)
-                                                    try:
-                                                        supabase.storage.from_("imagens-finalizacao").remove([nome_arquivo])
-                                                    except Exception as e:
-                                                        print("Arquivo não existia ou erro ao remover:", e)
-
-                                                    # Faz o upload da nova imagem
+                                                    nome_arquivo = f"{ocorr['id']}_finalizacao_{limpar_nome_arquivo(imagem_finalizacao.name)}"
                                                     supabase.storage.from_("imagens-finalizacao").upload(
                                                         nome_arquivo,
                                                         imagem_finalizacao.read(),
                                                         file_options={"content-type": imagem_finalizacao.type}
                                                     )
                                                     imagem_url_finalizacao = supabase.storage.from_("imagens-finalizacao").get_public_url(nome_arquivo)
-
                                                 except Exception as e:
-                                                    st.warning(f"⚠️ Falha ao enviar imagem de finalização: {e}")
+                                                    st.warning(f"⚠️ Falha ao enviar imagem: {e}")
 
-                                            st.toast("📤 Enviando e-mail de finalização...") 
+                                            st.toast("📤 Enviando e-mail de finalização...")
                                             sucesso, mensagem = finalizar_ocorrencia(
                                                 ocorr,
                                                 complemento,
@@ -1706,17 +1676,7 @@ with aba5:
                                             )
 
                                             if sucesso:
-                                                # Limpar valores da sessão após finalização
-                                                if f"{form_prefix}_data" in st.session_state:
-                                                    del st.session_state[f"{form_prefix}_data"]
-                                                if f"{form_prefix}_hora" in st.session_state:
-                                                    del st.session_state[f"{form_prefix}_hora"]
-
                                                 st.success("✅ Ticket finalizado com sucesso!")
-                                                tickets = st.session_state.get("tickets_abertos", [])
-                                                st.session_state["tickets_abertos"] = [
-                                                    t for t in tickets if t["id"] != ocorr["id"]
-                                                ]
                                                 st.session_state.ticket_em_finalizacao = None
                                                 time.sleep(1.5)
                                                 st.rerun()
@@ -1726,6 +1686,7 @@ with aba5:
                                 if st.button("Finalizar", key=f"btn_finalizar_{safe_idx}"):
                                     st.session_state.ticket_em_finalizacao = safe_idx
                                     st.rerun()
+
 # =========================
 #     ABA 4 - CONFIGURAÇÕES
 # =========================
