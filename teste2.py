@@ -722,9 +722,6 @@ def limpar_nome_arquivo(nome_original):
     return nome_limpo
 
 
-
-
-
 # =========================
 #    FUNÇÕES DE E-MAIL
 # =========================
@@ -1341,8 +1338,8 @@ with aba2:
                             if not complemento:
                                 st.warning("❌ O campo 'Complementar' é obrigatório.")
                             else:
+                                st.toast("📤 Enviando e-mail de finalização...")
                                 st.toast("✅ Ticket sendo finalizado...")
-
                                 imagem_url_finalizacao = ""
                                 if imagem_finalizacao:
                                     try:
