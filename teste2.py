@@ -1537,6 +1537,10 @@ with aba3:
                     )
 
 
+
+@st.cache_data(ttl=30)
+def get_ocorrencias_focal_cache(focal):
+    return carregar_ocorrencias_por_focal(focal)
 # =========================
 #     ABA 5 - TICKETS POR FOCAL
 # =========================
@@ -1547,10 +1551,8 @@ with aba5:
     with col_botao:
         if st.button("🔄 Atualizar", key="btn_atualizar_focais", use_container_width=True):
             with st.spinner("🔄 Atualizando..."):
-                time.sleep(1)  # tempo suficiente pro spinner aparecer
+                time.sleep(1)
                 st.rerun()
-
-
 
     focais_contagem = obter_focais_com_contagem()
 
@@ -1558,7 +1560,6 @@ with aba5:
         st.info("ℹ️ Nenhuma ocorrência aberta no momento.")
     else:
         st.subheader("👤 Focais")
-
         cols_focais = st.columns(len(focais_contagem) + 1)
 
         if cols_focais[0].button("Limpar seleção"):
@@ -1569,14 +1570,13 @@ with aba5:
         for i, (focal, contagem) in enumerate(focais_contagem):
             if cols_focais[i + 1].button(f"{focal} ({contagem})", key=f"focal_{focal}"):
                 st.session_state.focal_selecionado = focal
-                st.session_state.ticket_em_finalizacao = None
-                st.rerun()
+                st.session_state.ticket_em_finalizacao = None  # ❌ Sem st.rerun() aqui
 
         st.markdown("---")
 
         if st.session_state.focal_selecionado:
             st.subheader(f"📋 Ocorrências de {st.session_state.focal_selecionado}")
-            ocorrencias_focal = carregar_ocorrencias_por_focal(st.session_state.focal_selecionado)
+            ocorrencias_focal = get_ocorrencias_focal_cache(st.session_state.focal_selecionado)
 
             if not ocorrencias_focal:
                 st.info(f"ℹ️ Nenhuma ocorrência aberta para {st.session_state.focal_selecionado}.")
@@ -1584,7 +1584,6 @@ with aba5:
                 for linha in range(0, len(ocorrencias_focal), 4):
                     colunas = st.columns(4)
                     for i, ocorr in enumerate(ocorrencias_focal[linha:linha+4]):
-
                         with colunas[i]:
                             status = "Data manual ausente"
                             cor = "gray"
@@ -1614,7 +1613,7 @@ with aba5:
                             st.markdown(
                                 f"""
                                 <div style='background-color:{cor};padding:10px;border-radius:10px;color:white;
-                                box-shadow: 0 4px 10px rgba(0,0,0,0.3);margin-bottom:5px;font-size:15px;'>
+                                box-shadow: 0 4px 10px rgba(0,0,0,0.3);margin-bottom:5px;min-height:250px;font-size:15px;'>
                                 <strong>Ticket #:</strong> {ocorr.get('numero_ticket', 'N/A')}<br>
                                 <strong>Status:</strong> <span style='background-color:#2c3e50;padding:4px 8px;
                                 border-radius:1px;color:white;'>{status}</span> {email_status}{imagem_download}<br>
@@ -1632,6 +1631,8 @@ with aba5:
                                 """,
                                 unsafe_allow_html=True
                             )
+
+
 
                             if st.session_state.get("ticket_em_finalizacao") == safe_idx:
 
@@ -1726,10 +1727,6 @@ with aba5:
                                 if st.button("Finalizar", key=f"btn_finalizar_{safe_idx}"):
                                     st.session_state.ticket_em_finalizacao = safe_idx
                                     st.rerun()
-
-
-
-
 # =========================
 #     ABA 4 - CONFIGURAÇÕES
 # =========================
