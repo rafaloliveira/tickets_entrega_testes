@@ -1273,7 +1273,8 @@ with aba2:
                     tem_imagem = bool(imagem_abertura_url)
 
                     email_status = "📧 E-mail enviado" if email_enviado else ""
-                    imagem_download = f'<br>📸 Abertura: <a href="{imagem_abertura_url}" target="_blank" style="color:white;text-decoration:underline;">Baixar</a>' if tem_imagem else ""
+                    imagem_download = f'📸 Abertura: <a href="{imagem_abertura_url}" target="_blank" style="color:white;text-decoration:underline;">Baixar</a><br>' if tem_imagem else ""
+
 
 
 
@@ -1281,6 +1282,7 @@ with aba2:
                         f"""
                         <div style='background-color:{cor};padding:10px;border-radius:10px;color:white;
                         box-shadow: 0 4px 10px rgba(0,0,0,0.3);margin-bottom:5px;min-height:250px;font-size:15px;'>
+                        
                         <strong>Ticket #:</strong> {ocorr.get('numero_ticket', 'N/A')}<br>
                         {imagem_download}
                         <strong>Status:</strong> <span style='background-color:#2c3e50;padding:4px 8px;
