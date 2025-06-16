@@ -1486,8 +1486,15 @@ with aba3:
                     email_abertura = "📧 E-mail abertura enviado" if ocorr.get('email_abertura_enviado', False) else ""
                     email_finalizacao = "📧 E-mail finalização enviado" if ocorr.get('email_finalizacao_enviado', False) else ""
 
-                    imagem_url = ocorr.get("imagem_url", "")
-                    indicador_imagem = f'<br><a href="{imagem_url}" target="_blank" style="text-decoration:none;">📸 Baixar</a>' if imagem_url else ""
+                    imagem_abertura_url = ocorr.get("imagem_url", "")
+                    imagem_finalizacao_url = ocorr.get("imagem_finalizacao_url", "")
+
+                    indicador_imagem = ""
+                    if imagem_abertura_url:
+                        indicador_imagem += f'<br>📸 Abertura: <a href="{imagem_abertura_url}" target="_blank" style="text-decoration:underline;color:white;">Baixar</a>'
+                    if imagem_finalizacao_url:
+                        indicador_imagem += f'<br>📸 Finalização: <a href="{imagem_finalizacao_url}" target="_blank" style="text-decoration:underline;color:white;">Baixar</a>'
+
 
                     st.markdown(
                         f"""
