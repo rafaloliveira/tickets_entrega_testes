@@ -1283,7 +1283,6 @@ with aba2:
                         f"""
                         <div style='background-color:{cor};padding:10px;border-radius:10px;color:white;
                         box-shadow: 0 4px 10px rgba(0,0,0,0.3);margin-bottom:5px;min-height:250px;font-size:15px;'>
-
                         <strong>Ticket #:</strong> {ocorr.get('numero_ticket', 'N/A')}<br>
                         {imagem_download}
                         <strong>Status:</strong> <span style='background-color:#2c3e50;padding:4px 8px;
