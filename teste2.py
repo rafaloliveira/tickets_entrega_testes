@@ -558,12 +558,29 @@ with aba1:
             #### data e hora de abertura inserido manual #####
             st.markdown("")
 
+            data_hora_chave = "nova_ocorrencia_data_hora_padrao"
+
+# Define apenas na primeira vez
+            if data_hora_chave not in st.session_state:
+                data_brasil = obter_data_hora_atual_brasil()
+                st.session_state[data_hora_chave] = {
+                    "data": data_brasil.date(),
+                    "hora": data_brasil.time()
+                }
+
             col_data, col_hora = st.columns(2)
             with col_data:
-                data_brasil = obter_data_hora_atual_brasil()
-                data_abertura_manual = st.date_input("Data de Abertura", value=data_brasil.date(), format="DD/MM/YYYY")
+                data_abertura_manual = st.date_input(
+                    "Data de Abertura", 
+                    value=st.session_state[data_hora_chave]["data"], 
+                    format="DD/MM/YYYY"
+                )
             with col_hora:
-                hora_abertura_manual = st.time_input("Hora de Abertura", value=data_brasil.time())
+                hora_abertura_manual = st.time_input(
+                    "Hora de Abertura", 
+                    value=st.session_state[data_hora_chave]["hora"]
+                )
+
 
 
 
@@ -641,10 +658,6 @@ with aba1:
                     except Exception as e:
                         st.warning(f"⚠️ Falha ao enviar imagem: {e}")
 
-
-
-
-
                 # Inserção no banco de dados
                 response = inserir_ocorrencia_supabase(nova_ocorrencia)
                 
@@ -659,6 +672,7 @@ with aba1:
 
                     sucesso = st.empty()
                     sucesso.success("✅ Ocorrência aberta com sucesso!")
+                    del st.session_state[data_hora_chave]
                     #st.write("✅ Imagem URL salva:", nova_ocorrencia["imagem_url"])
                     time.sleep(2)
                     sucesso.empty()
