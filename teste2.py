@@ -1567,8 +1567,6 @@ def carregar_ocorrencias_por_focal_cached(focal):
 #     ABA 5 - TICKETS POR FOCAL
 # =========================
 with aba5:
-    st.header("Tickets por Focal")
-
     col_titulo, col_botao = st.columns([6, 1])
     with col_titulo:
         st.header("Tickets por Focal")
