@@ -1289,9 +1289,9 @@ with aba2:
                         box-shadow: 0 4px 10px rgba(0,0,0,0.3);margin-bottom:5px;min-height:250px;font-size:15px;'>
 
                         <strong>Ticket #:</strong> {ocorr.get('numero_ticket', 'N/A')}<br>
-                        {imagem_abertura_url}
-                        <strong>Status:</strong> <span style='background-color:#2c3e50;padding:4px 8px;
-                        border-radius:1px;color:white;'>{status}</span> {email_status}<br>
+                        {'📸 Abertura: <a href="' + imagem_abertura_url + '" target="_blank" style="text-decoration:underline;color:white;">Baixar</a><br>' if imagem_abertura_url else ''}
+                        <strong>Status:</strong> {status}<br>
+                        {'📧 E-mail enviado<br>' if email_enviado else ''}
                         <strong>NF:</strong> {ocorr.get('nota_fiscal', '-')}<br>
                         <strong>Cliente:</strong> {ocorr.get('cliente', '-')}<br>
                         <strong>Destinatário:</strong> {ocorr.get('destinatario', '-')}<br>
@@ -1301,12 +1301,13 @@ with aba2:
                         <strong>Tipo:</strong> {ocorr.get('tipo_de_ocorrencia', '-')}<br>
                         <strong>Aberto por:</strong> {ocorr.get('responsavel', '-')}<br>
                         <strong>Data Abertura:</strong> {abertura_manual_formatada.split(" ")[0] if abertura_manual_formatada != "Não informada" else 'Não informada'}<br>
-                        <strong>Hora Abertura:</strong> {hora_abertura_manual or 'Não informada'}<br> 
-                        <strong>Observações:</strong> {ocorr.get('observacoes', 'Sem observações.')}<br>
+                        <strong>Hora Abertura:</strong> {hora_abertura_manual or 'Não informada'}<br>
+                        <strong>Observações:</strong> {ocorr.get('observacoes', '')}<br>
                         </div>
                         """,
                         unsafe_allow_html=True
                     )
+
 
 
                 # Controle do fluxo de finalização
@@ -1522,8 +1523,8 @@ with aba3:
                         <div style='background-color:{cor};padding:10px;border-radius:10px;color:white;
                         box-shadow: 0 4px 10px rgba(0,0,0,0.3);margin-bottom:5px;min-height:250px;font-size:15px;'>
 
-                        <strong>Ticket #:</strong> {ocorr.get('numero_ticket', 'N/A')}{indicador_imagem}<br>
                         <strong>Status:</strong> <span style='background-color:#2c3e50;padding:4px 8px;
+                        <strong>Ticket #:</strong> {ocorr.get('numero_ticket', 'N/A')}{indicador_imagem}<br>
                         border-radius:1px;color:white;'>{status}</span> {email_status}{indicador_imagem}<br>
                         border-radius:1px;color:white;'>{status}</span><br>
                         {email_abertura}<br>{email_finalizacao}<br>
