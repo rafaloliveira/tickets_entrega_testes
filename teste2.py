@@ -1581,56 +1581,60 @@ with aba5:
             if not ocorrencias_focal:
                 st.info(f"ℹ️ Nenhuma ocorrência aberta para {st.session_state.focal_selecionado}.")
             else:
-                for linha in range(0, len(ocorrencias_focal), 4):
-                    colunas = st.columns(4)
-                    for i, ocorr in enumerate(ocorrencias_focal[linha:linha+4]):
-                        with colunas[i]:
-                            status = "Data manual ausente"
-                            cor = "gray"
-                            abertura_manual_formatada = "Não informada"
-                            data_abertura_manual = ocorr.get("data_abertura_manual")
-                            hora_abertura_manual = ocorr.get("hora_abertura_manual")
+                max_render = 10  # Limite inicial
+                ocorrencias_a_exibir = ocorrencias_focal[:max_render]
 
-                            if data_abertura_manual and hora_abertura_manual:
-                                try:
-                                    dt_manual = criar_datetime_manual(data_abertura_manual, hora_abertura_manual)
-                                    if dt_manual:
-                                        abertura_manual_formatada = dt_manual.strftime("%d-%m-%Y %H:%M:%S")
-                                        status, cor = classificar_ocorrencia_por_tempo(data_abertura_manual, hora_abertura_manual)
-                                    else:
+                with st.expander(f"🔍 Ver {len(ocorrencias_focal)} ocorrências de {st.session_state.focal_selecionado}", expanded=True):
+                    for linha in range(0, len(ocorrencias_a_exibir), 4):
+                        colunas = st.columns(4)
+                        for i, ocorr in enumerate(ocorrencias_a_exibir[linha:linha+4]):
+                            with colunas[i]:
+                                status = "Data manual ausente"
+                                cor = "gray"
+                                abertura_manual_formatada = "Não informada"
+                                data_abertura_manual = ocorr.get("data_abertura_manual")
+                                hora_abertura_manual = ocorr.get("hora_abertura_manual")
+
+                                if data_abertura_manual and hora_abertura_manual:
+                                    try:
+                                        dt_manual = criar_datetime_manual(data_abertura_manual, hora_abertura_manual)
+                                        if dt_manual:
+                                            abertura_manual_formatada = dt_manual.strftime("%d-%m-%Y %H:%M:%S")
+                                            status, cor = classificar_ocorrencia_por_tempo(data_abertura_manual, hora_abertura_manual)
+                                        else:
+                                            status = "Erro"
+                                    except Exception as e:
+                                        st.error(f"Erro na data/hora manual da NF {ocorr.get('nota_fiscal', '-')}: {e}")
                                         status = "Erro"
-                                except Exception as e:
-                                    st.error(f"Erro na data/hora manual da NF {ocorr.get('nota_fiscal', '-')}: {e}")
-                                    status = "Erro"
 
-                            email_enviado = ocorr.get('email_abertura_enviado', False)
-                            email_status = "📧 E-mail enviado" if email_enviado else ""
-                            imagem_abertura_url = ocorr.get('imagem_abertura_url', '')
-                            imagem_download = f'<br>📸 Abertura: <a href="{imagem_abertura_url}" target="_blank" style="text-decoration:underline;color:white;">Baixar</a>' if imagem_abertura_url else ""
+                                email_enviado = ocorr.get('email_abertura_enviado', False)
+                                email_status = "📧 E-mail enviado" if email_enviado else ""
+                                imagem_abertura_url = ocorr.get('imagem_abertura_url', '')
+                                imagem_download = f'<br>📸 Abertura: <a href="{imagem_abertura_url}" target="_blank" style="text-decoration:underline;color:white;">Baixar</a>' if imagem_abertura_url else ""
 
-                            safe_idx = f"focal_{linha}_{i}_{ocorr.get('nota_fiscal', '')}"
+                                safe_idx = f"focal_{linha}_{i}_{ocorr.get('nota_fiscal', '')}"
 
-                            st.markdown(
-                                f"""
-                                <div style='background-color:{cor};padding:10px;border-radius:10px;color:white;
-                                box-shadow: 0 4px 10px rgba(0,0,0,0.3);margin-bottom:5px;min-height:250px;font-size:15px;'>
-                                <strong>Ticket #:</strong> {ocorr.get('numero_ticket', 'N/A')}<br>
-                                <strong>Status:</strong> <span style='background-color:#2c3e50;padding:4px 8px;
-                                border-radius:1px;color:white;'>{status}</span> {email_status}{imagem_download}<br>
-                                <strong>NF:</strong> {ocorr.get('nota_fiscal', '-')}<br>
-                                <strong>Cliente:</strong> {ocorr.get('cliente', '-')}<br>
-                                <strong>Destinatário:</strong> {ocorr.get('destinatario', '-')}<br>
-                                <strong>Cidade:</strong> {ocorr.get('cidade', '-')}<br>
-                                <strong>Motorista:</strong> {ocorr.get('motorista', '-')}<br>
-                                <strong>Tipo:</strong> {ocorr.get('tipo_de_ocorrencia', '-')}<br>
-                                <strong>Aberto por:</strong> {ocorr.get('responsavel', '-')}<br>
-                                <strong>Data Abertura:</strong> {abertura_manual_formatada.split(" ")[0] if abertura_manual_formatada != "Não informada" else 'Não informada'}<br>
-                                <strong>Hora Abertura:</strong> {hora_abertura_manual or 'Não informada'}<br> 
-                                <strong>Observações:</strong> {ocorr.get('observacoes', 'Sem observações.')}<br>
-                                </div>
-                                """,
-                                unsafe_allow_html=True
-                            )
+                                st.markdown(
+                                    f"""
+                                    <div style='background-color:{cor};padding:10px;border-radius:10px;color:white;
+                                    box-shadow: 0 4px 10px rgba(0,0,0,0.3);margin-bottom:5px;min-height:250px;font-size:15px;'>
+                                    <strong>Ticket #:</strong> {ocorr.get('numero_ticket', 'N/A')}<br>
+                                    <strong>Status:</strong> <span style='background-color:#2c3e50;padding:4px 8px;
+                                    border-radius:1px;color:white;'>{status}</span> {email_status}{imagem_download}<br>
+                                    <strong>NF:</strong> {ocorr.get('nota_fiscal', '-')}<br>
+                                    <strong>Cliente:</strong> {ocorr.get('cliente', '-')}<br>
+                                    <strong>Destinatário:</strong> {ocorr.get('destinatario', '-')}<br>
+                                    <strong>Cidade:</strong> {ocorr.get('cidade', '-')}<br>
+                                    <strong>Motorista:</strong> {ocorr.get('motorista', '-')}<br>
+                                    <strong>Tipo:</strong> {ocorr.get('tipo_de_ocorrencia', '-')}<br>
+                                    <strong>Aberto por:</strong> {ocorr.get('responsavel', '-')}<br>
+                                    <strong>Data Abertura:</strong> {abertura_manual_formatada.split(" ")[0] if abertura_manual_formatada != "Não informada" else 'Não informada'}<br>
+                                    <strong>Hora Abertura:</strong> {hora_abertura_manual or 'Não informada'}<br> 
+                                    <strong>Observações:</strong> {ocorr.get('observacoes', 'Sem observações.')}<br>
+                                    </div>
+                                    """,
+                                    unsafe_allow_html=True
+                                )
 
 
 
