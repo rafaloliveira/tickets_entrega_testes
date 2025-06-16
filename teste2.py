@@ -1273,9 +1273,7 @@ with aba2:
                     tem_imagem = bool(imagem_abertura_url)
 
                     email_status = "📧 E-mail enviado" if email_enviado else ""
-
-                    imagem_download = f'📸 Abertura: <a href="{imagem_abertura_url}" target="_blank" style="color:white;text-decoration:underline;">Baixar</a><br>' if imagem_abertura_url else ""
-                    email_status = "📧 E-mail enviado"
+                    imagem_download = f'<br>📸 Abertura: <a href="{imagem_abertura_url}" target="_blank" style="color:white;text-decoration:underline;">Baixar</a>' if tem_imagem else ""
 
 
 
