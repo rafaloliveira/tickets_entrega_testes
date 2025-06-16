@@ -1524,7 +1524,7 @@ with aba3:
 
                         <strong>Ticket #:</strong> {ocorr.get('numero_ticket', 'N/A')}{indicador_imagem}<br>
                         <strong>Status:</strong> <span style='background-color:#2c3e50;padding:4px 8px;
-                        border-radius:1px;color:white;'>{status}</span> {email_status}{imagem_abertura_url}<br>
+                        border-radius:1px;color:white;'>{status}</span> {email_status}{indicador_imagem}<br>
                         border-radius:1px;color:white;'>{status}</span><br>
                         {email_abertura}<br>{email_finalizacao}<br>
                         <strong>NF:</strong> {ocorr.get('nota_fiscal', '-')}<br>
