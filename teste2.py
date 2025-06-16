@@ -1202,6 +1202,7 @@ def finalizar_ocorrencia(ocorr, complemento, data_finalizacao_manual, hora_final
                 "data_finalizacao_manual": data_finalizacao_banco,
                 "hora_finalizacao_manual": hora_finalizacao_banco,
                 "email_finalizacao_enviado": False,
+                "observacao_final": observacao_final,
                 "imagem_finalizacao_url": imagem_url_finalizacao  # ✅ novo campo separado
             }).eq("id", ocorr["id"]).execute()
             
@@ -1374,7 +1375,8 @@ with aba2:
                                     complemento,
                                     data_finalizacao_manual,
                                     hora_finalizacao_manual,
-                                    imagem_url_finalizacao
+                                    imagem_url_finalizacao,
+                                    
                                 )
 
                                 if sucesso:
@@ -1659,8 +1661,12 @@ with aba5:
                                 with st.form(f"form_{safe_idx}"):
                                     data_finalizacao_manual = st.text_input("Data Finalização (DD-MM-AAAA)", value=obter_data_hora_atual_brasil().strftime("%d-%m-%Y"), key=f"data_final_{safe_idx}")
                                     hora_finalizacao_manual = st.text_input("Hora Finalização (HH:MM)", value=obter_data_hora_atual_brasil().strftime("%H:%M"), key=f"hora_final_{safe_idx}")
+
                                     complemento_key = f"complemento_final_{safe_idx}"
                                     complemento = st.text_area("Complementar não Fiscal", key=complemento_key, placeholder="Descreva aqui o complemento da ocorrência...")
+
+                                    observacao_key = f"observacao_final_{safe_idx}"
+                                    observacao_final = st.text_area("Observação", key=observacao_key, placeholder="Observações adicionais...")
 
                                     imagem_finalizacao = st.file_uploader("📎 Anexar imagem da finalização (opcional)", type=["png", "jpg", "jpeg"], key=f"imagem_finalizacao_{safe_idx}")
 
@@ -1688,7 +1694,8 @@ with aba5:
                                                 complemento,
                                                 data_finalizacao_manual,
                                                 hora_finalizacao_manual,
-                                                imagem_url_finalizacao
+                                                imagem_url_finalizacao,
+                                                observacao_final 
                                             )
 
                                             if sucesso:
