@@ -133,25 +133,35 @@ def login():
 
     # Se o login já foi feito e o cookie não expirou, configura a sessão
     if login_cookie and username_cookie and not is_cookie_expired(expiry_time_cookie):
+        # Buscar unidade do usuário logado
+        try:
+            usuario_data = supabase.table("usuarios").select("unidade").eq("nome_usuario", username_cookie).execute().data
+            unidade_cookie = usuario_data[0]["unidade"] if usuario_data else "Não definida"
+        except:
+            unidade_cookie = "Não definida"
+
+        # Preenche session_state
         st.session_state.login = True
         st.session_state.username = username_cookie
         st.session_state.is_admin = is_admin_cookie == "True"
+        st.session_state.unidade = unidade_cookie
+
         st.markdown(f"👋 **Bem-vindo, {st.session_state.username}!**")
 
-        # Opção de logout
+        # Botão de logout
         col1, col2, col3 = st.columns([6, 1, 1])
         with col3:
             if st.button("🔒 Sair", key="logout_button"):
-                # Limpa os cookies e faz logout
                 cookies["login"] = ""
                 cookies["username"] = ""
                 cookies["is_admin"] = ""
                 cookies["expiry_time"] = ""
-                cookies.save()  # Salva a remoção dos cookies
-                st.session_state.login = False  # Atualiza a sessão para refletir o logout
-                st.rerun()  # Redireciona para a página inicial
+                cookies.save()
+                st.session_state.login = False
+                st.rerun()
+
     else:
-        # Se o usuário não estiver logado, exibe o formulário de login
+        # Exibe formulário de login
         with col2:
             st.markdown("##### Login")
             username = st.text_input("Usuário")
@@ -160,17 +170,24 @@ def login():
             if st.button("Entrar", key="login_button"):
                 usuario = autenticar_usuario(username, senha)
                 if usuario:
-                    # Armazena as informações de login nos cookies
+                    # Armazenar cookies
                     cookies["login"] = str(True)
                     cookies["username"] = usuario["nome_usuario"]
                     cookies["is_admin"] = str(usuario.get("is_admin", False))
                     expiry_time = datetime.now(timezone.utc) + timedelta(hours=24)
                     cookies["expiry_time"] = expiry_time.strftime("%Y-%m-%d %H:%M:%S")
                     cookies.save()
-                    st.session_state.login = True  # Atualiza a sessão para indicar que o login foi bem-sucedido
-                    st.rerun()  # Recarga a página após login
 
-        st.stop()  # Impede que o código continue sendo executado após login falhar
+                    # Armazenar na sessão
+                    st.session_state.login = True
+                    st.session_state.username = usuario["nome_usuario"]
+                    st.session_state.is_admin = usuario.get("is_admin", False)
+                    st.session_state.unidade = usuario.get("unidade", "Não definida")
+
+                    st.rerun()
+
+        st.stop()
+  # Impede que o código continue sendo executado após login falhar
 
 
 # --- Chama login antes de qualquer coisa ---
