@@ -1574,7 +1574,7 @@ with aba3:
 
                     st.markdown(html_card, unsafe_allow_html=True)
 
-@st.cache_data(ttl=60)
+
 def carregar_ocorrencias_por_focal_cached(focal):
     return carregar_ocorrencias_por_focal(focal)
 
