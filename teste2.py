@@ -1,4 +1,4 @@
-# funcionando com envio de e-mail 21-05
+# funcionando com envio de e-mail 17-06
 # versão completa com todas as funcionalidades solicitadas
 # versão liberada para usuário com correção de fuso horário e uso exclusivo de datas manuais
 # envio de email atraves do gmail
@@ -516,79 +516,69 @@ with aba1:
             cidade_opcao = st.selectbox("Cidade", options=cidades + ["Outro (digitar manualmente)"], index=None, key="cidade_opcao")
             cidade = st.text_input("Digite o nome da cidade", key="cidade_manual") if cidade_opcao == "Outro (digitar manualmente)" else cidade_opcao
 
-            # 📎 Campo opcional para importar imagem
-            imagem = st.file_uploader(
-                "📎 Anexar imagem (opcional)", 
-                type=["png", "jpg", "jpeg"],
-                key="imagem_ocorrencia"
-            )
+            imagem = st.file_uploader("📎 Anexar imagem (opcional)", type=["png", "jpg", "jpeg"], key="imagem_ocorrencia")
 
 
         with col2:
-    # Depuração: carregar todos os motoristas do banco e exibir a lista completa
             motoristas_brutos = supabase.table("motoristas").select("motorista").limit(40000).execute()
 
             if motoristas_brutos.data:
-                # Extrai os nomes, remove nulos e espaços extras
                 motoristas = [item["motorista"].strip() for item in motoristas_brutos.data if item.get("motorista")]
-                motoristas = sorted(set(motoristas))  # remove duplicatas e ordena
-
-                # Exibir para depuração (remova se não quiser mostrar)
+                motoristas = sorted(set(motoristas))
                 motoristas = carregar_motoristas_supabase()
-                #st.write("🔍 Total de motoristas encontrados:", len(motoristas))
-                #st.write("📋 Lista de motoristas:", motoristas)
             else:
-                motoristas = []  # garante que a variável exista mesmo em caso de erro
+                motoristas = []
                 st.warning("⚠️ Nenhum motorista encontrado no banco.")
 
-            # Criar lista final de opções
             opcoes_motoristas = motoristas + ["Outro (digitar manualmente)"]
-
-            # Exibir selectbox com chave única
             motorista_opcao = st.selectbox("Motorista", options=opcoes_motoristas, index=None, key="motorista_opcao")
-
-            # Campo extra se escolher "Outro"
             motorista = st.text_input("Digite o nome do motorista", key="motorista_manual") if motorista_opcao == "Outro (digitar manualmente)" else motorista_opcao
 
-            tipo = st.multiselect("Tipo de Ocorrência", options=["Chegada no Local", "Pedido Bloqueado", "Aguardando Descarga", "Divergência"], key="tipo_ocorrencia")
+            tipo = st.multiselect(
+                "Tipo de Ocorrência",
+                options=["Chegada no Local", "Pedido Bloqueado", "Aguardando Descarga", "Divergência"],
+                key="tipo_ocorrencia"
+            )
+
             obs = st.text_area("Observações", key="observacoes")
             responsavel = st.session_state.username
             st.text_input("Quem está abrindo o ticket", value=responsavel, disabled=True)
 
-            #### data e hora de abertura inserido manual #####
-            st.markdown("")
+            # Buscar unidade do usuário logado
+            dados_usuario = supabase.table("usuarios").select("unidade").eq("nome_usuario", responsavel).execute().data
+            unidade_usuario = dados_usuario[0]["unidade"] if dados_usuario else "N/A"
+            st.text_input("Unidade", value=unidade_usuario, disabled=True)
 
-            data_hora_chave = "nova_ocorrencia_data_hora_padrao"
 
-# Define apenas na primeira vez
-            if data_hora_chave not in st.session_state:
-                data_brasil = obter_data_hora_atual_brasil()
-                st.session_state[data_hora_chave] = {
-                    "data": data_brasil.date(),
-                    "hora": data_brasil.time()
-                }
+            from datetime import datetime
+
+            # Inicializa somente se o campo ainda não tiver sido preenchido durante o uso do formulário
+            # Inicialização segura
+            if "data_abertura_manual" not in st.session_state:
+                st.session_state["data_abertura_manual"] = obter_data_hora_atual_brasil().date()
+            if "hora_abertura_manual" not in st.session_state:
+                st.session_state["hora_abertura_manual"] = obter_data_hora_atual_brasil().time()
 
             col_data, col_hora = st.columns(2)
             with col_data:
-                data_abertura_manual = st.date_input(
-                    "Data de Abertura", 
-                    value=st.session_state[data_hora_chave]["data"], 
+                st.date_input(
+                    "Data de Abertura",
+                    key="data_abertura_manual",
                     format="DD/MM/YYYY"
                 )
             with col_hora:
-                hora_abertura_manual = st.time_input(
-                    "Hora de Abertura", 
-                    value=st.session_state[data_hora_chave]["hora"]
+                st.time_input(
+                    "Hora de Abertura",
+                    key="hora_abertura_manual"
                 )
 
-
+            data_abertura_manual = st.session_state["data_abertura_manual"]
+            hora_abertura_manual = st.session_state["hora_abertura_manual"]
 
 
 
         enviar = st.form_submit_button("Adicionar Ocorrência")
 
-
-        # Validações
         if enviar:
             campos_obrigatorios = {
                 "Nota Fiscal": nf,
@@ -607,21 +597,18 @@ with aba1:
                 st.error("Ocorrência não adicionada: Nota Fiscal deve conter apenas números.")
             elif faltando:
                 st.error(f"❌ Preencha todos os campos obrigatórios: {', '.join(faltando)}")
-            elif not cliente:  # Verificação adicional para o campo "Cliente"
+            elif not cliente:
                 st.error("❌ O campo 'Cliente' é obrigatório.")
-        
             else:
-                # Gera número de ticket único baseado em data/hora
-                numero_ticket = obter_data_hora_atual_brasil().strftime("%Y%m%d%H%M%S%f")  # Ex: 20250513151230543210
-
-                # Formatar data e hora manual para string no formato esperado pelo banco
+                numero_ticket = obter_data_hora_atual_brasil().strftime("%Y%m%d%H%M%S%f")
                 data_abertura_manual_str = data_abertura_manual.strftime("%Y-%m-%d")
                 hora_abertura_manual_str = hora_abertura_manual.strftime("%H:%M:%S")
 
-                # Montagem do DICIONÁRIO de nova ocorrência
+                st.write("🧪 Será salvo:", data_abertura_manual_str, hora_abertura_manual_str)  # depuração
+
                 nova_ocorrencia = {
                     "id": str(uuid.uuid4()),
-                    "numero_ticket": numero_ticket, #numero ticket
+                    "numero_ticket": numero_ticket,
                     "nota_fiscal": nf,
                     "cliente": cliente,
                     "focal": st.session_state["focal_responsavel"],
@@ -631,39 +618,30 @@ with aba1:
                     "tipo_de_ocorrencia": ", ".join(tipo),
                     "observacoes": obs,
                     "responsavel": responsavel,
-                    "data_abertura_manual": data_abertura_manual_str, # data abertura inserido manual
-                    "hora_abertura_manual": hora_abertura_manual_str, # hora abertura inserido manual
+                    "data_abertura_manual": data_abertura_manual_str,
+                    "hora_abertura_manual": hora_abertura_manual_str,
+                    "ticket_unidade": unidade_usuario,
                     "complementar": "",
                     "permanencia": "",
                     "imagem_url": "",
                 }
 
-                    # Se imagem foi enviada, salvar no Supabase Storage
                 if imagem:
                     try:
                         nome_arquivo = f"{nova_ocorrencia['id']}_{imagem.name}"
-
-                        # ✅ Corrigido: enviar os bytes com .read()
                         supabase.storage.from_("imagem-ticket").upload(
                             nome_arquivo,
-                            imagem.read(),  # <- conteúdo binário
+                            imagem.read(),
                             file_options={"content-type": imagem.type}
                         )
-
-                        # Gera URL pública
-                        # gerar URL (corrigir aqui)
                         url_imagem = supabase.storage.from_("imagem-ticket").get_public_url(nome_arquivo)
                         nova_ocorrencia["imagem_url"] = url_imagem
-
                     except Exception as e:
                         st.warning(f"⚠️ Falha ao enviar imagem: {e}")
 
-                # Inserção no banco de dados
                 response = inserir_ocorrencia_supabase(nova_ocorrencia)
-                
-                
+
                 if response and response.data:
-                    # Adiciona localmente para exibição imediata
                     nova_ocorrencia_local = nova_ocorrencia.copy()
                     nova_ocorrencia_local["Data/Hora Finalização"] = ""
                     st.session_state.ocorrencias_abertas.append(nova_ocorrencia_local)
@@ -672,15 +650,21 @@ with aba1:
 
                     sucesso = st.empty()
                     sucesso.success("✅ Ocorrência aberta com sucesso!")
-                    del st.session_state[data_hora_chave]
-                    #st.write("✅ Imagem URL salva:", nova_ocorrencia["imagem_url"])
                     time.sleep(2)
                     sucesso.empty()
-                    
-                    # Verificar se precisa enviar e-mail (mais de 30 minutos)
-                    #verificar_e_enviar_email_abertura(nova_ocorrencia)
-                else:
-                    st.error(f"Erro ao salvar ocorrência no Supabase: {response.error if response else 'Erro desconhecido'}")
+
+                    # 🧹 Limpa todos os campos após sucesso
+                    campos_para_limpar = [
+                        "nf", "destinatario", "cliente_opcao", "cliente_manual",
+                        "cidade_opcao", "cidade_manual", "motorista_opcao", "motorista_manual",
+                        "tipo_ocorrencia", "observacoes", "imagem_ocorrencia",
+                        "data_abertura_manual", "hora_abertura_manual"
+                    ]
+                    for campo in campos_para_limpar:
+                        if campo in st.session_state:
+                            del st.session_state[campo]
+
+                    st.rerun()  # opcional: recarrega a página com campos limpos
 
 # =========================
 #    FUNÇÃO CLASSIFICAÇÃO
@@ -1109,26 +1093,33 @@ def testar_conexao_smtp():
 
 # Função para carregar ocorrências abertas
 def carregar_ocorrencias_abertas():
-    
     try:
-        response = supabase.table("ocorrencias").select("*").eq("status", "Aberta").order("data_hora_abertura", desc=True).execute()
+        if st.session_state.is_admin:
+            response = supabase.table("ocorrencias").select("*").eq("status", "Aberta").order("data_hora_abertura", desc=True).execute()
+        else:
+            dados_usuario = supabase.table("usuarios").select("unidade").eq("nome_usuario", st.session_state.username).execute().data
+            unidade_usuario = dados_usuario[0]["unidade"] if dados_usuario else None
+            response = supabase.table("ocorrencias").select("*").eq("status", "Aberta").eq("ticket_unidade", unidade_usuario).order("data_hora_abertura", desc=True).execute()
         return response.data
     except Exception as e:
         st.error(f"Erro ao carregar ocorrências abertas: {e}")
         return []
 
+
 # Função para carregar ocorrências por focal
 def carregar_ocorrencias_por_focal(focal=None):
     try:
-        if focal:
+        if st.session_state.is_admin:
             response = supabase.table("ocorrencias").select("*").eq("status", "Aberta").eq("focal", focal).order("data_hora_abertura", desc=True).execute()
         else:
-            response = supabase.table("ocorrencias").select("*").eq("status", "Aberta").order("data_hora_abertura", desc=True).execute()
-        
+            dados_usuario = supabase.table("usuarios").select("unidade").eq("nome_usuario", st.session_state.username).execute().data
+            unidade_usuario = dados_usuario[0]["unidade"] if dados_usuario else None
+            response = supabase.table("ocorrencias").select("*").eq("status", "Aberta").eq("focal", focal).eq("ticket_unidade", unidade_usuario).order("data_hora_abertura", desc=True).execute()
         return response.data
     except Exception as e:
         st.error(f"Erro ao carregar ocorrências por focal: {e}")
         return []
+
     
 
 # Função para obter lista de focais com contagem de tickets
@@ -1154,7 +1145,8 @@ def obter_focais_com_contagem():
         return []
 
 # Função para finalizar ocorrência com suporte a imagem na finalização
-def finalizar_ocorrencia(ocorr, complemento, data_finalizacao_manual, hora_finalizacao_manual, imagem_url_finalizacao=""):
+def finalizar_ocorrencia(ocorr, complemento, data_finalizacao_manual, hora_finalizacao_manual, imagem_url_finalizacao="", observacao_final=""):
+
     try:
         data_abertura_manual = ocorr.get("data_abertura_manual")
         hora_abertura_manual = ocorr.get("hora_abertura_manual")
@@ -1165,10 +1157,16 @@ def finalizar_ocorrencia(ocorr, complemento, data_finalizacao_manual, hora_final
         try:
             # Converter string para datetime com fuso horário do Brasil
             try:
+                # hora_finalizacao_manual já é um objeto time
+                hora_str = hora_finalizacao_manual.strftime("%H:%M")
                 data_hora_finalizacao = datetime.strptime(
-                    f"{data_finalizacao_manual} {hora_finalizacao_manual}", "%d-%m-%Y %H:%M"
+                    f"{data_finalizacao_manual} {hora_str}", "%d-%m-%Y %H:%M"
                 )
                 data_hora_finalizacao = FUSO_HORARIO_BRASIL.localize(data_hora_finalizacao)
+
+
+
+
             except ValueError:
                 return False, "Formato inválido para data/hora de finalização. Use DD-MM-AAAA para a data e HH:MM para a hora."
             
@@ -1327,11 +1325,11 @@ with aba2:
                             key=f"data_final_{safe_idx}"
                         )
 
-                        hora_finalizacao_manual = st.text_input(
-                            "Hora Finalização (HH:MM)",
-                            value=st.session_state[f"{form_prefix}_hora"],
-                            key=f"hora_final_{safe_idx}"
-                        )
+                        hora_finalizacao_manual = st.time_input(
+                        "Hora Finalização",
+                        value=st.session_state[f"{form_prefix}_hora"],
+                        key=f"hora_final_{safe_idx}"
+                    )
 
 
                         complemento_key = f"complemento_final_{safe_idx}"
@@ -1404,7 +1402,12 @@ with aba2:
 # ===============================        
 def carregar_ocorrencias_finalizadas():
     try:
-        response = supabase.table("ocorrencias").select("*").eq("status", "Finalizada").order("data_hora_finalizacao", desc=True).execute()
+        if st.session_state.is_admin:
+            response = supabase.table("ocorrencias").select("*").eq("status", "Finalizada").order("data_hora_finalizacao", desc=True).execute()
+        else:
+            dados_usuario = supabase.table("usuarios").select("unidade").eq("nome_usuario", st.session_state.username).execute().data
+            unidade_usuario = dados_usuario[0]["unidade"] if dados_usuario else None
+            response = supabase.table("ocorrencias").select("*").eq("status", "Finalizada").eq("ticket_unidade", unidade_usuario).order("data_hora_finalizacao", desc=True).execute()
         return response.data
     except Exception as e:
         st.error(f"Erro ao carregar ocorrências finalizadas: {e}")
@@ -1667,7 +1670,12 @@ with aba5:
                             if st.session_state.get("ticket_em_finalizacao") == safe_idx:
                                 with st.form(f"form_{safe_idx}"):
                                     data_finalizacao_manual = st.text_input("Data Finalização (DD-MM-AAAA)", value=obter_data_hora_atual_brasil().strftime("%d-%m-%Y"), key=f"data_final_{safe_idx}")
-                                    hora_finalizacao_manual = st.text_input("Hora Finalização (HH:MM)", value=obter_data_hora_atual_brasil().strftime("%H:%M"), key=f"hora_final_{safe_idx}")
+                                    hora_finalizacao_manual = st.time_input(
+                                    "Hora Finalização",
+                                    value=obter_data_hora_atual_brasil().time(),
+                                    key=f"hora_final_{safe_idx}"
+                                )
+
 
                                     complemento_key = f"complemento_final_{safe_idx}"
                                     complemento = st.text_area("Complementar não Fiscal", key=complemento_key, placeholder="Descreva aqui o complemento da ocorrência...")
@@ -1708,8 +1716,14 @@ with aba5:
                                             if sucesso:
                                                 st.success("✅ Ticket finalizado com sucesso!")
                                                 st.session_state.ticket_em_finalizacao = None
+
+                                                # ⚠️ limpa a lista local para forçar novo carregamento na rerun
+                                                if "ocorrencias_focal" in st.session_state:
+                                                    del st.session_state["ocorrencias_focal"]
+
                                                 time.sleep(1.5)
                                                 st.rerun()
+
                                             else:
                                                 st.warning(f"⚠️ A finalização falhou: {mensagem}")
                             else:
@@ -1782,6 +1796,7 @@ with aba4:
                         {
                             "Nome de Usuário": u["nome_usuario"],
                             "Admin": "Sim" if u.get("is_admin", False) else "Não",
+                            "Unidade": u.get("unidade", "Não definido"),
                             "Último Login": u.get("ultimo_login", "-")
                         }
                         for u in usuarios
@@ -1799,9 +1814,18 @@ with aba4:
                 nova_senha_usuario = st.text_input("Senha", type="password")
                 confirmar_senha_usuario = st.text_input("Confirmar Senha", type="password")
                 is_admin = st.checkbox("Usuário Administrador")
-                
+
+                # Determina a unidade a ser atribuída
+                if st.session_state.is_admin:
+                    unidade_novo_usuario = st.selectbox("Unidade", ["MTZ", "SMR", "PFO"])
+                else:
+                    # Herdar unidade do usuário logado
+                    dados_usuario = supabase.table("usuarios").select("unidade").eq("nome_usuario", st.session_state.username).execute().data
+                    unidade_novo_usuario = dados_usuario[0]["unidade"] if dados_usuario else "N/A"
+                    st.text_input("Unidade", value=unidade_novo_usuario, disabled=True)
+
                 adicionar_usuario = st.form_submit_button("Adicionar Usuário")
-                
+
                 if adicionar_usuario:
                     if not novo_usuario or not nova_senha_usuario or not confirmar_senha_usuario:
                         st.error("❌ Todos os campos são obrigatórios.")
@@ -1811,7 +1835,7 @@ with aba4:
                         try:
                             # Verificar se usuário já existe
                             check_response = supabase.table("usuarios").select("*").eq("nome_usuario", novo_usuario).execute()
-                            
+
                             if check_response.data:
                                 st.error("❌ Nome de usuário já existe.")
                             else:
@@ -1821,15 +1845,17 @@ with aba4:
                                     "nome_usuario": novo_usuario,
                                     "senha_hash": senha_hash,
                                     "is_admin": is_admin,
+                                    "unidade": unidade_novo_usuario,
                                     "criado_em": obter_data_hora_atual_brasil().isoformat()
                                 }).execute()
-                                
+
                                 if insert_response.data:
                                     st.success("✅ Usuário adicionado com sucesso!")
                                 else:
                                     st.error("❌ Erro ao adicionar usuário.")
                         except Exception as e:
                             st.error(f"❌ Erro ao adicionar usuário: {e}")
+
         
         with admin_tab3:
             try:
