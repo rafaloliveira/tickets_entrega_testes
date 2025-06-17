@@ -308,7 +308,8 @@ def inserir_ocorrencia_supabase(dados):
             "hora_abertura_manual": dados["hora_abertura_manual"],
             "email_abertura_enviado": False,
             "email_finalizacao_enviado": False,
-            "imagem_url": dados["imagem_url"]
+            "imagem_url": dados["imagem_url"],
+            "ticket_unidade": dados["ticket_unidade"]
 
         }]).execute()
         return response
