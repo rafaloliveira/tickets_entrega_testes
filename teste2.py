@@ -28,7 +28,7 @@ from psycopg2 import sql
 from io import BytesIO
 from dotenv import load_dotenv
 from email.mime.image import MIMEImage
-from datetime import datetime, date, time
+from datetime import date
 
 
 from streamlit_autorefresh import st_autorefresh
@@ -1395,9 +1395,6 @@ if st.session_state.aba_ativa == "aba2":
                     with st.form(f"form_{safe_idx}"):
 
 
-
-
-                        
 
                         # Inicializa os campos no session_state com garantia de tipos válidos
                         chave_data = f"data_final_{safe_idx}"
