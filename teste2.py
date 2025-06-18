@@ -23,7 +23,7 @@ from io import BytesIO
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.image import MIMEImage
-from datetime import datetime
+
 
 import pandas as pd
 import pytz
