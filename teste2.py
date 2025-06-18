@@ -9,7 +9,6 @@ st.set_page_config(page_title="Entregas - Tempo de Permanência", layout="wide")
 
 import os
 import re
-
 import time 
 import uuid
 import html
@@ -17,7 +16,7 @@ import bcrypt
 import socket
 import smtplib
 import requests
-from datetime import datetime, timedelta, timezone, date, time
+from datetime import datetime, timedelta, timezone, date
 from io import BytesIO
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
