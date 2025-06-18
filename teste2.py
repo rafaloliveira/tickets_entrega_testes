@@ -602,7 +602,7 @@ if st.session_state.aba_ativa == "aba1":
             st.text_input("Unidade", value=unidade_usuario, disabled=True)
 
 
-            from datetime import datetime
+
 
             # Inicializa somente se o campo ainda não tiver sido preenchido durante o uso do formulário
             # Inicialização segura
