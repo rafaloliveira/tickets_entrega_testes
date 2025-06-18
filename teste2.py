@@ -16,7 +16,7 @@ import bcrypt
 import socket
 import smtplib
 import requests
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, date, time
 from io import BytesIO
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -1394,11 +1394,11 @@ if st.session_state.aba_ativa == "aba2":
                         chave_hora = f"hora_final_{safe_idx}"
 
                         # Data: garantir que é um datetime.date
-                        if chave_data not in st.session_state or not isinstance(st.session_state[chave_data], datetime.date):
+                        if chave_data not in st.session_state or not isinstance(st.session_state[chave_data], date):
                             st.session_state[chave_data] = obter_data_hora_atual_brasil().date()
 
                         # Hora: garantir que é um datetime.time
-                        if chave_hora not in st.session_state or not isinstance(st.session_state[chave_hora], datetime.time):
+                        if chave_hora not in st.session_state or not isinstance(st.session_state[chave_hora], time):
                             st.session_state[chave_hora] = obter_data_hora_atual_brasil().time()
 
                         # Inputs lado a lado
