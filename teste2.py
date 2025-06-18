@@ -58,6 +58,13 @@ if not cookies.ready():
 
 
 # --- Função para verificar se o cookie expirou ---
+def is_cookie_expired(expiry_time_str):
+    try:
+        expiry_time = datetime.strptime(expiry_time_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+    except ValueError:
+        return False
+    return datetime.now(timezone.utc) > expiry_time
+
 
 
 
