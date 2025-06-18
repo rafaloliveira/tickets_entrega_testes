@@ -216,54 +216,39 @@ if "focal_selecionado" not in st.session_state:
 if "tempo_envio_email" not in st.session_state:
     st.session_state.tempo_envio_email = 30  # Valor padrão: 30 minutos
 
-# --- ABA NOVA OCORRÊNCIA ---
-# Definir abas - a aba de notificações só aparece para admin
-# Lista de abas
-abas_admin = [
-    "📝 Nova Ocorrência", "📌 Ocorrências em Aberto", "✅ Ocorrências Finalizadas", "📝 Tickets por Focal",
-    "📊 Configurações", "📧 Notificações por E-mail", "🔄 Cadastros", "📊 Estatística"
-]
-abas_usuario = [
-    "📝 Nova Ocorrência", "📌 Ocorrências em Aberto", "✅ Ocorrências Finalizadas", "📝 Tickets por Focal",
-    "📊 Configurações", "🔄 Cadastros", "📊 Estatística"
-]
+# =============================
+# NAVEGAÇÃO ENTRE ABAS COM RADIO
+# =============================
 
-# Inicializa a aba ativa
-if "aba_ativa" not in st.session_state:
-    st.session_state.aba_ativa = "📝 Nova Ocorrência"
+abas_admin = {
+    "📝 Nova Ocorrência": "aba1",
+    "📌 Ocorrências em Aberto": "aba2",
+    "✅ Ocorrências Finalizadas": "aba3",
+    "📝 Tickets por Focal": "aba5",
+    "📊 Configurações": "aba4",
+    "📧 Notificações por E-mail": "aba6",
+    "🔄 Cadastros": "aba7",
+    "📊 Estatística": "aba8"
+}
 
-# Escolhe abas conforme tipo de usuário
+abas_usuario = {
+    "📝 Nova Ocorrência": "aba1",
+    "📌 Ocorrências em Aberto": "aba2",
+    "✅ Ocorrências Finalizadas": "aba3",
+    "📝 Tickets por Focal": "aba5",
+    "📊 Configurações": "aba4",
+    "🔄 Cadastros": "aba7",
+    "📊 Estatística": "aba8"
+}
+
 abas = abas_admin if st.session_state.is_admin else abas_usuario
 
-# Determina o índice da aba ativa
-indice_ativo = abas.index(st.session_state.aba_ativa) if st.session_state.aba_ativa in abas else 0
+# Exibe o menu lateral
+aba_nome = st.sidebar.radio("📁 Menu", list(abas.keys()), key="menu_abas")
 
-# Define abas com controle de estado
-abas_streamlit = st.tabs(abas, key="abas_principais")
+# Salva qual aba está ativa
+st.session_state.aba_ativa = abas[aba_nome]
 
-# Atualiza a aba ativa na session_state a cada clique
-for i, aba in enumerate(abas_streamlit):
-    with aba:
-        st.session_state.aba_ativa = abas[i]
-
-        # Aqui você faz os `with abaX:` normalmente
-        if abas[i] == "📝 Nova Ocorrência":
-            with aba:
-                st.header("Nova Ocorrência")
-                # conteúdo da aba 1
-        elif abas[i] == "📌 Ocorrências em Aberto":
-            with aba:
-                st.header("Ocorrências em Aberto")
-                # conteúdo da aba 2
-        elif abas[i] == "✅ Ocorrências Finalizadas":
-            with aba:
-                st.header("Ocorrências Finalizadas")
-                # conteúdo da aba 3
-        elif abas[i] == "📝 Tickets por Focal":
-            with aba:
-                st.header("Tickets por Focal")
-                # conteúdo da aba 5
-        # e assim por diante
 
 
 # Definindo a conexão com o banco de dados (ajuste com as suas credenciais)
@@ -548,7 +533,7 @@ def carregar_tempo_envio_email():
 # =========================
 #     ABA 1 - NOVA OCORRENCIA
 # =========================
-with abas[i]:
+if st.session_state.aba_ativa == "aba1":
     st.header("Nova Ocorrência")
 
     # Definindo sessão focal_responsavel
@@ -1285,7 +1270,7 @@ def finalizar_ocorrencia(ocorr, complemento, data_finalizacao_manual, hora_final
 # =========================
 #     ABA 2 - EM ABERTO (AJUSTADA)
 # =========================
-with abas[i]:
+if st.session_state.aba_ativa == "aba2":
     col_titulo, col_botao = st.columns([5, 1])
     with col_titulo:
         st.header("Ocorrências em Aberto")
@@ -1482,17 +1467,15 @@ def carregar_ocorrencias_finalizadas():
         return []
     
 # =============================== 
-#    ABA FINALIZADAS 
+#    ABA3 FINALIZADAS 
 # ===============================   
 
-with abas[i]:
+if st.session_state.aba_ativa == "aba3":
     col_titulo, col_botao = st.columns([6, 1])
     with col_titulo:
         st.header("Ocorrências Finalizadas")
     with col_botao:
         atualizar = st.button("🔄 Atualizar", key="btn_atualizar_finalizadas", use_container_width=True)
-
-
 
     if atualizar:
         st.cache_data.clear()
@@ -1503,10 +1486,6 @@ with abas[i]:
             st.stop()
 
     ocorrencias_finalizadas = st.session_state.get("ocorrencias_finalizadas", [])
-
-
-
-    ocorrencias_finalizadas = st.session_state.ocorrencias_finalizadas
 
     if not ocorrencias_finalizadas:
         st.info("ℹ️ Nenhuma ocorrência finalizada.")
@@ -1530,6 +1509,7 @@ with abas[i]:
                     )
                 except Exception as e:
                     st.error(f"Erro ao exportar para Excel: {e}")
+
 
 
         # --- Filtrar ---
@@ -1650,21 +1630,21 @@ with abas[i]:
 # =========================
 #     ABA 5 - TICKETS POR FOCAL
 # =========================
-with abas[i]:
+if st.session_state.aba_ativa == "aba5":
     col_titulo, col_botao = st.columns([6, 1])
     with col_titulo:
         st.header("Tickets por Focal")
     with col_botao:
         atualizar_focais = st.button("🔄 Atualizar", key="btn_atualizar_focais", use_container_width=True)
 
-        if atualizar_focais:
-            st.cache_data.clear()
-            novos_dados = obter_focais_com_contagem()
-            if novos_dados is not None:
-                st.session_state.focais_contagem = novos_dados
-                st.session_state.focal_selecionado = None
-                st.session_state.ticket_em_finalizacao = None
-                st.session_state.ocorrencias_focal = None
+    if atualizar_focais:
+        st.cache_data.clear()
+        novos_dados = obter_focais_com_contagem()
+        if novos_dados is not None:
+            st.session_state.focais_contagem = novos_dados
+            st.session_state.focal_selecionado = None
+            st.session_state.ticket_em_finalizacao = None
+            st.session_state.ocorrencias_focal = None
 
     focais_contagem = st.session_state.get("focais_contagem", [])
 
