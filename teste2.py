@@ -1586,8 +1586,7 @@ with aba3:
 
 
 
-def carregar_ocorrencias_por_focal_cached(focal):
-    return carregar_ocorrencias_por_focal(focal)
+
 
 # =========================
 #     ABA 5 - TICKETS POR FOCAL
@@ -1627,7 +1626,7 @@ with aba5:
             if cols_focais[i + 1].button(f"{focal} ({contagem})", key=f"focal_{focal}"):
                 st.session_state.focal_selecionado = focal
                 st.session_state.ticket_em_finalizacao = None
-                st.session_state.ocorrencias_focal = carregar_ocorrencias_por_focal_cached(focal)
+                
 
         st.markdown("---")
 
