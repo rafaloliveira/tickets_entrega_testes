@@ -7,35 +7,37 @@
 import streamlit as st
 st.set_page_config(page_title="Entregas - Tempo de Permanência", layout="wide")
 
-import pandas as pd
 import os
 import re
-import time
+import time  # para time.sleep()
 import uuid
-import pytz
+import html
 import bcrypt
 import hashlib
-import html
-import psycopg2
-import smtplib
 import socket
+import smtplib
 import requests
+import datetime  # para datetime.datetime, datetime.date, datetime.time
+from datetime import timedelta, timezone
+from io import BytesIO
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from datetime import datetime, timedelta, timezone
-from dateutil import parser
-from psycopg2 import sql
-from io import BytesIO
-from dotenv import load_dotenv
 from email.mime.image import MIMEImage
-from datetime import date
 
+import pandas as pd
+import pytz
+import psycopg2
+from psycopg2 import sql
+from dateutil import parser
+from dotenv import load_dotenv
 
+import streamlit as st
 from streamlit_autorefresh import st_autorefresh
 import streamlit_authenticator as stauth
 from streamlit_cookies_manager import EncryptedCookieManager
 
 from supabase import create_client, Client as SupabaseClient
+
 load_dotenv()
 # --- CONFIGURAÇÕES DE E-MAIL DA KINGHOST ---
 # Estas configurações podem ser movidas para um arquivo .env se preferir
@@ -1270,13 +1272,6 @@ def finalizar_ocorrencia(ocorr, complemento, data_finalizacao_manual, hora_final
     except Exception as e:
         return False, f"Erro ao finalizar ocorrência: {e}"
 
-
-
-
-
-# =========================
-#     ABA 2 - EM ABERTO (AJUSTADA)
-# =========================
 # =========================
 #     ABA 2 - EM ABERTO (COM FILTRO POR FOCAL)
 # =========================
@@ -1401,11 +1396,11 @@ if st.session_state.aba_ativa == "aba2":
                         chave_hora = f"hora_final_{safe_idx}"
 
                         # Data: garantir que é um datetime.date
-                        if chave_data not in st.session_state or not isinstance(st.session_state[chave_data], date):
+                        if chave_data not in st.session_state or not isinstance(st.session_state[chave_data], datetime.date):
                             st.session_state[chave_data] = obter_data_hora_atual_brasil().date()
 
                         # Hora: garantir que é um datetime.time
-                        if chave_hora not in st.session_state or not isinstance(st.session_state[chave_hora], time):
+                        if chave_hora not in st.session_state or not isinstance(st.session_state[chave_hora], datetime.time):
                             st.session_state[chave_hora] = obter_data_hora_atual_brasil().time()
 
                         # Inputs lado a lado
