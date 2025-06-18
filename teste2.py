@@ -1392,17 +1392,26 @@ if st.session_state.aba_ativa == "aba2":
                 # 🔥 Botão de finalização
                 if st.session_state.get("ticket_em_finalizacao") == safe_idx:
                     with st.form(f"form_{safe_idx}"):
-                        data_finalizacao_manual = st.text_input(
-                            "Data Finalização (DD-MM-AAAA)",
-                            value=obter_data_hora_atual_brasil().strftime("%d-%m-%Y"),
-                            key=f"data_final_{safe_idx}"
-                        )
 
-                        hora_finalizacao_manual = st.time_input(
-                            "Hora Finalização",
-                            value=obter_data_hora_atual_brasil().time(),
-                            key=f"hora_final_{safe_idx}"
-                        )
+                        # Inicializa os campos em session_state (se ainda não estiverem)
+                        chave_data = f"data_final_{safe_idx}"
+                        chave_hora = f"hora_final_{safe_idx}"
+
+                        if chave_data not in st.session_state:
+                            st.session_state[chave_data] = obter_data_hora_atual_brasil().date()
+                        if chave_hora not in st.session_state:
+                            st.session_state[chave_hora] = obter_data_hora_atual_brasil().time()
+
+                        col_data, col_hora = st.columns(2)
+                        with col_data:
+                            st.date_input("Data Finalização", key=chave_data, format="DD/MM/YYYY")
+                        with col_hora:
+                            st.time_input("Hora Finalização", key=chave_hora)
+
+                        # Recupera os valores
+                        data_finalizacao_manual = st.session_state[chave_data]
+                        hora_finalizacao_manual = st.session_state[chave_hora]
+
 
                         complemento = st.text_area("Complementar não Fiscal", key=f"complemento_final_{safe_idx}")
                         observacao_final = st.text_area("Observação", key=f"observacao_final_{safe_idx}")
@@ -1434,7 +1443,7 @@ if st.session_state.aba_ativa == "aba2":
                                         st.warning(f"⚠️ Falha ao enviar imagem: {e}")
 
                                 # ✅ Diagnóstico do que será salvo
-                                st.write(f"🧪 Será salvo: Data = {data_finalizacao_manual}, Hora = {hora_finalizacao_manual.strftime('%H:%M:%S')}")
+                                st.write("🧪 Será salvo:", data_finalizacao_manual.strftime("%d-%m-%Y"), hora_finalizacao_manual.strftime("%H:%M:%S"))
 
                                 sucesso, mensagem = finalizar_ocorrencia(
                                     ocorr,
