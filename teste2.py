@@ -1363,7 +1363,7 @@ if st.session_state.aba_ativa == "aba2":
                     <div style='background-color:{cor};padding:10px;border-radius:10px;color:white;
                     box-shadow: 0 4px 10px rgba(0,0,0,0.3);margin-bottom:5px;min-height:250px;font-size:15px;'>
 
-                    <strong>Ticket #:</strong> {ocorr.get('numero_ticket', 'N/A')}<br>
+                    <strong>Ticket #:</strong> {str(ocorr.get('numero_ticket', 'N/A'))[-5:]}<br>
                     {'📸 Abertura: <a href="' + imagem_abertura_url + '" target="_blank" style="text-decoration:underline;color:white;">Baixar</a><br>' if imagem_abertura_url else ''}
                     <strong>Status:</strong> {status}<br>
                     {'📧 E-mail enviado<br>' if email_enviado else ''}
