@@ -1441,8 +1441,14 @@ with aba3:
     with col_titulo:
         st.header("Ocorrências Finalizadas")
     with col_botao:
+        
         if st.button("🔄 Atualizar", key="btn_atualizar_finalizadas", use_container_width=True):
-            st.rerun()
+            st.cache_data.clear()
+            st.session_state.ocorrencias_finalizadas = None
+            ocorrencias_finalizadas = carregar_ocorrencias_finalizadas()
+        else:
+            ocorrencias_finalizadas = carregar_ocorrencias_finalizadas()
+
 
     try:
         ocorrencias_finalizadas = carregar_ocorrencias_finalizadas()
@@ -1591,21 +1597,21 @@ with aba3:
 # =========================
 #     ABA 5 - TICKETS POR FOCAL
 # =========================
-with aba5:
-    col_titulo, col_botao = st.columns([6, 1])
-    with col_titulo:
-        st.header("Tickets por Focal")
-    with col_botao:
-        if st.button("🔄 Atualizar", key="btn_atualizar_focais", use_container_width=True):
-            st.cache_data.clear()
-            st.session_state.focal_selecionado = None
-            st.session_state.ticket_em_finalizacao = None
-            st.session_state.ocorrencias_focal = None
+    with aba5:
+        col_titulo, col_botao = st.columns([6, 1])
+        with col_titulo:
+            st.header("Tickets por Focal")
+        with col_botao:
+            if st.button("🔄 Atualizar", key="btn_atualizar_focais", use_container_width=True):
+                st.cache_data.clear()
+                st.session_state.focal_selecionado = None
+                st.session_state.ticket_em_finalizacao = None
+                st.session_state.ocorrencias_focal = None
 
-    # Recarregar focais manualmente
-            focais_contagem = obter_focais_com_contagem()
-        else:
-            focais_contagem = obter_focais_com_contagem()
+        # Recarregar focais manualmente
+                focais_contagem = obter_focais_com_contagem()
+            else:
+                focais_contagem = obter_focais_com_contagem()
 
 
    
