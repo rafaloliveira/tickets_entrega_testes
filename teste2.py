@@ -218,10 +218,53 @@ if "tempo_envio_email" not in st.session_state:
 
 # --- ABA NOVA OCORRÊNCIA ---
 # Definir abas - a aba de notificações só aparece para admin
-if st.session_state.is_admin:
-    aba1, aba2, aba3, aba5, aba4, aba6, aba7, aba8 = st.tabs(["📝 Nova Ocorrência", "📌 Ocorrências em Aberto", "✅ Ocorrências Finalizadas", "📝 Tickets por Focal", "📊 Configurações", "📧 Notificações por E-mail", "🔄 Cadastros",  "📊 Estatística"])
-else:
-    aba1, aba2, aba3, aba5, aba4, aba7, aba8 = st.tabs(["📝 Nova Ocorrência", "📌 Ocorrências em Aberto", "✅ Ocorrências Finalizadas", "📝 Tickets por Focal", "📊 Configurações", "🔄 Cadastros", "📊 Estatística"])
+# Lista de abas
+abas_admin = [
+    "📝 Nova Ocorrência", "📌 Ocorrências em Aberto", "✅ Ocorrências Finalizadas", "📝 Tickets por Focal",
+    "📊 Configurações", "📧 Notificações por E-mail", "🔄 Cadastros", "📊 Estatística"
+]
+abas_usuario = [
+    "📝 Nova Ocorrência", "📌 Ocorrências em Aberto", "✅ Ocorrências Finalizadas", "📝 Tickets por Focal",
+    "📊 Configurações", "🔄 Cadastros", "📊 Estatística"
+]
+
+# Inicializa a aba ativa
+if "aba_ativa" not in st.session_state:
+    st.session_state.aba_ativa = "📝 Nova Ocorrência"
+
+# Escolhe abas conforme tipo de usuário
+abas = abas_admin if st.session_state.is_admin else abas_usuario
+
+# Determina o índice da aba ativa
+indice_ativo = abas.index(st.session_state.aba_ativa) if st.session_state.aba_ativa in abas else 0
+
+# Define abas com controle de estado
+abas_streamlit = st.tabs(abas, key="abas_principais")
+
+# Atualiza a aba ativa na session_state a cada clique
+for i, aba in enumerate(abas_streamlit):
+    with aba:
+        st.session_state.aba_ativa = abas[i]
+
+        # Aqui você faz os `with abaX:` normalmente
+        if abas[i] == "📝 Nova Ocorrência":
+            with aba:
+                st.header("Nova Ocorrência")
+                # conteúdo da aba 1
+        elif abas[i] == "📌 Ocorrências em Aberto":
+            with aba:
+                st.header("Ocorrências em Aberto")
+                # conteúdo da aba 2
+        elif abas[i] == "✅ Ocorrências Finalizadas":
+            with aba:
+                st.header("Ocorrências Finalizadas")
+                # conteúdo da aba 3
+        elif abas[i] == "📝 Tickets por Focal":
+            with aba:
+                st.header("Tickets por Focal")
+                # conteúdo da aba 5
+        # e assim por diante
+
 
 # Definindo a conexão com o banco de dados (ajuste com as suas credenciais)
 def get_db_connection():
@@ -505,7 +548,7 @@ def carregar_tempo_envio_email():
 # =========================
 #     ABA 1 - NOVA OCORRENCIA
 # =========================
-with aba1:
+with abas[i]:
     st.header("Nova Ocorrência")
 
     # Definindo sessão focal_responsavel
@@ -1242,7 +1285,7 @@ def finalizar_ocorrencia(ocorr, complemento, data_finalizacao_manual, hora_final
 # =========================
 #     ABA 2 - EM ABERTO (AJUSTADA)
 # =========================
-with aba2:
+with abas[i]:
     col_titulo, col_botao = st.columns([5, 1])
     with col_titulo:
         st.header("Ocorrências em Aberto")
@@ -1442,7 +1485,7 @@ def carregar_ocorrencias_finalizadas():
 #    ABA FINALIZADAS 
 # ===============================   
 
-with aba3:
+with abas[i]:
     col_titulo, col_botao = st.columns([6, 1])
     with col_titulo:
         st.header("Ocorrências Finalizadas")
@@ -1607,7 +1650,7 @@ with aba3:
 # =========================
 #     ABA 5 - TICKETS POR FOCAL
 # =========================
-with aba5:
+with abas[i]:
     col_titulo, col_botao = st.columns([6, 1])
     with col_titulo:
         st.header("Tickets por Focal")
@@ -1777,7 +1820,7 @@ with aba5:
 # =========================
 #     ABA 4 - CONFIGURAÇÕES
 # =========================
-with aba4:
+with abas[i]:
     st.header("Configurações")
     
     # Seção de troca de senha
@@ -1964,7 +2007,7 @@ with aba4:
 #     ABA 6 - NOTIFICAÇÕES POR E-MAIL (APENAS ADMIN)
 # =========================
 if st.session_state.is_admin and 'aba6' in locals():
-    with aba6:
+    with abas[i]:
         st.header("Notificações por E-mail")
         
         st.markdown("""
@@ -2035,7 +2078,7 @@ for ocorr in ocorrencias_abertas:
 # =========================
 #     ABA 8 - ESTATÍSTICAS
 # =========================
-with aba8:
+with abas[i]:
     st.header("📊 Estatísticas de Ocorrências Finalizadas")
 
     # Carrega as ocorrências finalizadas
@@ -2088,7 +2131,7 @@ with aba8:
 # =========================
 #     ABA 7 - CADASTROS
 # =========================
-with aba7:
+with abas[i]:
     st.header("Cadastros")
     
     # Criar abas dentro da aba Cadastros
