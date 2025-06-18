@@ -1623,10 +1623,6 @@ if st.session_state.aba_ativa == "aba3":
                     # Exibir o card (sempre definido, com ou sem erro)
                     st.markdown(html_card, unsafe_allow_html=True)
 
-
-
-
-
 # =========================
 #     ABA 5 - TICKETS POR FOCAL
 # =========================
@@ -1637,14 +1633,12 @@ if st.session_state.aba_ativa == "aba5":
     with col_botao:
         atualizar_focais = st.button("🔄 Atualizar", key="btn_atualizar_focais", use_container_width=True)
 
-    if atualizar_focais:
+    if atualizar_focais or "focais_contagem" not in st.session_state:
         st.cache_data.clear()
-        novos_dados = obter_focais_com_contagem()
-        if novos_dados is not None:
-            st.session_state.focais_contagem = novos_dados
-            st.session_state.focal_selecionado = None
-            st.session_state.ticket_em_finalizacao = None
-            st.session_state.ocorrencias_focal = None
+        st.session_state.focais_contagem = obter_focais_com_contagem()
+        st.session_state.focal_selecionado = None
+        st.session_state.ticket_em_finalizacao = None
+        st.session_state.ocorrencias_focal = None
 
     focais_contagem = st.session_state.get("focais_contagem", [])
 
@@ -1654,7 +1648,7 @@ if st.session_state.aba_ativa == "aba5":
         st.subheader("👤 Focais")
         cols_focais = st.columns(len(focais_contagem) + 1)
 
-        if cols_focais[0].button("Limpar seleção"):
+        if cols_focais[0].button("🧹 Limpar seleção"):
             st.session_state.focal_selecionado = None
             st.session_state.ticket_em_finalizacao = None
             st.session_state.ocorrencias_focal = None
@@ -1666,23 +1660,10 @@ if st.session_state.aba_ativa == "aba5":
                 st.session_state.ticket_em_finalizacao = None
 
                 ocorrencias = carregar_ocorrencias_por_focal(focal)
-
                 if ocorrencias is not None:
                     st.session_state.ocorrencias_focal = ocorrencias
                 else:
                     st.session_state.ocorrencias_focal = []
-
-
-
-            # 🚩 Carregar ocorrências da focal selecionada
-            ocorrencias = carregar_ocorrencias_por_focal(focal)
-
-            if ocorrencias is not None:
-                st.session_state.ocorrencias_focal = ocorrencias
-            else:
-                st.session_state.ocorrencias_focal = []
-
-                
 
         st.markdown("---")
 
@@ -1718,7 +1699,6 @@ if st.session_state.aba_ativa == "aba5":
                                     status = "Erro"
 
                             email_enviado = ocorr.get('email_abertura_enviado', False)
-                            email_status = "📧 E-mail enviado" if email_enviado else ""
                             imagem_abertura_url = ocorr.get('imagem_abertura_url', '')
                             imagem_download = f'<br>📸 Abertura: <a href="{imagem_abertura_url}" target="_blank" style="text-decoration:underline;color:white;">Baixar</a>' if imagem_abertura_url else ""
 
@@ -1730,7 +1710,7 @@ if st.session_state.aba_ativa == "aba5":
                                 box-shadow: 0 4px 10px rgba(0,0,0,0.3);margin-bottom:5px;min-height:250px;font-size:15px;'>
 
                                 <strong>Ticket #:</strong> {ocorr.get('numero_ticket', 'N/A')}<br>
-                                {'📸 Abertura: <a href="' + imagem_abertura_url + '" target="_blank" style="text-decoration:underline;color:white;">Baixar</a><br>' if imagem_abertura_url else ''}
+                                {imagem_download}
                                 <strong>Status:</strong> {status}<br>
                                 {'📧 E-mail enviado<br>' if email_enviado else ''}
                                 <strong>NF:</strong> {ocorr.get('nota_fiscal', '-')}<br>
@@ -1753,11 +1733,10 @@ if st.session_state.aba_ativa == "aba5":
                                 with st.form(f"form_{safe_idx}"):
                                     data_finalizacao_manual = st.text_input("Data Finalização (DD-MM-AAAA)", value=obter_data_hora_atual_brasil().strftime("%d-%m-%Y"), key=f"data_final_{safe_idx}")
                                     hora_finalizacao_manual = st.time_input(
-                                    "Hora Finalização",
-                                    value=obter_data_hora_atual_brasil().time(),
-                                    key=f"hora_final_{safe_idx}"
-                                )
-
+                                        "Hora Finalização",
+                                        value=obter_data_hora_atual_brasil().time(),
+                                        key=f"hora_final_{safe_idx}"
+                                    )
 
                                     complemento_key = f"complemento_final_{safe_idx}"
                                     complemento = st.text_area("Complementar não Fiscal", key=complemento_key, placeholder="Descreva aqui o complemento da ocorrência...")
@@ -1792,7 +1771,7 @@ if st.session_state.aba_ativa == "aba5":
                                                 data_finalizacao_manual,
                                                 hora_finalizacao_manual,
                                                 imagem_url_finalizacao,
-                                                observacao_final 
+                                                observacao_final
                                             )
 
                                             if sucesso:
@@ -1805,7 +1784,6 @@ if st.session_state.aba_ativa == "aba5":
 
                                                 time.sleep(1.5)
                                                 st.rerun()
-
                                             else:
                                                 st.warning(f"⚠️ A finalização falhou: {mensagem}")
                             else:
