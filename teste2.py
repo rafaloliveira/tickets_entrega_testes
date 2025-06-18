@@ -1427,6 +1427,9 @@ if st.session_state.aba_ativa == "aba2":
                                     except Exception as e:
                                         st.warning(f"⚠️ Falha ao enviar imagem: {e}")
 
+                                # ✅ Diagnóstico do que será salvo
+                                st.write(f"🧪 Será salvo: Data = {data_finalizacao_manual}, Hora = {hora_finalizacao_manual.strftime('%H:%M:%S')}")
+
                                 sucesso, mensagem = finalizar_ocorrencia(
                                     ocorr,
                                     complemento,
