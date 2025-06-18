@@ -23,6 +23,7 @@ from io import BytesIO
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.image import MIMEImage
+from datetime import datetime
 
 import pandas as pd
 import pytz
@@ -64,7 +65,8 @@ if not cookies.ready():
 # --- Função para verificar se o cookie expirou ---
 def is_cookie_expired(expiry_time_str):
     try:
-        expiry_time = datetime.strptime(expiry_time_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+        expiry_time = datetime.datetime.strptime(expiry_time_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=datetime.timezone.utc)
+
     except ValueError:
         # Caso o formato da data não seja o esperado, lança erro
         return False
