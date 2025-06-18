@@ -1466,10 +1466,7 @@ if st.session_state.aba_ativa == "aba2":
                                     st.rerun()
                                 else:
                                     st.warning(f"⚠️ A finalização falhou: {mensagem}")
-                else:
-                    if st.button("Finalizar", key=f"btn_finalizar_{safe_idx}"):
-                        st.session_state.ticket_em_finalizacao = safe_idx
-                        st.rerun()
+                
 
 
 
