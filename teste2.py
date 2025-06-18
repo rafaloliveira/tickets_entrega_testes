@@ -1437,9 +1437,6 @@ def carregar_ocorrencias_finalizadas():
         return []
 
 
-# =========================
-#     ABA 3 - FINALIZADAS
-# =========================
 with aba3:
     col_titulo, col_botao = st.columns([6, 1])
     with col_titulo:
@@ -1449,17 +1446,13 @@ with aba3:
 
     if atualizar or "ocorrencias_finalizadas" not in st.session_state:
         st.cache_data.clear()
-        st.session_state.ocorrencias_finalizadas = carregar_ocorrencias_finalizadas()
+        try:
+            st.session_state.ocorrencias_finalizadas = carregar_ocorrencias_finalizadas()
+        except Exception as e:
+            st.error(f"Erro ao carregar ocorrências finalizadas: {e}")
+            st.stop()
 
     ocorrencias_finalizadas = st.session_state.ocorrencias_finalizadas
-
-
-
-    try:
-        ocorrencias_finalizadas = carregar_ocorrencias_finalizadas()
-    except Exception as e:
-        st.error(f"Erro ao carregar ocorrências finalizadas: {e}")
-        st.stop()
 
     if not ocorrencias_finalizadas:
         st.info("ℹ️ Nenhuma ocorrência finalizada.")
@@ -1483,6 +1476,7 @@ with aba3:
                     )
                 except Exception as e:
                     st.error(f"Erro ao exportar para Excel: {e}")
+
 
         # --- Filtrar ---
         if filtro_nf:
