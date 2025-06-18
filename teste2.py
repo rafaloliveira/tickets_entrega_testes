@@ -1193,7 +1193,6 @@ def obter_focais_com_contagem():
 
 # Função para finalizar ocorrência com suporte a imagem na finalização
 def finalizar_ocorrencia(ocorr, complemento, data_finalizacao_manual, hora_finalizacao_manual, imagem_url_finalizacao="", observacao_final=""):
-
     try:
         data_abertura_manual = ocorr.get("data_abertura_manual")
         hora_abertura_manual = ocorr.get("hora_abertura_manual")
@@ -1202,30 +1201,32 @@ def finalizar_ocorrencia(ocorr, complemento, data_finalizacao_manual, hora_final
             return False, "Data/hora de abertura manual ausente. Não é possível calcular a permanência."
         
         try:
-            # Converter string para datetime com fuso horário do Brasil
-            try:
-                # hora_finalizacao_manual já é um objeto time
-                # Corrigir criação do datetime manual corretamente
-                data_finalizacao_obj = datetime.strptime(data_finalizacao_manual, "%d-%m-%Y").date()
-                data_hora_finalizacao = datetime.combine(data_finalizacao_obj, hora_finalizacao_manual)
+            # 🔧 Etapa 1: combinar data e hora inseridas pelo usuário
+            data_finalizacao_obj = datetime.strptime(data_finalizacao_manual, "%d-%m-%Y").date()
+            data_hora_finalizacao = datetime.combine(data_finalizacao_obj, hora_finalizacao_manual)
+
+            # 🧪 Diagnóstico: antes do fuso
+            st.write("💡 Data final manual (antes do fuso):", data_hora_finalizacao.strftime("%Y-%m-%d %H:%M:%S"))
+
+            # 🔧 Etapa 2: garantir que o fuso horário brasileiro seja aplicado corretamente
+            if data_hora_finalizacao.tzinfo is None:
                 data_hora_finalizacao = FUSO_HORARIO_BRASIL.localize(data_hora_finalizacao)
+            else:
+                data_hora_finalizacao = data_hora_finalizacao.astimezone(FUSO_HORARIO_BRASIL)
 
-
-
-
-
-            except ValueError:
-                return False, "Formato inválido para data/hora de finalização. Use DD-MM-AAAA para a data e HH:MM para a hora."
+            # 🧪 Diagnóstico: depois do fuso
+            st.write("🕓 Data final (com fuso):", data_hora_finalizacao.strftime("%Y-%m-%d %H:%M:%S %Z"))
             
-            # Converter data/hora de abertura para datetime com fuso horário do Brasil
+            # 🔧 Etapa 3: criar datetime de abertura
             data_hora_abertura = criar_datetime_manual(data_abertura_manual, hora_abertura_manual)
             if not data_hora_abertura:
                 return False, "Erro ao criar datetime a partir de data/hora de abertura manual."
             
+            # 🔒 Verificação de consistência
             if data_hora_finalizacao < data_hora_abertura:
                 return False, "Data/hora de finalização não pode ser menor que a data/hora de abertura."
             
-            # Calcular diferença de tempo
+            # 🔢 Calcular permanência
             delta = calcular_diferenca_tempo(data_hora_abertura, data_hora_finalizacao)
             total_segundos = int(delta.total_seconds())
             horas = total_segundos // 3600
@@ -1233,11 +1234,11 @@ def finalizar_ocorrencia(ocorr, complemento, data_finalizacao_manual, hora_final
             segundos = total_segundos % 60
             permanencia_manual = f"{horas:02d}:{minutos:02d}:{segundos:02d}"
 
-            # Formatar para o banco
+            # 🔄 Preparar dados para o banco
             data_finalizacao_banco = data_hora_finalizacao.strftime("%Y-%m-%d")
             hora_finalizacao_banco = data_hora_finalizacao.strftime("%H:%M:%S")
 
-            # Atualizar no banco
+            # 💾 Atualizar ocorrência no Supabase
             response = supabase.table("ocorrencias").update({
                 "data_hora_finalizacao": data_hora_finalizacao.strftime("%Y-%m-%d %H:%M:%S"),
                 "finalizado_por": st.session_state.username,
@@ -1248,21 +1249,26 @@ def finalizar_ocorrencia(ocorr, complemento, data_finalizacao_manual, hora_final
                 "hora_finalizacao_manual": hora_finalizacao_banco,
                 "email_finalizacao_enviado": False,
                 "observacao_final": observacao_final,
-                "imagem_finalizacao_url": imagem_url_finalizacao  # ✅ novo campo separado
+                "imagem_finalizacao_url": imagem_url_finalizacao
             }).eq("id", ocorr["id"]).execute()
             
             if response and response.data:
-                # Enviar e-mail de finalização
+                # 📧 Enviar e-mail de finalização
                 ocorr_atualizada = response.data[0]
                 enviar_email_finalizacao(ocorr_atualizada)
                 
                 return True, "Ocorrência finalizada com sucesso!"
             else:
                 return False, "Erro ao salvar a finalização no banco de dados."
+
+        except ValueError:
+            return False, "Formato inválido para data/hora de finalização. Use DD-MM-AAAA para a data e HH:MM para a hora."
         except Exception as e:
             return False, f"Erro ao calcular ou salvar permanência manual: {e}"
+
     except Exception as e:
         return False, f"Erro ao finalizar ocorrência: {e}"
+
 
 
 
