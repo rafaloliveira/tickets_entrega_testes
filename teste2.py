@@ -1648,8 +1648,6 @@ if st.session_state.aba_ativa == "aba5":
 
     focais_contagem = st.session_state.get("focais_contagem", [])
 
-
-
     if not focais_contagem:
         st.info("ℹ️ Nenhuma ocorrência aberta no momento.")
     else:
@@ -1666,6 +1664,24 @@ if st.session_state.aba_ativa == "aba5":
             if cols_focais[i + 1].button(f"{focal} ({contagem})", key=f"focal_{focal}"):
                 st.session_state.focal_selecionado = focal
                 st.session_state.ticket_em_finalizacao = None
+
+                ocorrencias = carregar_ocorrencias_por_focal(focal)
+
+                if ocorrencias is not None:
+                    st.session_state.ocorrencias_focal = ocorrencias
+                else:
+                    st.session_state.ocorrencias_focal = []
+
+
+
+            # 🚩 Carregar ocorrências da focal selecionada
+            ocorrencias = carregar_ocorrencias_por_focal(focal)
+
+            if ocorrencias is not None:
+                st.session_state.ocorrencias_focal = ocorrencias
+            else:
+                st.session_state.ocorrencias_focal = []
+
                 
 
         st.markdown("---")
