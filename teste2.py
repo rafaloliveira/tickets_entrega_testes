@@ -15,6 +15,7 @@ import uuid
 import pytz
 import bcrypt
 import hashlib
+import html
 import psycopg2
 import smtplib
 import socket
@@ -1601,10 +1602,14 @@ with aba5:
             st.session_state.focal_selecionado = None
             st.session_state.ticket_em_finalizacao = None
             st.session_state.ocorrencias_focal = None
-            st.rerun()
+
+    # Recarregar focais manualmente
+            focais_contagem = obter_focais_com_contagem()
+        else:
+            focais_contagem = obter_focais_com_contagem()
 
 
-    focais_contagem = obter_focais_com_contagem()
+   
 
     if not focais_contagem:
         st.info("ℹ️ Nenhuma ocorrência aberta no momento.")
