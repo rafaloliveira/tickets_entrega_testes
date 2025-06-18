@@ -1205,11 +1205,11 @@ def finalizar_ocorrencia(ocorr, complemento, data_finalizacao_manual, hora_final
             # Converter string para datetime com fuso horário do Brasil
             try:
                 # hora_finalizacao_manual já é um objeto time
-                hora_str = hora_finalizacao_manual.strftime("%H:%M")
-                data_hora_finalizacao = datetime.strptime(
-                    f"{data_finalizacao_manual} {hora_str}", "%d-%m-%Y %H:%M"
-                )
+                # Corrigir criação do datetime manual corretamente
+                data_finalizacao_obj = datetime.strptime(data_finalizacao_manual, "%d-%m-%Y").date()
+                data_hora_finalizacao = datetime.combine(data_finalizacao_obj, hora_finalizacao_manual)
                 data_hora_finalizacao = FUSO_HORARIO_BRASIL.localize(data_hora_finalizacao)
+
 
 
 
@@ -1239,7 +1239,7 @@ def finalizar_ocorrencia(ocorr, complemento, data_finalizacao_manual, hora_final
 
             # Atualizar no banco
             response = supabase.table("ocorrencias").update({
-                "data_hora_finalizacao": data_hora_finalizacao.strftime("%Y-%m-%d %H:%M"),
+                "data_hora_finalizacao": data_hora_finalizacao.strftime("%Y-%m-%d %H:%M:%S"),
                 "finalizado_por": st.session_state.username,
                 "complementar": complemento,
                 "status": "Finalizada",
