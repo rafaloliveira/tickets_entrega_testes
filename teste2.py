@@ -1202,7 +1202,7 @@ def finalizar_ocorrencia(ocorr, complemento, data_finalizacao_manual, hora_final
         
         try:
             # 🔧 Etapa 1: combinar data e hora inseridas pelo usuário
-            data_finalizacao_obj = datetime.strptime(data_finalizacao_manual, "%d-%m-%Y").date()
+            data_finalizacao_obj = data_finalizacao_manual
             data_hora_finalizacao = datetime.combine(data_finalizacao_obj, hora_finalizacao_manual)
 
             # 🧪 Diagnóstico: antes do fuso
