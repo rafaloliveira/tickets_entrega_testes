@@ -9,7 +9,7 @@ st.set_page_config(page_title="Entregas - Tempo de Permanência", layout="wide")
 
 import os
 import re
-import time 
+import time as tm
 import uuid
 import html
 import bcrypt
@@ -698,7 +698,7 @@ if st.session_state.aba_ativa == "aba1":
 
                     sucesso = st.empty()
                     sucesso.success("✅ Ocorrência aberta com sucesso!")
-                    time.sleep(1.5)
+                    tm.sleep(1.5)
                     sucesso.empty()
 
                     # 🧹 Limpa todos os campos após sucesso
@@ -1462,7 +1462,7 @@ if st.session_state.aba_ativa == "aba2":
                                 if sucesso:
                                     st.success("✅ Ticket finalizado com sucesso!")
                                     st.session_state.ticket_em_finalizacao = None
-                                    time.sleep(1.5)
+                                    tm.sleep(1.5)
                                     st.rerun()
                                 else:
                                     st.warning(f"⚠️ A finalização falhou: {mensagem}")
@@ -1805,7 +1805,7 @@ if st.session_state.aba_ativa == "aba5":
                                                 if "ocorrencias_focal" in st.session_state:
                                                     del st.session_state["ocorrencias_focal"]
 
-                                                time.sleep(1.5)
+                                                tm.sleep(1.5)
                                                 st.rerun()
                                             else:
                                                 st.warning(f"⚠️ A finalização falhou: {mensagem}")
@@ -1935,7 +1935,7 @@ if st.session_state.aba_ativa == "aba4":
 
                                 if insert_response.data:
                                     st.success("✅ Usuário adicionado com sucesso!")
-                                    time.sleep(1.5)
+                                    tm.sleep(1.5)
                                 else:
                                     st.error("❌ Erro ao adicionar usuário.")
                         except Exception as e:
@@ -1990,7 +1990,7 @@ if st.session_state.aba_ativa == "aba4":
                                             
                                             if delete_response.data:
                                                 st.success("✅ Usuário excluído com sucesso!")
-                                                time.sleep(1.5)
+                                                tm.sleep(1.5)
                                                 st.rerun()
                                             else:
                                                 st.error("❌ Erro ao excluir usuário.")
