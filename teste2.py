@@ -1398,7 +1398,8 @@ if st.session_state.aba_ativa == "aba2":
                             st.session_state[chave_data] = obter_data_hora_atual_brasil().date()
 
                         # Hora: garantir que é um datetime.time
-                        if chave_hora not in st.session_state or not isinstance(st.session_state[chave_hora], time):
+                        if chave_hora not in st.session_state or not isinstance(st.session_state[chave_hora], datetime.time):
+
                             st.session_state[chave_hora] = obter_data_hora_atual_brasil().time()
 
                         # Inputs lado a lado
