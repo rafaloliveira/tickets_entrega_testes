@@ -1249,11 +1249,13 @@ with aba2:
     with col_botao:
         atualizar_abertas = st.button("🔄 Atualizar", key="btn_atualizar_abertas", use_container_width=True)
 
-    if atualizar_abertas or "ocorrencias_abertas" not in st.session_state:
+    if atualizar_abertas:
         st.cache_data.clear()
         st.session_state.ocorrencias_abertas = carregar_ocorrencias_abertas()
 
-    ocorrencias_abertas = st.session_state.ocorrencias_abertas
+    # NÃO recarrega automaticamente — só usa o que já está no session_state
+    ocorrencias_abertas = st.session_state.get("ocorrencias_abertas", [])
+
 
 
     # Verificar e enviar e-mails para ocorrências abertas há mais de 30 minutos
