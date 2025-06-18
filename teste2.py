@@ -1800,11 +1800,12 @@ if st.session_state.aba_ativa == "aba5":
 # =========================
 #     ABA 4 - CONFIGURAÇÕES
 # =========================
-with abas[i]:
+if st.session_state.aba_ativa == "aba4":
     st.header("Configurações")
-    
+
     # Seção de troca de senha
-    st.subheader("Alterar Senha")
+    st.subheader("🔑 Alterar Senha")
+
     
     with st.form("form_alterar_senha"):
         senha_atual = st.text_input("Senha Atual", type="password")
@@ -1986,50 +1987,49 @@ with abas[i]:
 # =========================
 #     ABA 6 - NOTIFICAÇÕES POR E-MAIL (APENAS ADMIN)
 # =========================
-if st.session_state.is_admin and 'aba6' in locals():
-    with abas[i]:
-        st.header("Notificações por E-mail")
+if st.session_state.aba_ativa == "aba6" and st.session_state.is_admin:
+    st.header("Notificações por E-mail")
         
-        st.markdown("""
-        ### Sistema de Notificação Automática
-        
-        Este sistema envia e-mails automáticos para clientes que possuem ocorrências abertas há mais de 30 minutos.
-        
-        Os e-mails são enviados utilizando:
-        - **Remetente:** ticket@clicklogtransportes.com.br
-        - **Servidor SMTP:** smtp.kinghost.net
-        
-        Os destinatários são obtidos da planilha de clientes:
-        - **E-mail principal:** Coluna C (enviar_para_email)
-        - **E-mails em cópia (CC):** Coluna D (email_copia), separados por ponto e vírgula
-        """)
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.subheader("Testar Conexão SMTP")
-            if st.button("Testar Conexão"):
-                with st.spinner("Testando conexão com servidor SMTP..."):
-                    sucesso, mensagem = testar_conexao_smtp()
-                    if sucesso:
-                        st.success(mensagem)
+    st.markdown("""
+    ### Sistema de Notificação Automática
+    
+    Este sistema envia e-mails automáticos para clientes que possuem ocorrências abertas há mais de 30 minutos.
+    
+    Os e-mails são enviados utilizando:
+    - **Remetente:** ticket@clicklogtransportes.com.br
+    - **Servidor SMTP:** smtp.kinghost.net
+    
+    Os destinatários são obtidos da planilha de clientes:
+    - **E-mail principal:** Coluna C (enviar_para_email)
+    - **E-mails em cópia (CC):** Coluna D (email_copia), separados por ponto e vírgula
+    """)
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Testar Conexão SMTP")
+        if st.button("Testar Conexão"):
+            with st.spinner("Testando conexão com servidor SMTP..."):
+                sucesso, mensagem = testar_conexao_smtp()
+                if sucesso:
+                    st.success(mensagem)
+                else:
+                    st.error(mensagem)
+    
+    with col2:
+        st.subheader("Enviar Notificações Manualmente")
+        if st.button("Enviar Notificações Agora"):
+            with st.spinner("Verificando ocorrências e enviando e-mails..."):
+                resultados = notificar_ocorrencias_abertas()
+                
+                # Exibir resultados
+                for resultado in resultados:
+                    if resultado.get("status") == "info":
+                        st.info(resultado.get("mensagem"))
+                    elif resultado.get("status") == "sucesso":
+                        st.success(f"✅ E-mail enviado para {resultado.get('cliente')} - Ticket {resultado.get('ticket')} - NF {resultado.get('nota_fiscal')}")
                     else:
-                        st.error(mensagem)
-        
-        with col2:
-            st.subheader("Enviar Notificações Manualmente")
-            if st.button("Enviar Notificações Agora"):
-                with st.spinner("Verificando ocorrências e enviando e-mails..."):
-                    resultados = notificar_ocorrencias_abertas()
-                    
-                    # Exibir resultados
-                    for resultado in resultados:
-                        if resultado.get("status") == "info":
-                            st.info(resultado.get("mensagem"))
-                        elif resultado.get("status") == "sucesso":
-                            st.success(f"✅ E-mail enviado para {resultado.get('cliente')} - Ticket {resultado.get('ticket')} - NF {resultado.get('nota_fiscal')}")
-                        else:
-                            st.error(f"❌ Erro ao enviar para {resultado.get('cliente')}: {resultado.get('mensagem')}")
+                        st.error(f"❌ Erro ao enviar para {resultado.get('cliente')}: {resultado.get('mensagem')}")
 
         # Exibir histórico de e-mails enviados
         st.subheader("Histórico de E-mails Enviados")
@@ -2058,10 +2058,9 @@ for ocorr in ocorrencias_abertas:
 # =========================
 #     ABA 8 - ESTATÍSTICAS
 # =========================
-with abas[i]:
+if st.session_state.aba_ativa == "aba8":
     st.header("📊 Estatísticas de Ocorrências Finalizadas")
 
-    # Carrega as ocorrências finalizadas
     ocorrencias_finalizadas = carregar_ocorrencias_finalizadas()
 
     if not ocorrencias_finalizadas:
@@ -2111,11 +2110,13 @@ with abas[i]:
 # =========================
 #     ABA 7 - CADASTROS
 # =========================
-with abas[i]:
+if st.session_state.aba_ativa == "aba7":
     st.header("Cadastros")
-    
-    # Criar abas dentro da aba Cadastros
-    cadastro_tab1, cadastro_tab2, cadastro_tab3, cadastro_tab4 = st.tabs(["Motoristas", "Cidades", "Clientes", "Configurações de E-mail"])
+
+    cadastro_tab1, cadastro_tab2, cadastro_tab3, cadastro_tab4 = st.tabs(
+        ["Motoristas", "Cidades", "Clientes", "Configurações de E-mail"]
+    )
+
     
     # Aba de Cadastro de Motoristas
     with cadastro_tab1:
