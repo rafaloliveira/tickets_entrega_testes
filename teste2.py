@@ -1437,7 +1437,10 @@ def carregar_ocorrencias_finalizadas():
     except Exception as e:
         st.error(f"Erro ao carregar ocorrências finalizadas: {e}")
         return []
-
+    
+# =============================== 
+#    ABA FINALIZADAS 
+# ===============================   
 
 with aba3:
     col_titulo, col_botao = st.columns([6, 1])
@@ -1446,13 +1449,19 @@ with aba3:
     with col_botao:
         atualizar = st.button("🔄 Atualizar", key="btn_atualizar_finalizadas", use_container_width=True)
 
-    if atualizar or "ocorrencias_finalizadas" not in st.session_state:
+
+
+    if atualizar:
         st.cache_data.clear()
         try:
             st.session_state.ocorrencias_finalizadas = carregar_ocorrencias_finalizadas()
         except Exception as e:
             st.error(f"Erro ao carregar ocorrências finalizadas: {e}")
             st.stop()
+
+    ocorrencias_finalizadas = st.session_state.get("ocorrencias_finalizadas", [])
+
+
 
     ocorrencias_finalizadas = st.session_state.ocorrencias_finalizadas
 
