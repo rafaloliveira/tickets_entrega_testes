@@ -9,32 +9,27 @@ st.set_page_config(page_title="Entregas - Tempo de Permanência", layout="wide")
 
 import os
 import re
-import time  # para time.sleep()
+import time
 import uuid
 import html
 import bcrypt
-import hashlib
 import socket
 import smtplib
 import requests
-import datetime  # para datetime.datetime, datetime.date, datetime.time
-from datetime import timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.image import MIMEImage
 
-
 import pandas as pd
 import pytz
 import psycopg2
 from psycopg2 import sql
-from dateutil import parser
 from dotenv import load_dotenv
 
 import streamlit as st
 from streamlit_autorefresh import st_autorefresh
-import streamlit_authenticator as stauth
 from streamlit_cookies_manager import EncryptedCookieManager
 
 from supabase import create_client, Client as SupabaseClient
@@ -65,10 +60,8 @@ if not cookies.ready():
 # --- Função para verificar se o cookie expirou ---
 def is_cookie_expired(expiry_time_str):
     try:
-        expiry_time = datetime.datetime.strptime(expiry_time_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=datetime.timezone.utc)
-
+        expiry_time = datetime.strptime(expiry_time_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
     except ValueError:
-        # Caso o formato da data não seja o esperado, lança erro
         return False
     return datetime.now(timezone.utc) > expiry_time
 
