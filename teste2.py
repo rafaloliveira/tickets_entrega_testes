@@ -1393,7 +1393,9 @@ if st.session_state.aba_ativa == "aba2":
                 if st.session_state.get("ticket_em_finalizacao") == safe_idx:
                     with st.form(f"form_{safe_idx}"):
 
-                        # Inicializa os campos em session_state (se ainda não estiverem)
+                        from datetime import datetime
+
+                        # Inicializa os campos no session_state
                         chave_data = f"data_final_{safe_idx}"
                         chave_hora = f"hora_final_{safe_idx}"
 
@@ -1408,7 +1410,7 @@ if st.session_state.aba_ativa == "aba2":
                         with col_hora:
                             st.time_input("Hora Finalização", key=chave_hora)
 
-                        # Recupera os valores
+                        # Recupera os valores como objetos reais
                         data_finalizacao_manual = st.session_state[chave_data]
                         hora_finalizacao_manual = st.session_state[chave_hora]
 
