@@ -1393,26 +1393,36 @@ if st.session_state.aba_ativa == "aba2":
                 if st.session_state.get("ticket_em_finalizacao") == safe_idx:
                     with st.form(f"form_{safe_idx}"):
 
-                        from datetime import datetime
 
-                        # Inicializa os campos no session_state
+
+
+                        from datetime import datetime, date, time
+
+                        # Inicializa os campos no session_state com garantia de tipos válidos
                         chave_data = f"data_final_{safe_idx}"
                         chave_hora = f"hora_final_{safe_idx}"
 
-                        if chave_data not in st.session_state:
+                        # Data: garantir que é um datetime.date
+                        if chave_data not in st.session_state or not isinstance(st.session_state[chave_data], date):
                             st.session_state[chave_data] = obter_data_hora_atual_brasil().date()
-                        if chave_hora not in st.session_state:
+
+                        # Hora: garantir que é um datetime.time
+                        if chave_hora not in st.session_state or not isinstance(st.session_state[chave_hora], time):
                             st.session_state[chave_hora] = obter_data_hora_atual_brasil().time()
 
+                        # Inputs lado a lado
                         col_data, col_hora = st.columns(2)
                         with col_data:
                             st.date_input("Data Finalização", key=chave_data, format="DD/MM/YYYY")
                         with col_hora:
                             st.time_input("Hora Finalização", key=chave_hora)
 
-                        # Recupera os valores como objetos reais
+                        # Recuperar valores digitados (tipos garantidos)
                         data_finalizacao_manual = st.session_state[chave_data]
                         hora_finalizacao_manual = st.session_state[chave_hora]
+
+
+
 
 
                         complemento = st.text_area("Complementar não Fiscal", key=f"complemento_final_{safe_idx}")
