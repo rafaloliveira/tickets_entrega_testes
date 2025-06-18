@@ -1598,16 +1598,18 @@ with aba5:
         st.header("Tickets por Focal")
     with col_botao:
         if st.button("🔄 Atualizar", key="btn_atualizar_focais", use_container_width=True):
-            with st.spinner("Atualizando informações..."):
-                st.cache_data.clear()
-                st.session_state.focal_selecionado = None
-                st.session_state.ticket_em_finalizacao = None
-                st.session_state.ocorrencias_focal = None
+            st.cache_data.clear()
+            st.session_state.focal_selecionado = None
+            st.session_state.ticket_em_finalizacao = None
+            st.session_state.ocorrencias_focal = None
 
-                # Recarregar focais manualmente
-                focais_contagem = obter_focais_com_contagem()
+    # Recarregar focais manualmente
+            focais_contagem = obter_focais_com_contagem()
         else:
             focais_contagem = obter_focais_com_contagem()
+
+
+   
 
     if not focais_contagem:
         st.info("ℹ️ Nenhuma ocorrência aberta no momento.")
