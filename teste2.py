@@ -1247,10 +1247,14 @@ with aba2:
     with col_titulo:
         st.header("Ocorrências em Aberto")
     with col_botao:
-        if st.button("🔄 Atualizar", use_container_width=True):
-            st.rerun()
+        atualizar_abertas = st.button("🔄 Atualizar", key="btn_atualizar_abertas", use_container_width=True)
 
-    ocorrencias_abertas = carregar_ocorrencias_abertas()
+    if atualizar_abertas or "ocorrencias_abertas" not in st.session_state:
+        st.cache_data.clear()
+        st.session_state.ocorrencias_abertas = carregar_ocorrencias_abertas()
+
+    ocorrencias_abertas = st.session_state.ocorrencias_abertas
+
 
     # Verificar e enviar e-mails para ocorrências abertas há mais de 30 minutos
     for ocorr in ocorrencias_abertas:
