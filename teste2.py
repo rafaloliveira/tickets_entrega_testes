@@ -1614,14 +1614,17 @@ with aba5:
     with col_botao:
         atualizar_focais = st.button("🔄 Atualizar", key="btn_atualizar_focais", use_container_width=True)
 
-    if atualizar_focais:
-        st.cache_data.clear()
-        st.session_state.focal_selecionado = None
-        st.session_state.ticket_em_finalizacao = None
-        st.session_state.ocorrencias_focal = None
-        st.session_state.focais_contagem = obter_focais_com_contagem()
+        if atualizar_focais:
+            st.cache_data.clear()
+            novos_dados = obter_focais_com_contagem()
+            if novos_dados is not None:
+                st.session_state.focais_contagem = novos_dados
+                st.session_state.focal_selecionado = None
+                st.session_state.ticket_em_finalizacao = None
+                st.session_state.ocorrencias_focal = None
 
     focais_contagem = st.session_state.get("focais_contagem", [])
+
 
 
     if not focais_contagem:
