@@ -1458,18 +1458,16 @@ if st.session_state.aba_ativa == "aba2":
     st_autorefresh(interval=7 * 60 * 1000, key="auto_refresh_abertas")
 
     # 🚫 Garantir que não envie múltiplos e-mails no mesmo ciclo
-    if "emails_abertura_enviados" not in st.session_state:
-        st.session_state.emails_abertura_enviados = False
+    
+        # Executa a verificação de ocorrências a cada ciclo
+    resultados_emails = notificar_ocorrencias_abertas()
 
-    if not st.session_state.emails_abertura_enviados:
-        resultados_emails = notificar_ocorrencias_abertas()
-        st.session_state.emails_abertura_enviados = True
+    for resultado in resultados_emails:
+        if resultado["status"] == "sucesso":
+            st.toast(f"📧 {resultado['mensagem']}")
+        else:
+            st.warning(f"⚠️ Erro para {resultado.get('cliente', 'cliente desconhecido')}: {resultado['mensagem']}")
 
-        for resultado in resultados_emails:
-            if resultado["status"] == "sucesso":
-                st.toast(f"📧 {resultado['mensagem']}")
-            else:
-                st.warning(f"⚠️ Erro para {resultado.get('cliente', 'cliente desconhecido')}: {resultado['mensagem']}")
 
 
 
