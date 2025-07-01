@@ -938,7 +938,7 @@ def verificar_e_enviar_email_90min(ocorrencia):
                 }).eq("id", ocorrencia["id"]).execute()
 
                 supabase.table("emails_enviados").insert({
-                    "data_envio": data_hora_abertura.strftime("%d-%m-%Y %H:%M:%S"),
+                    "data_hora": data_hora_abertura.strftime("%d-%m-%Y %H:%M:%S"),
                     "tipo": "1h30",
                     "cliente": cliente,
                     "email": email_principal,
