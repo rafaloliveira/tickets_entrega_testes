@@ -2244,12 +2244,7 @@ if st.session_state.aba_ativa == "aba7":
                     st.error(mensagem)
 
         #st.subheader("Motoristas Cadastrados")
-        motoristas_atuais = carregar_motoristas_supabase() # Assumindo esta função já está definida
-        if motoristas_atuais:
-            for motorista in motoristas_atuais:
-                st.text(motorista)
-        else:
-            st.info("Nenhum motorista cadastrado.")
+       
 
     # Aba de Cadastro de Cidades (mantém-se a mesma)
     with cadastro_tab2:
