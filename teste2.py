@@ -2264,15 +2264,7 @@ if st.session_state.aba_ativa == "aba7":
                     st.rerun() # Recarrega para atualizar a lista
                 else:
                     st.error(mensagem)
-
-        #st.subheader("Cidades Cadastradas")
-        cidades_atuais = carregar_cidades_supabase() # Assumindo esta função já está definida
-        if cidades_atuais:
-            for cidade in cidades_atuais:
-                st.text(cidade)
-        else:
-            st.info("Nenhuma cidade cadastrada.")
-
+       
     # Aba de Gerenciamento de Clientes (Adicionar e Editar) - Todas as configurações de e-mail AQUI são por cliente
     with cadastro_tab3:
         st.subheader("Gerenciamento de Clientes")
