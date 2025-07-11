@@ -2169,8 +2169,9 @@ if st.session_state.aba_ativa == "aba8":
 if st.session_state.aba_ativa == "aba7":
     st.header("Cadastros")
 
-    cadastro_tab1, cadastro_tab2, cadastro_tab3, cadastro_tab4 = st.tabs(
-        ["Motoristas", "Cidades", "Clientes", "Configurações de E-mail"]
+    # Aba de Configurações de E-mail Geral foi removida, restam apenas 3 abas
+    cadastro_tab1, cadastro_tab2, cadastro_tab3 = st.tabs(
+        ["Motoristas", "Cidades", "Clientes"]
     )
 
     # Aba de Cadastro de Motoristas (mantém-se a mesma)
@@ -2184,13 +2185,13 @@ if st.session_state.aba_ativa == "aba7":
         if submit_motorista:
             if not motorista_nome:
                 st.error("❌ Por favor, informe o nome do motorista.")
-            elif not validar_texto_maiusculo(motorista_nome):
+            elif not validar_texto_maiusculo(motorista_nome): # Assumindo função validar_texto_maiusculo
                 st.error("❌ O nome do motorista deve estar em LETRAS MAIÚSCULAS.")
             else:
                 sucesso, mensagem = inserir_motorista(motorista_nome) # Assumindo que inserir_motorista é sua função de inserção
                 if sucesso:
                     st.success(mensagem)
-                    # st.rerun() # Opcional: recarregar para ver a lista atualizada imediatamente
+                    st.rerun() # Recarrega para atualizar a lista
                 else:
                     st.error(mensagem)
 
@@ -2217,7 +2218,7 @@ if st.session_state.aba_ativa == "aba7":
                 sucesso, mensagem = inserir_cidade(cidade_nome) # Assumindo que inserir_cidade é sua função de inserção
                 if sucesso:
                     st.success(mensagem)
-                    # st.rerun() # Opcional: recarregar
+                    st.rerun() # Recarrega para atualizar a lista
                 else:
                     st.error(mensagem)
 
@@ -2229,7 +2230,7 @@ if st.session_state.aba_ativa == "aba7":
         else:
             st.info("Nenhuma cidade cadastrada.")
 
-    # Aba de Gerenciamento de Clientes (Adicionar e Editar)
+    # Aba de Gerenciamento de Clientes (Adicionar e Editar) - Todas as configurações de e-mail AQUI são por cliente
     with cadastro_tab3:
         st.subheader("Gerenciamento de Clientes")
 
@@ -2246,80 +2247,106 @@ if st.session_state.aba_ativa == "aba7":
         # Lógica para selecionar cliente em modo de edição
         if mode == "Editar Cliente Existente":
             df_clientes_atuais = carregar_clientes_supabase()
-            client_names = ["-- Selecione um Cliente --"] + sorted(df_clientes_atuais["cliente"].tolist())
             
-            # Se já há um cliente selecionado na sessão (ex: após uma atualização bem-sucedida)
+            # Garante que a lista de nomes seja exibida corretamente
+            client_names_list = df_clientes_atuais["cliente"].tolist() if not df_clientes_atuais.empty else []
+            client_names = ["-- Selecione um Cliente --"] + sorted(client_names_list)
+            
+            # Inicializa selected_client_edit_name na sessão se não existir
             if "selected_client_edit_name" not in st.session_state:
                  st.session_state["selected_client_edit_name"] = "-- Selecione um Cliente --"
+
+            # Tenta encontrar o índice do cliente previamente selecionado, ou usa 0 (para "-- Selecione...")
+            current_selected_idx = 0
+            if st.session_state["selected_client_edit_name"] in client_names:
+                current_selected_idx = client_names.index(st.session_state["selected_client_edit_name"])
 
             selected_client_name = st.selectbox(
                 "Escolha o Cliente para Editar",
                 client_names,
-                index=client_names.index(st.session_state["selected_client_edit_name"]) if st.session_state["selected_client_edit_name"] in client_names else 0,
+                index=current_selected_idx,
                 key="select_client_to_edit"
             )
             st.session_state["selected_client_edit_name"] = selected_client_name # Armazena na sessão
 
-            if selected_client_name != "-- Selecione um Cliente --":
+            if selected_client_name != "-- Selecione um Cliente --" and not df_clientes_atuais.empty:
+                # Localiza os dados completos do cliente selecionado
                 selected_client_data = df_clientes_atuais[df_clientes_atuais["cliente"] == selected_client_name].iloc[0]
                 client_to_edit_id = selected_client_data["id"]
+            elif selected_client_name != "-- Selecione um Cliente --" and df_clientes_atuais.empty:
+                st.warning("Nenhum cliente cadastrado para edição.")
+
 
         # Formulário Unificado para Adicionar e Editar
-        # O clear_on_submit só deve ocorrer quando um novo cliente é adicionado, não na edição.
-        with st.form("form_gerenciar_cliente", clear_on_submit=(mode == "Adicionar Novo Cliente" and not submit_action_pressed)):
+        # A flag `submit_action_pressed` é usada para controlar o `clear_on_submit`
+        submit_action_pressed = False # Inicializa a flag aqui
+        with st.form("form_gerenciar_cliente", clear_on_submit=(mode == "Adicionar Novo Cliente")):
             # Definição dos valores iniciais para o formulário
-            initial_cliente_nome = selected_client_data["cliente"] if selected_client_data else ""
-            initial_focal = selected_client_data["focal"] if selected_client_data else None
-            initial_receber_emails = selected_client_data["receber_emails"] if selected_client_data else False
-            initial_email_principal = selected_client_data["enviar_para_email"] if selected_client_data else ""
-            initial_email_copia = selected_client_data["email_copia"] if selected_client_data else ""
+            # Estes valores serão carregados do cliente selecionado para edição, ou serão padrões para novo cliente
+            initial_cliente_nome = selected_client_data["cliente"] if selected_client_data is not None else ""
+            initial_focal = selected_client_data["focal"] if selected_client_data is not None else None
+            initial_receber_emails = selected_client_data["receber_emails"] if selected_client_data is not None else False
+            initial_email_principal = selected_client_data["enviar_para_email"] if selected_client_data is not None else ""
+            initial_email_copia = selected_client_data["email_copia"] if selected_client_data is not None else ""
             
             # Valores padrão para os checkboxes de e-mail e seus tempos
-            initial_enviar_primeiro_email = selected_client_data["enviar_primeiro_email"] if selected_client_data else False
-            initial_tempo_primeiro_email = selected_client_data["tempo_primeiro_email_minutos"] if selected_client_data else 30
-            initial_enviar_segundo_email = selected_client_data["enviar_segundo_email"] if selected_client_data else False
-            initial_tempo_segundo_email = selected_client_data["tempo_segundo_email_minutos"] if selected_client_data else 90
+            initial_enviar_primeiro_email = selected_client_data["enviar_primeiro_email"] if selected_client_data is not None else False
+            initial_tempo_primeiro_email = selected_client_data["tempo_primeiro_email_minutos"] if selected_client_data is not None else 30
+            initial_enviar_segundo_email = selected_client_data["enviar_segundo_email"] if selected_client_data is not None else False
+            initial_tempo_segundo_email = selected_client_data["tempo_segundo_email_minutos"] if selected_client_data is not None else 90
 
             # --- Campos de Informações Gerais do Cliente ---
-            st.markdown("#### Informações Gerais")
+            st.markdown("#### Informações do Cliente")
             cliente_nome = st.text_input(
                 "Nome do Cliente (LETRAS MAIÚSCULAS)",
                 value=initial_cliente_nome,
-                disabled=(mode == "Editar Cliente Existente" and selected_client_data is not None), # Desabilitar se estiver editando e um cliente for selecionado
+                # Nome do cliente só pode ser editado se for um novo cadastro ou se o cliente atual foi selecionado
+                disabled=(mode == "Editar Cliente Existente" and selected_client_data is None),
                 key="cliente_nome_form"
             )
             
             focal_options = carregar_focal_supabase() # Assumindo esta função já está definida
-            focal_index = focal_options.index(initial_focal) if initial_focal in focal_options else 0
+            # Define o índice do focal para a seleção do selectbox
+            focal_index = 0
+            if initial_focal in focal_options:
+                focal_index = focal_options.index(initial_focal)
+            elif focal_options: # Se não encontrou o inicial, e há opções, seleciona o primeiro
+                focal_index = 0
+            else: # Se não há opções de focal
+                focal_options = ["Nenhum Focal Cadastrado"]
+
+
             focal_selecionado = st.selectbox(
                 "Focal Responsável",
                 options=focal_options,
                 index=focal_index,
+                disabled=(mode == "Editar Cliente Existente" and selected_client_data is None),
                 key="focal_cliente_form"
             )
 
             # --- Seção de Configurações de E-mails ---
             st.markdown("---")
-            st.markdown("#### Configurações de E-mails")
+            st.markdown("#### Configurações de E-mails (Individuais por Cliente)")
 
             receber_emails = st.checkbox(
                 "Cliente deve receber **QUALQUER** e-mail de notificação?",
                 value=initial_receber_emails,
                 help="Desmarque esta opção para desativar todas as notificações por e-mail para este cliente.",
+                disabled=(mode == "Editar Cliente Existente" and selected_client_data is None),
                 key="receber_emails_form"
             )
 
             email_principal = st.text_input(
                 "E-mail Principal",
                 value=initial_email_principal,
-                disabled=not receber_emails, # Desabilitar se receber_emails estiver desmarcado
+                disabled=not receber_emails or (mode == "Editar Cliente Existente" and selected_client_data is None), # Desabilitar se receber_emails ou modo de edição sem cliente
                 key="email_principal_form"
             )
             email_copia = st.text_input(
                 "E-mails em Cópia (separados por ;)",
                 value=initial_email_copia,
                 help="Separe múltiplos e-mails com ponto e vírgula (;)",
-                disabled=not receber_emails, # Desabilitar se receber_emails estiver desmarcado
+                disabled=not receber_emails or (mode == "Editar Cliente Existente" and selected_client_data is None), # Desabilitar se receber_emails ou modo de edição sem cliente
                 key="email_copia_form"
             )
 
@@ -2329,13 +2356,13 @@ if st.session_state.aba_ativa == "aba7":
             enviar_primeiro_email = st.checkbox(
                 "Enviar o **Primeiro E-mail** para este cliente?",
                 value=initial_enviar_primeiro_email if receber_emails else False,
-                disabled=not receber_emails, # Desabilitar se receber_emails estiver desmarcado
+                disabled=not receber_emails or (mode == "Editar Cliente Existente" and selected_client_data is None), # Desabilitar se receber_emails ou modo de edição sem cliente
                 help="Marque para ativar o envio do primeiro e-mail de notificação de ocorrência.",
                 key="enviar_primeiro_email_checkbox"
             )
 
             current_tempo_primeiro_email = initial_tempo_primeiro_email
-            if enviar_primeiro_email:
+            if enviar_primeiro_email and receber_emails: # Só mostra se habilitado
                 current_tempo_primeiro_email = st.number_input(
                     "Tempo para o Primeiro E-mail (minutos)",
                     min_value=1,
@@ -2343,6 +2370,7 @@ if st.session_state.aba_ativa == "aba7":
                     value=initial_tempo_primeiro_email,
                     step=1,
                     help="Defina após quantos minutos da abertura da ocorrência o PRIMEIRO e-mail será enviado.",
+                    disabled=(mode == "Editar Cliente Existente" and selected_client_data is None),
                     key="tempo_primeiro_email_input"
                 )
             else:
@@ -2351,14 +2379,14 @@ if st.session_state.aba_ativa == "aba7":
             # --- Seletor e Checkbox para o Segundo E-mail ---
             enviar_segundo_email = st.checkbox(
                 "Enviar o **Segundo E-mail** para este cliente?",
-                value=initial_enviar_segundo_email if enviar_primeiro_email else False,
-                disabled=not enviar_primeiro_email, # Só habilita se o primeiro e-mail estiver ativo
+                value=initial_enviar_segundo_email if enviar_primeiro_email else False, # Padrão: marcado se primeiro e-mail marcado
+                disabled=not enviar_primeiro_email or (mode == "Editar Cliente Existente" and selected_client_data is None), # Só habilita se o primeiro e-mail estiver ativo ou modo de edição sem cliente
                 help="Marque para ativar o envio do segundo e-mail de notificação. Requer que o primeiro e-mail também esteja ativado.",
                 key="enviar_segundo_email_checkbox"
             )
 
             current_tempo_segundo_email = initial_tempo_segundo_email
-            if enviar_segundo_email and enviar_primeiro_email: # Só mostra e habilita se ambos estiverem marcados
+            if enviar_segundo_email and enviar_primeiro_email and receber_emails: # Só mostra e habilita se ambos estiverem marcados e receber emails
                 # Garante que o tempo do segundo e-mail seja sempre maior que o do primeiro
                 min_val_second_email = current_tempo_primeiro_email + 1 if current_tempo_primeiro_email else 1
                 
@@ -2374,6 +2402,7 @@ if st.session_state.aba_ativa == "aba7":
                     value=adjusted_initial_tempo_segundo_email,
                     step=1,
                     help="Defina após quantos minutos da abertura da ocorrência o SEGUNDO e-mail será enviado. Deve ser maior que o tempo do primeiro e-mail.",
+                    disabled=(mode == "Editar Cliente Existente" and selected_client_data is None),
                     key="tempo_segundo_email_input"
                 )
             else:
@@ -2392,8 +2421,12 @@ if st.session_state.aba_ativa == "aba7":
                 erros.append("Por favor, informe o nome do cliente.")
             elif not validar_texto_maiusculo(cliente_nome): # Assumindo função validar_texto_maiusculo
                 erros.append("O nome do cliente deve estar em LETRAS MAIÚSCULAS.")
-            if not focal_selecionado:
-                erros.append("Por favor, selecione um focal responsável.")
+            if not focal_selecionado or focal_selecionado == "Nenhum Focal Cadastrado": # Adiciona validação para focal
+                erros.append("Por favor, selecione um focal responsável válido.")
+
+            # Validações específicas para clientes em modo de edição sem seleção
+            if mode == "Editar Cliente Existente" and selected_client_data is None:
+                erros.append("❌ Por favor, selecione um cliente para editar.")
 
             if receber_emails:
                 if not email_principal:
@@ -2422,9 +2455,9 @@ if st.session_state.aba_ativa == "aba7":
                     "enviar_para_email": email_principal if receber_emails else "",
                     "email_copia": email_copia if receber_emails else "",
                     "enviar_primeiro_email": enviar_primeiro_email if receber_emails else False,
-                    "tempo_primeiro_email_minutos": current_tempo_primeiro_email if enviar_primeiro_email and receber_emails else 0,
-                    "enviar_segundo_email": enviar_segundo_email if enviar_primeiro_email and enviar_segundo_email and receber_emails else False,
-                    "tempo_segundo_email_minutos": current_tempo_segundo_email if enviar_primeiro_email and enviar_segundo_email and receber_emails else 0,
+                    "tempo_primeiro_email_minutos": current_tempo_primeiro_email, # Passa o valor atual, 0 se desabilitado
+                    "enviar_segundo_email": enviar_segundo_email if receber_emails and enviar_primeiro_email else False,
+                    "tempo_segundo_email_minutos": current_tempo_segundo_email, # Passa o valor atual, 0 se desabilitado
                 }
 
                 if mode == "Adicionar Novo Cliente":
@@ -2438,15 +2471,16 @@ if st.session_state.aba_ativa == "aba7":
 
                 if sucesso:
                     st.success(mensagem)
-                    # Limpa o estado da sessão para garantir que o formulário e a lista de clientes sejam recarregados
-                    # Mantém o modo de edição selecionado se foi uma edição
-                    if mode == "Editar Cliente Existente":
-                        st.session_state["client_management_mode"] = "Editar Cliente Existente"
-                        # Resetar o seletor para garantir que o cliente editado continue selecionado, ou resetar
-                        st.session_state["selected_client_edit_name"] = selected_client_name
+                    # Reseta o estado da sessão para garantir que o formulário seja limpo ou atualizado
+                    if mode == "Adicionar Novo Cliente":
+                        # Para o modo "Adicionar Novo Cliente", limpamos a seleção para que ele comece do zero
+                        st.session_state["client_management_mode"] = "Adicionar Novo Cliente"
+                        if "selected_client_edit_name" in st.session_state:
+                            del st.session_state["selected_client_edit_name"]
                     else:
-                        st.session_state["client_management_mode"] = "Adicionar Novo Cliente" # Volta para adicionar novo após sucesso
-                        del st.session_state["selected_client_edit_name"] # Limpa o nome do cliente selecionado
+                        # Para o modo "Editar Cliente Existente", mantemos a seleção ou resetamos se o cliente foi removido
+                        st.session_state["client_management_mode"] = "Editar Cliente Existente"
+                        st.session_state["selected_client_edit_name"] = selected_client_name # Mantém o nome do cliente selecionado
 
                     st.rerun() # Recarrega a página para refletir as mudanças
                 else:
@@ -2469,28 +2503,3 @@ if st.session_state.aba_ativa == "aba7":
             ]])
         else:
             st.info("Nenhum cliente cadastrado.")
-
-    # Aba de Configurações de E-mail (geral, não por cliente) (mantém-se a mesma)
-    with cadastro_tab4:
-        st.subheader("Configurações de Tempo de Envio de E-mail (Configuração Geral)")
-        st.info("Esta configuração se aplica apenas se os e-mails por cliente estiverem desativados ou se o cliente não tiver tempos personalizados definidos.")
-
-        tempo_atual = carregar_tempo_envio_email() # Assumindo esta função já está definida
-
-        tempo_envio = st.slider(
-            "Tempo de envio dos e-mails (minutos)",
-            min_value=1,
-            max_value=60,
-            value=tempo_atual,
-            step=1,
-            key="tempo_envio_slider"
-        )
-
-        if st.button("Salvar Configuração Geral"):
-            sucesso, mensagem = atualizar_tempo_envio_email(tempo_envio) # Assumindo esta função já está definida
-            if sucesso:
-                st.success(mensagem)
-            else:
-                st.error(mensagem)
-
-        st.info(f"Configuração geral atual: E-mails serão enviados após {tempo_atual} minutos, se não houver configuração específica por cliente.")
