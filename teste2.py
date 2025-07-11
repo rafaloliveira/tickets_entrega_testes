@@ -347,20 +347,19 @@ def inserir_ocorrencia_supabase(dados):
 
 
 # Local: Função carregar_clientes_supabase()
+# Exemplo de como carregar as colunas na função carregar_clientes_supabase
 def carregar_clientes_supabase():
     try:
-        # Inclua 'enviar_segundo_email' no SELECT
-        response = supabase.table("clientes").select("cliente, focal, enviar_para_email, email_copia, tempo_primeiro_email_minutos, tempo_segundo_email_minutos, enviar_segundo_email").execute()
+        response = supabase.table("clientes").select("id, cliente, focal, receber_emails, enviar_para_email, email_copia, tempo_primeiro_email_minutos, tempo_segundo_email_minutos, enviar_primeiro_email, enviar_segundo_email").execute()
         if response.data:
             df_clientes = pd.DataFrame(response.data)
             df_clientes = df_clientes.dropna(subset=["cliente"])
             return df_clientes
         else:
-            # Inclua 'enviar_segundo_email' também na definição do DataFrame vazio
-            return pd.DataFrame(columns=["cliente", "focal", "enviar_para_email", "email_copia", "tempo_primeiro_email_minutos", "tempo_segundo_email_minutos", "enviar_segundo_email"])
+            return pd.DataFrame(columns=["id", "cliente", "focal", "receber_emails", "enviar_para_email", "email_copia", "tempo_primeiro_email_minutos", "tempo_segundo_email_minutos", "enviar_primeiro_email", "enviar_segundo_email"])
     except Exception as e:
         st.error(f"Erro ao carregar clientes do banco: {e}")
-        return pd.DataFrame(columns=["cliente", "focal", "enviar_para_email", "email_copia", "tempo_primeiro_email_minutos", "tempo_segundo_email_minutos", "enviar_segundo_email"])
+        return pd.DataFrame(columns=["id", "cliente", "focal", "receber_emails", "enviar_para_email", "email_copia", "tempo_primeiro_email_minutos", "tempo_segundo_email_minutos", "enviar_primeiro_email", "enviar_segundo_email"])
 
 
 
@@ -764,27 +763,53 @@ def limpar_nome_arquivo(nome_original):
 #    FUNÇÕES DE E-MAIL
 # =========================
 
+# Exemplo de como carregar as colunas na função carregar_dados_clientes_email
 def carregar_dados_clientes_email():
     try:
-        # Inclua 'enviar_segundo_email' no SELECT
-        response = supabase.table("clientes").select("cliente, enviar_para_email, email_copia, tempo_primeiro_email_minutos, tempo_segundo_email_minutos, enviar_segundo_email").execute()
+        response = supabase.table("clientes").select("cliente, receber_emails, enviar_para_email, email_copia, tempo_primeiro_email_minutos, tempo_segundo_email_minutos, enviar_primeiro_email, enviar_segundo_email").execute()
         if response.data:
             return {
                 item["cliente"]: {
+                    "receber_emails": item.get("receber_emails", False),
                     "principal": item.get("enviar_para_email", ""),
                     "copia": item.get("email_copia", ""),
+                    "enviar_primeiro_email": item.get("enviar_primeiro_email", False),
                     "tempo_primeiro_email_minutos": item.get("tempo_primeiro_email_minutos", 30),
-                    "tempo_segundo_email_minutos": item.get("tempo_segundo_email_minutos", 90),
-                    "enviar_segundo_email": item.get("enviar_segundo_email", True) # NOVO CAMPO - padrão TRUE
+                    "enviar_segundo_email": item.get("enviar_segundo_email", False),
+                    "tempo_segundo_email_minutos": item.get("tempo_segundo_email_minutos", 90)
                 }
-                for item in response.data if item.get("enviar_para_email")
+                for item in response.data if item.get("cliente")
             }
         else:
             return {}
     except Exception as e:
         st.error(f"Erro ao carregar e-mails dos clientes: {e}")
         return {}
+import uuid # Certifique-se de que esta linha está no topo do seu script
 
+def add_or_update_client_supabase(client_data, client_id=None):
+    """
+    Insere um novo cliente ou atualiza um existente no Supabase.
+    client_data: Dicionário contendo os detalhes do cliente.
+    client_id: UUID do cliente a ser atualizado. Se None, um novo cliente é inserido.
+    """
+    try:
+        if client_id: # Atualiza cliente existente
+            response = supabase.table("clientes").update(client_data).eq("id", client_id).execute()
+            if response.data:
+                return True, "Cliente atualizado com sucesso!"
+            else:
+                return False, f"Erro ao atualizar cliente: {response.data}"
+        else: # Insere novo cliente
+            client_data["id"] = str(uuid.uuid4()) # Gera um novo UUID para o novo cliente
+            response = supabase.table("clientes").insert(client_data).execute()
+            if response.data:
+                return True, "Cliente cadastrado com sucesso!"
+            else:
+                return False, f"Erro ao cadastrar cliente: {response.data}"
+    except Exception as e:
+        return False, f"Erro ao salvar cliente no banco de dados: {e}"
+    
 
 def obter_ocorrencias_abertas_30min():
     """Obtém ocorrências abertas há mais de 30 minutos que ainda não receberam e-mail."""
@@ -2141,9 +2166,6 @@ if st.session_state.aba_ativa == "aba8":
 # =========================
 #     ABA 7 - CADASTROS
 # =========================
-# =========================
-#     ABA 7 - CADASTROS
-# =========================
 if st.session_state.aba_ativa == "aba7":
     st.header("Cadastros")
 
@@ -2151,7 +2173,7 @@ if st.session_state.aba_ativa == "aba7":
         ["Motoristas", "Cidades", "Clientes", "Configurações de E-mail"]
     )
 
-    # Aba de Cadastro de Motoristas (SEM ALTERAÇÕES AQUI)
+    # Aba de Cadastro de Motoristas (mantém-se a mesma)
     with cadastro_tab1:
         st.subheader("Cadastro de Motoristas")
 
@@ -2165,21 +2187,22 @@ if st.session_state.aba_ativa == "aba7":
             elif not validar_texto_maiusculo(motorista_nome):
                 st.error("❌ O nome do motorista deve estar em LETRAS MAIÚSCULAS.")
             else:
-                sucesso, mensagem = inserir_motorista(motorista_nome)
+                sucesso, mensagem = inserir_motorista(motorista_nome) # Assumindo que inserir_motorista é sua função de inserção
                 if sucesso:
                     st.success(mensagem)
+                    # st.rerun() # Opcional: recarregar para ver a lista atualizada imediatamente
                 else:
                     st.error(mensagem)
 
         st.subheader("Motoristas Cadastrados")
-        motoristas_atuais = carregar_motoristas_supabase()
+        motoristas_atuais = carregar_motoristas_supabase() # Assumindo esta função já está definida
         if motoristas_atuais:
             for motorista in motoristas_atuais:
                 st.text(motorista)
         else:
             st.info("Nenhum motorista cadastrado.")
 
-    # Aba de Cadastro de Cidades (SEM ALTERAÇÕES AQUI)
+    # Aba de Cadastro de Cidades (mantém-se a mesma)
     with cadastro_tab2:
         st.subheader("Cadastro de Cidades")
 
@@ -2191,84 +2214,183 @@ if st.session_state.aba_ativa == "aba7":
             if not cidade_nome:
                 st.error("❌ Por favor, informe o nome da cidade.")
             else:
-                sucesso, mensagem = inserir_cidade(cidade_nome)
+                sucesso, mensagem = inserir_cidade(cidade_nome) # Assumindo que inserir_cidade é sua função de inserção
                 if sucesso:
                     st.success(mensagem)
+                    # st.rerun() # Opcional: recarregar
                 else:
                     st.error(mensagem)
 
         st.subheader("Cidades Cadastradas")
-        cidades_atuais = carregar_cidades_supabase()
+        cidades_atuais = carregar_cidades_supabase() # Assumindo esta função já está definida
         if cidades_atuais:
             for cidade in cidades_atuais:
                 st.text(cidade)
         else:
             st.info("Nenhuma cidade cadastrada.")
 
-    # Aba de Cadastro de Clientes (COM NOVAS ALTERAÇÕES)
+    # Aba de Gerenciamento de Clientes (Adicionar e Editar)
     with cadastro_tab3:
-        st.subheader("Cadastro de Clientes")
+        st.subheader("Gerenciamento de Clientes")
 
-        focal_options = carregar_focal_supabase()
+        # Seleção do modo: Adicionar Novo ou Editar Existente
+        mode = st.radio(
+            "Selecione a Ação",
+            ["Adicionar Novo Cliente", "Editar Cliente Existente"],
+            key="client_management_mode"
+        )
 
-        with st.form("form_cadastro_cliente", clear_on_submit=True):
-            cliente_nome = st.text_input("Nome do Cliente (LETRAS MAIÚSCULAS)", key="cliente_nome")
-            focal_selecionado = st.selectbox("Focal Responsável", options=focal_options, index=None, key="focal_cliente")
+        selected_client_data = None
+        client_to_edit_id = None
 
-            receber_emails = st.checkbox("Cliente deve receber e-mails de notificação", key="receber_emails")
+        # Lógica para selecionar cliente em modo de edição
+        if mode == "Editar Cliente Existente":
+            df_clientes_atuais = carregar_clientes_supabase()
+            client_names = ["-- Selecione um Cliente --"] + sorted(df_clientes_atuais["cliente"].tolist())
+            
+            # Se já há um cliente selecionado na sessão (ex: após uma atualização bem-sucedida)
+            if "selected_client_edit_name" not in st.session_state:
+                 st.session_state["selected_client_edit_name"] = "-- Selecione um Cliente --"
 
-            email_principal = st.text_input("E-mail Principal", key="email_principal")
-            email_copia = st.text_input("E-mails em Cópia (separados por ;)", key="email_copia")
+            selected_client_name = st.selectbox(
+                "Escolha o Cliente para Editar",
+                client_names,
+                index=client_names.index(st.session_state["selected_client_edit_name"]) if st.session_state["selected_client_edit_name"] in client_names else 0,
+                key="select_client_to_edit"
+            )
+            st.session_state["selected_client_edit_name"] = selected_client_name # Armazena na sessão
 
-            # Inicialização dos valores padrão para os tempos e a flag do segundo e-mail
-            tempo_primeiro_email = 30
-            tempo_segundo_email = 90
-            enviar_segundo_email = True # Por padrão, o segundo e-mail é enviado
+            if selected_client_name != "-- Selecione um Cliente --":
+                selected_client_data = df_clientes_atuais[df_clientes_atuais["cliente"] == selected_client_name].iloc[0]
+                client_to_edit_id = selected_client_data["id"]
 
-            if receber_emails:
-                st.markdown("---")
-                st.subheader("Configuração de E-mails para este Cliente")
+        # Formulário Unificado para Adicionar e Editar
+        # O clear_on_submit só deve ocorrer quando um novo cliente é adicionado, não na edição.
+        with st.form("form_gerenciar_cliente", clear_on_submit=(mode == "Adicionar Novo Cliente" and not submit_action_pressed)):
+            # Definição dos valores iniciais para o formulário
+            initial_cliente_nome = selected_client_data["cliente"] if selected_client_data else ""
+            initial_focal = selected_client_data["focal"] if selected_client_data else None
+            initial_receber_emails = selected_client_data["receber_emails"] if selected_client_data else False
+            initial_email_principal = selected_client_data["enviar_para_email"] if selected_client_data else ""
+            initial_email_copia = selected_client_data["email_copia"] if selected_client_data else ""
+            
+            # Valores padrão para os checkboxes de e-mail e seus tempos
+            initial_enviar_primeiro_email = selected_client_data["enviar_primeiro_email"] if selected_client_data else False
+            initial_tempo_primeiro_email = selected_client_data["tempo_primeiro_email_minutos"] if selected_client_data else 30
+            initial_enviar_segundo_email = selected_client_data["enviar_segundo_email"] if selected_client_data else False
+            initial_tempo_segundo_email = selected_client_data["tempo_segundo_email_minutos"] if selected_client_data else 90
 
-                tempo_primeiro_email = st.number_input(
+            # --- Campos de Informações Gerais do Cliente ---
+            st.markdown("#### Informações Gerais")
+            cliente_nome = st.text_input(
+                "Nome do Cliente (LETRAS MAIÚSCULAS)",
+                value=initial_cliente_nome,
+                disabled=(mode == "Editar Cliente Existente" and selected_client_data is not None), # Desabilitar se estiver editando e um cliente for selecionado
+                key="cliente_nome_form"
+            )
+            
+            focal_options = carregar_focal_supabase() # Assumindo esta função já está definida
+            focal_index = focal_options.index(initial_focal) if initial_focal in focal_options else 0
+            focal_selecionado = st.selectbox(
+                "Focal Responsável",
+                options=focal_options,
+                index=focal_index,
+                key="focal_cliente_form"
+            )
+
+            # --- Seção de Configurações de E-mails ---
+            st.markdown("---")
+            st.markdown("#### Configurações de E-mails")
+
+            receber_emails = st.checkbox(
+                "Cliente deve receber **QUALQUER** e-mail de notificação?",
+                value=initial_receber_emails,
+                help="Desmarque esta opção para desativar todas as notificações por e-mail para este cliente.",
+                key="receber_emails_form"
+            )
+
+            email_principal = st.text_input(
+                "E-mail Principal",
+                value=initial_email_principal,
+                disabled=not receber_emails, # Desabilitar se receber_emails estiver desmarcado
+                key="email_principal_form"
+            )
+            email_copia = st.text_input(
+                "E-mails em Cópia (separados por ;)",
+                value=initial_email_copia,
+                help="Separe múltiplos e-mails com ponto e vírgula (;)",
+                disabled=not receber_emails, # Desabilitar se receber_emails estiver desmarcado
+                key="email_copia_form"
+            )
+
+            st.markdown("---") # Separador para os tempos de e-mail
+
+            # --- Seletor e Checkbox para o Primeiro E-mail ---
+            enviar_primeiro_email = st.checkbox(
+                "Enviar o **Primeiro E-mail** para este cliente?",
+                value=initial_enviar_primeiro_email if receber_emails else False,
+                disabled=not receber_emails, # Desabilitar se receber_emails estiver desmarcado
+                help="Marque para ativar o envio do primeiro e-mail de notificação de ocorrência.",
+                key="enviar_primeiro_email_checkbox"
+            )
+
+            current_tempo_primeiro_email = initial_tempo_primeiro_email
+            if enviar_primeiro_email:
+                current_tempo_primeiro_email = st.number_input(
                     "Tempo para o Primeiro E-mail (minutos)",
                     min_value=1,
-                    max_value=180,
-                    value=30,
+                    max_value=180, # Limite superior flexível
+                    value=initial_tempo_primeiro_email,
                     step=1,
                     help="Defina após quantos minutos da abertura da ocorrência o PRIMEIRO e-mail será enviado.",
                     key="tempo_primeiro_email_input"
                 )
+            else:
+                current_tempo_primeiro_email = 0 # Define como 0 se não for para enviar
 
-                # Novo checkbox para controlar o envio do segundo e-mail
-                enviar_segundo_email = st.checkbox(
-                    "Enviar segundo e-mail para este cliente?",
-                    value=True,
-                    help="Desmarque se este cliente deve receber apenas um e-mail de notificação.",
-                    key="enviar_segundo_email_checkbox"
+            # --- Seletor e Checkbox para o Segundo E-mail ---
+            enviar_segundo_email = st.checkbox(
+                "Enviar o **Segundo E-mail** para este cliente?",
+                value=initial_enviar_segundo_email if enviar_primeiro_email else False,
+                disabled=not enviar_primeiro_email, # Só habilita se o primeiro e-mail estiver ativo
+                help="Marque para ativar o envio do segundo e-mail de notificação. Requer que o primeiro e-mail também esteja ativado.",
+                key="enviar_segundo_email_checkbox"
+            )
+
+            current_tempo_segundo_email = initial_tempo_segundo_email
+            if enviar_segundo_email and enviar_primeiro_email: # Só mostra e habilita se ambos estiverem marcados
+                # Garante que o tempo do segundo e-mail seja sempre maior que o do primeiro
+                min_val_second_email = current_tempo_primeiro_email + 1 if current_tempo_primeiro_email else 1
+                
+                # Ajusta o valor inicial se ele for menor ou igual ao primeiro e-mail
+                adjusted_initial_tempo_segundo_email = initial_tempo_segundo_email
+                if adjusted_initial_tempo_segundo_email <= current_tempo_primeiro_email:
+                    adjusted_initial_tempo_segundo_email = current_tempo_primeiro_email + 1
+
+                current_tempo_segundo_email = st.number_input(
+                    "Tempo para o Segundo E-mail (minutos)",
+                    min_value=min_val_second_email,
+                    max_value=360, # Limite superior flexível
+                    value=adjusted_initial_tempo_segundo_email,
+                    step=1,
+                    help="Defina após quantos minutos da abertura da ocorrência o SEGUNDO e-mail será enviado. Deve ser maior que o tempo do primeiro e-mail.",
+                    key="tempo_segundo_email_input"
                 )
+            else:
+                current_tempo_segundo_email = 0 # Define como 0 se não for para enviar
 
-                if enviar_segundo_email: # O campo para o segundo e-mail só aparece se a checkbox estiver marcada
-                    tempo_segundo_email = st.number_input(
-                        "Tempo para o Segundo E-mail (minutos)",
-                        min_value=tempo_primeiro_email + 1, # Garante que o segundo seja sempre depois do primeiro
-                        max_value=360,
-                        value=max(90, tempo_primeiro_email + 1), # Ajusta o valor padrão para ser maior que o primeiro
-                        step=1,
-                        help="Defina após quantos minutos da abertura da ocorrência o SEGUNDO e-mail será enviado.",
-                        key="tempo_segundo_email_input"
-                    )
-                else:
-                    # Se o segundo e-mail não for enviado, podemos setar seu tempo para 0 ou None para indicar isso na lógica de envio
-                    tempo_segundo_email = 0 # Ou outro valor sentinela, dependendo da sua lógica na função de envio
+            # --- Botão de Submissão ---
+            submit_button_text = "Adicionar Cliente" if mode == "Adicionar Novo Cliente" else "Atualizar Cliente"
+            submit_action_pressed = st.form_submit_button(submit_button_text)
 
-            submit_cliente = st.form_submit_button("Cadastrar Cliente")
-
-        if submit_cliente:
+        # --- Lógica de Submissão do Formulário ---
+        if submit_action_pressed:
             erros = []
-
+            
+            # Validações dos campos
             if not cliente_nome:
                 erros.append("Por favor, informe o nome do cliente.")
-            elif not validar_texto_maiusculo(cliente_nome):
+            elif not validar_texto_maiusculo(cliente_nome): # Assumindo função validar_texto_maiusculo
                 erros.append("O nome do cliente deve estar em LETRAS MAIÚSCULAS.")
             if not focal_selecionado:
                 erros.append("Por favor, selecione um focal responsável.")
@@ -2276,45 +2398,84 @@ if st.session_state.aba_ativa == "aba7":
             if receber_emails:
                 if not email_principal:
                     erros.append("Por favor, informe o e-mail principal do cliente.")
-                elif not validar_email(email_principal):
+                elif not validar_email(email_principal): # Assumindo função validar_email
                     erros.append("O e-mail principal informado não é válido.")
-                if email_copia and not validar_emails_multiplos(email_copia):
+                if email_copia and not validar_emails_multiplos(email_copia): # Assumindo função validar_emails_multiplos
                     erros.append("Um ou mais e-mails em cópia não são válidos.")
 
+                # Validação de tempos se e-mails forem para ser enviados
+                if enviar_primeiro_email and current_tempo_primeiro_email <= 0:
+                    erros.append("O tempo para o primeiro e-mail deve ser maior que 0.")
+
+                if enviar_segundo_email and current_tempo_segundo_email <= current_tempo_primeiro_email:
+                    erros.append("O tempo do segundo e-mail deve ser maior que o tempo do primeiro e-mail.")
+            
             if erros:
                 for erro in erros:
                     st.error(f"❌ {erro}")
             else:
-                sucesso, mensagem = inserir_cliente(
-                    cliente_nome,
-                    focal_selecionado,
-                    receber_emails,
-                    email_principal if receber_emails else "",
-                    email_copia if receber_emails else "",
-                    tempo_primeiro_email if receber_emails else 30,
-                    tempo_segundo_email if receber_emails and enviar_segundo_email else 0, # Passa 0 se não for para enviar o segundo
-                    enviar_segundo_email if receber_emails else False # Passa a flag real
-                )
+                # Prepara os dados para salvar no Supabase
+                client_data_to_save = {
+                    "cliente": cliente_nome,
+                    "focal": focal_selecionado,
+                    "receber_emails": receber_emails,
+                    "enviar_para_email": email_principal if receber_emails else "",
+                    "email_copia": email_copia if receber_emails else "",
+                    "enviar_primeiro_email": enviar_primeiro_email if receber_emails else False,
+                    "tempo_primeiro_email_minutos": current_tempo_primeiro_email if enviar_primeiro_email and receber_emails else 0,
+                    "enviar_segundo_email": enviar_segundo_email if enviar_primeiro_email and enviar_segundo_email and receber_emails else False,
+                    "tempo_segundo_email_minutos": current_tempo_segundo_email if enviar_primeiro_email and enviar_segundo_email and receber_emails else 0,
+                }
+
+                if mode == "Adicionar Novo Cliente":
+                    sucesso, mensagem = add_or_update_client_supabase(client_data_to_save, client_id=None)
+                else: # Editar Cliente Existente
+                    if client_to_edit_id:
+                        sucesso, mensagem = add_or_update_client_supabase(client_data_to_save, client_id=client_to_edit_id)
+                    else:
+                        sucesso = False
+                        mensagem = "❌ Nenhum cliente selecionado para edição."
 
                 if sucesso:
                     st.success(mensagem)
-                    # Recarregar lista de clientes após sucesso, se necessário
+                    # Limpa o estado da sessão para garantir que o formulário e a lista de clientes sejam recarregados
+                    # Mantém o modo de edição selecionado se foi uma edição
+                    if mode == "Editar Cliente Existente":
+                        st.session_state["client_management_mode"] = "Editar Cliente Existente"
+                        # Resetar o seletor para garantir que o cliente editado continue selecionado, ou resetar
+                        st.session_state["selected_client_edit_name"] = selected_client_name
+                    else:
+                        st.session_state["client_management_mode"] = "Adicionar Novo Cliente" # Volta para adicionar novo após sucesso
+                        del st.session_state["selected_client_edit_name"] # Limpa o nome do cliente selecionado
+
+                    st.rerun() # Recarrega a página para refletir as mudanças
                 else:
                     st.error(mensagem)
 
+        # --- Exibição da Lista de Clientes Cadastrados ---
+        st.markdown("---")
         st.subheader("Clientes Cadastrados")
-        df_clientes_atuais = carregar_clientes_supabase()
-        if not df_clientes_atuais.empty:
-            st.dataframe(df_clientes_atuais)
+        df_clientes_atuais_display = carregar_clientes_supabase()
+        if not df_clientes_atuais_display.empty:
+            # Exibe apenas as colunas mais relevantes para uma visão geral
+            st.dataframe(df_clientes_atuais_display[[
+                'cliente',
+                'focal',
+                'receber_emails',
+                'enviar_primeiro_email',
+                'tempo_primeiro_email_minutos',
+                'enviar_segundo_email',
+                'tempo_segundo_email_minutos'
+            ]])
         else:
             st.info("Nenhum cliente cadastrado.")
 
-    # Aba de Configurações de E-mail (geral, não por cliente) (SEM ALTERAÇÕES AQUI)
+    # Aba de Configurações de E-mail (geral, não por cliente) (mantém-se a mesma)
     with cadastro_tab4:
         st.subheader("Configurações de Tempo de Envio de E-mail (Configuração Geral)")
         st.info("Esta configuração se aplica apenas se os e-mails por cliente estiverem desativados ou se o cliente não tiver tempos personalizados definidos.")
 
-        tempo_atual = carregar_tempo_envio_email()
+        tempo_atual = carregar_tempo_envio_email() # Assumindo esta função já está definida
 
         tempo_envio = st.slider(
             "Tempo de envio dos e-mails (minutos)",
@@ -2326,7 +2487,7 @@ if st.session_state.aba_ativa == "aba7":
         )
 
         if st.button("Salvar Configuração Geral"):
-            sucesso, mensagem = atualizar_tempo_envio_email(tempo_envio)
+            sucesso, mensagem = atualizar_tempo_envio_email(tempo_envio) # Assumindo esta função já está definida
             if sucesso:
                 st.success(mensagem)
             else:
