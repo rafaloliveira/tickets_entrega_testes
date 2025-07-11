@@ -346,20 +346,20 @@ def inserir_ocorrencia_supabase(dados):
         return None
 
 
-# --- CARREGAMENTO DE DADOS Tabelas com nomes de motorista e clientes ---
+# Local: Função carregar_clientes_supabase()
 def carregar_clientes_supabase():
     try:
-        response = supabase.table("clientes").select("cliente, focal, enviar_para_email, email_copia").execute()
+        response = supabase.table("clientes").select("cliente, focal, enviar_para_email, email_copia, tempo_primeiro_email_minutos, tempo_segundo_email_minutos").execute()
         if response.data:
             df_clientes = pd.DataFrame(response.data)
             df_clientes = df_clientes.dropna(subset=["cliente"])
             return df_clientes
         else:
-            return pd.DataFrame(columns=["cliente", "focal", "enviar_para_email", "email_copia"])
+            # Inclua as novas colunas também na definição do DataFrame vazio
+            return pd.DataFrame(columns=["cliente", "focal", "enviar_para_email", "email_copia", "tempo_primeiro_email_minutos", "tempo_segundo_email_minutos"])
     except Exception as e:
         st.error(f"Erro ao carregar clientes do banco: {e}")
-        return pd.DataFrame(columns=["cliente", "focal", "enviar_para_email", "email_copia"])
-
+        return pd.DataFrame(columns=["cliente", "focal", "enviar_para_email", "email_copia", "tempo_primeiro_email_minutos", "tempo_segundo_email_minutos"])
 # Carregar dados
 df_clientes = carregar_clientes_supabase()
 
@@ -485,15 +485,19 @@ def inserir_cidade(cidade):
     except Exception as e:
         return False, f"Erro ao cadastrar cidade: {e}"
 
-def inserir_cliente(cliente, focal, enviar_email, email_principal, email_copia):
-    """Insere um novo cliente no Supabase."""
+# *10-07-02---tentativa-de-edio-temp.txt*
+# Local: Função inserir_cliente()
+def inserir_cliente(cliente, focal, enviar_email, email_principal, email_copia, tempo_primeiro_email, tempo_segundo_email):
+    """Insere um novo cliente no Supabase com configurações de tempo de e-mail."""
     try:
         response = supabase.table("clientes").insert({
             "cliente": cliente,
             "focal": focal,
             "enviar_para_email": email_principal,
             "email_copia": email_copia,
-            "receber_emails": enviar_email
+            "receber_emails": enviar_email,
+            "tempo_primeiro_email_minutos": tempo_primeiro_email, # Novo campo
+            "tempo_segundo_email_minutos": tempo_segundo_email    # Novo campo
         }).execute()
         return True, "Cliente cadastrado com sucesso!"
     except Exception as e:
@@ -757,12 +761,15 @@ def limpar_nome_arquivo(nome_original):
 
 def carregar_dados_clientes_email():
     try:
-        response = supabase.table("clientes").select("cliente, enviar_para_email, email_copia").execute()
+        response = supabase.table("clientes").select("cliente, enviar_para_email, email_copia, tempo_primeiro_email_minutos, tempo_segundo_email_minutos").execute()
         if response.data:
             return {
                 item["cliente"]: {
                     "principal": item.get("enviar_para_email", ""),
-                    "copia": item.get("email_copia", "")
+                    "copia": item.get("email_copia", ""),
+                    # Adicione os novos campos aqui
+                    "tempo_primeiro_email_minutos": item.get("tempo_primeiro_email_minutos", 30), # Valor padrão 30
+                    "tempo_segundo_email_minutos": item.get("tempo_segundo_email_minutos", 90)  # Valor padrão 90
                 }
                 for item in response.data if item.get("enviar_para_email")
             }
@@ -771,7 +778,6 @@ def carregar_dados_clientes_email():
     except Exception as e:
         st.error(f"Erro ao carregar e-mails dos clientes: {e}")
         return {}
-
 
 def obter_ocorrencias_abertas_30min():
     """Obtém ocorrências abertas há mais de 30 minutos que ainda não receberam e-mail."""
@@ -857,8 +863,8 @@ def marcar_email_como_enviado(ocorrencia_id, tipo="abertura"):
 def verificar_e_enviar_email_90min(ocorrencia):
     """Envia e-mail após 1h30 de espera no local, apenas uma vez"""
     try:
-        if ocorrencia.get("email_90min_enviado", False):
-            return False, "E-mail 1h30 já enviado."
+        if ocorrencia.get("email_90min_enviado", False): # Note que esta flag 'email_90min_enviado' ainda é rígida
+            return False, "E-mail de segundo disparo já enviado."
 
         agora = obter_data_hora_atual_brasil()
 
@@ -868,10 +874,25 @@ def verificar_e_enviar_email_90min(ocorrencia):
                 ocorrencia["hora_abertura_manual"]
             )
 
+            # Obter e-mails e TEMPOS do cliente
+            clientes_emails_info = carregar_dados_clientes_email()
+            cliente = ocorrencia.get('cliente')
+
+            if cliente not in clientes_emails_info:
+                return False, "Cliente sem e-mail ou configuração de tempo."
+
+            email_info = clientes_emails_info[cliente]
+            email_principal = email_info['principal']
+            email_copia = email_info['copia']
+            
+            # --- USANDO O TEMPO PERSONALIZADO DO CLIENTE ---
+            tempo_disparo_minutos = email_info['tempo_segundo_email_minutos']
+            st.write(f"DEBUG: Cliente '{cliente}' - Tempo segundo email: {tempo_disparo_minutos} min") # Para depuração
+
             diferenca = calcular_diferenca_tempo(data_hora_abertura, agora)
 
-            if diferenca <= timedelta(minutes=90):
-                return False, "Ainda não passou 1h30."
+            if diferenca <= timedelta(minutes=tempo_disparo_minutos):
+                return False, f"Ainda não passou {tempo_disparo_minutos} minutos."
 
             cliente = ocorrencia.get('cliente')
             emails = carregar_dados_clientes_email()
@@ -1027,21 +1048,24 @@ def verificar_e_enviar_email_abertura(ocorrencia):
             if not data_hora_abertura:
                 return False, "Erro ao criar datetime a partir de data/hora manual"
 
-            # Verificar se passou 30 minutos
-            diferenca = calcular_diferenca_tempo(data_hora_abertura, agora)
-            if diferenca <= timedelta(minutes=30):
-                return False, f"Ocorrência aberta há menos de 30 minutos (diferença: {diferenca})"
-
-            # Obter e-mails do cliente
-            clientes_emails = carregar_dados_clientes_email()
+            # Obter e-mails e TEMPOS do cliente
+            clientes_emails_info = carregar_dados_clientes_email() # Carrega todos os dados, incluindo os tempos
             cliente = ocorrencia.get('cliente')
 
-            if cliente not in clientes_emails:
-                return False, "Cliente não possui e-mail cadastrado"
+            if cliente not in clientes_emails_info:
+                return False, "Cliente não possui e-mail ou configuração de tempo cadastrada"
 
-            email_info = clientes_emails[cliente]
+            email_info = clientes_emails_info[cliente]
             email_principal = email_info['principal']
             email_copia = email_info['copia']
+
+            tempo_disparo_minutos = email_info['tempo_primeiro_email_minutos']
+            st.write(f"DEBUG: Cliente '{cliente}' - Tempo primeiro email: {tempo_disparo_minutos} min") # Para depuração
+            
+            # Verificar se passou o tempo personalizado
+            diferenca = calcular_diferenca_tempo(data_hora_abertura, agora)
+            if diferenca <= timedelta(minutes=tempo_disparo_minutos):
+                return False, f"Ocorrência aberta há menos de {tempo_disparo_minutos} minutos (diferença: {diferenca})"
 
             # Obter imagem
             imagem_url = ocorrencia.get("imagem_url", "")
@@ -2107,17 +2131,16 @@ if st.session_state.aba_ativa == "aba7":
         ["Motoristas", "Cidades", "Clientes", "Configurações de E-mail"]
     )
 
-    
     # Aba de Cadastro de Motoristas
     with cadastro_tab1:
         st.subheader("Cadastro de Motoristas")
-        
+
         # Formulário para cadastro de motoristas
         with st.form("form_cadastro_motorista", clear_on_submit=True):
             motorista_nome = st.text_input("Nome do Motorista (LETRAS MAIÚSCULAS)", key="motorista_nome")
-            
+
             submit_motorista = st.form_submit_button("Cadastrar Motorista")
-        
+
         # Processamento do formulário de motoristas
         if submit_motorista:
             if not motorista_nome:
@@ -2129,10 +2152,10 @@ if st.session_state.aba_ativa == "aba7":
                 if sucesso:
                     st.success(mensagem)
                     # Recarregar a lista de motoristas
-                    motoristas = carregar_motoristas_supabase()
+                    #motoristas = carregar_motoristas_supabase() # Esta linha já está na seção de carregamento global
                 else:
                     st.error(mensagem)
-        
+
         # Exibir lista de motoristas cadastrados
         st.subheader("Motoristas Cadastrados")
         motoristas_atuais = carregar_motoristas_supabase()
@@ -2141,17 +2164,17 @@ if st.session_state.aba_ativa == "aba7":
                 st.text(motorista)
         else:
             st.info("Nenhum motorista cadastrado.")
-    
+
     # Aba de Cadastro de Cidades
     with cadastro_tab2:
         st.subheader("Cadastro de Cidades")
-        
+
         # Formulário para cadastro de cidades
         with st.form("form_cadastro_cidade", clear_on_submit=True):
             cidade_nome = st.text_input("Nome da Cidade", key="cidade_nome")
-            
+
             submit_cidade = st.form_submit_button("Cadastrar Cidade")
-        
+
         # Processamento do formulário de cidades
         if submit_cidade:
             if not cidade_nome:
@@ -2161,10 +2184,10 @@ if st.session_state.aba_ativa == "aba7":
                 if sucesso:
                     st.success(mensagem)
                     # Recarregar a lista de cidades
-                    cidades = carregar_cidades_supabase()
+                    #cidades = carregar_cidades_supabase() # Esta linha já está na seção de carregamento global
                 else:
                     st.error(mensagem)
-        
+
         # Exibir lista de cidades cadastradas
         st.subheader("Cidades Cadastradas")
         cidades_atuais = carregar_cidades_supabase()
@@ -2173,71 +2196,97 @@ if st.session_state.aba_ativa == "aba7":
                 st.text(cidade)
         else:
             st.info("Nenhuma cidade cadastrada.")
-    
+
     # Aba de Cadastro de Clientes
     with cadastro_tab3:
         st.subheader("Cadastro de Clientes")
-        
+
         # Carregar lista de focais
-        focal = carregar_focal_supabase()
-        
+        focal_options = carregar_focal_supabase()
+
         # Formulário para cadastro de clientes
         with st.form("form_cadastro_cliente", clear_on_submit=True):
             cliente_nome = st.text_input("Nome do Cliente (LETRAS MAIÚSCULAS)", key="cliente_nome")
-            
+
             # Seleção de focal
-            focal_selecionado = st.selectbox("Focal Responsável", options=focal, index=None, key="focal_cliente")
-            
+            focal_selecionado = st.selectbox("Focal Responsável", options=focal_options, index=None, key="focal_cliente")
+
             # Checkbox para receber e-mails
             receber_emails = st.checkbox("Cliente deve receber e-mails de abertura/finalização", key="receber_emails")
-            
+
             # Campos de e-mail
             email_principal = st.text_input("E-mail Principal", key="email_principal")
             email_copia = st.text_input("E-mails em Cópia (separados por ;)", key="email_copia")
-            
+
+            # Novos campos para os tempos de e-mail, visíveis se receber_emails estiver marcado
+            # Defina valores padrão aqui para garantir que sempre tenham um valor, mesmo que não exibidos.
+            tempo_primeiro_email = 30
+            tempo_segundo_email = 90
+
+            if receber_emails:
+                st.subheader("Configuração de Tempos de E-mail para este Cliente")
+                tempo_primeiro_email = st.number_input(
+                    "Tempo para o Primeiro E-mail (minutos)",
+                    min_value=1,
+                    max_value=180, # Aumentei o máximo para maior flexibilidade
+                    value=30,
+                    step=1,
+                    key="tempo_primeiro_email_input" # Use um key diferente do nome da variável
+                )
+                tempo_segundo_email = st.number_input(
+                    "Tempo para o Segundo E-mail (minutos)",
+                    min_value=1,
+                    max_value=360, # Aumentei o máximo para maior flexibilidade
+                    value=90,
+                    step=1,
+                    key="tempo_segundo_email_input" # Use um key diferente do nome da variável
+                )
+
             submit_cliente = st.form_submit_button("Cadastrar Cliente")
-        
+
         # Processamento do formulário de clientes
         if submit_cliente:
             erros = []
-            
+
             if not cliente_nome:
                 erros.append("Por favor, informe o nome do cliente.")
             elif not validar_texto_maiusculo(cliente_nome):
                 erros.append("O nome do cliente deve estar em LETRAS MAIÚSCULAS.")
-            
+
             if not focal_selecionado:
                 erros.append("Por favor, selecione um focal responsável.")
-            
+
             if receber_emails:
                 if not email_principal:
                     erros.append("Por favor, informe o e-mail principal do cliente.")
                 elif not validar_email(email_principal):
                     erros.append("O e-mail principal informado não é válido.")
-                
+
                 if email_copia and not validar_emails_multiplos(email_copia):
                     erros.append("Um ou mais e-mails em cópia não são válidos.")
-            
+
             if erros:
                 for erro in erros:
                     st.error(f"❌ {erro}")
             else:
                 sucesso, mensagem = inserir_cliente(
-                    cliente_nome, 
-                    focal_selecionado, 
-                    receber_emails, 
-                    email_principal if receber_emails else "", 
-                    email_copia if receber_emails else ""
+                    cliente_nome,
+                    focal_selecionado,
+                    receber_emails,
+                    email_principal if receber_emails else "",
+                    email_copia if receber_emails else "",
+                    tempo_primeiro_email if receber_emails else 30, # Passa o valor ou o padrão
+                    tempo_segundo_email if receber_emails else 90  # Passa o valor ou o padrão
                 )
-                
+
                 if sucesso:
                     st.success(mensagem)
                     # Recarregar a lista de clientes
-                    df_clientes = carregar_clientes_supabase()
-                    clientes = df_clientes["cliente"].tolist()
+                    #df_clientes = carregar_clientes_supabase() # Esta linha já está na seção de carregamento global
+                    #clientes = df_clientes["cliente"].tolist() # Atualizar lista de clientes para selectbox se necessário
                 else:
                     st.error(mensagem)
-        
+
         # Exibir lista de clientes cadastrados
         st.subheader("Clientes Cadastrados")
         df_clientes_atuais = carregar_clientes_supabase()
@@ -2245,14 +2294,15 @@ if st.session_state.aba_ativa == "aba7":
             st.dataframe(df_clientes_atuais)
         else:
             st.info("Nenhum cliente cadastrado.")
-    
-    # Aba de Configurações de E-mail
+
+    # Aba de Configurações de E-mail (geral, não por cliente)
     with cadastro_tab4:
-        st.subheader("Configurações de Tempo de Envio de E-mail")
-        
+        st.subheader("Configurações de Tempo de Envio de E-mail (Configuração Geral)")
+        st.info("Esta configuração se aplica apenas se os tempos personalizados por cliente não estiverem definidos ou forem 0.")
+
         # Carregar configuração atual
         tempo_atual = carregar_tempo_envio_email()
-        
+
         # Slider para configurar o tempo de envio
         tempo_envio = st.slider(
             "Tempo de envio dos e-mails (minutos)",
@@ -2262,13 +2312,13 @@ if st.session_state.aba_ativa == "aba7":
             step=1,
             key="tempo_envio_slider"
         )
-        
+
         # Botão para salvar configuração
-        if st.button("Salvar Configuração"):
+        if st.button("Salvar Configuração Geral"):
             sucesso, mensagem = atualizar_tempo_envio_email(tempo_envio)
             if sucesso:
                 st.success(mensagem)
             else:
                 st.error(mensagem)
-        
-        st.info(f"Configuração atual: E-mails serão enviados após {tempo_atual} minutos.")
+
+        st.info(f"Configuração geral atual: E-mails serão enviados após {tempo_atual} minutos, se não houver tempo personalizado.")
