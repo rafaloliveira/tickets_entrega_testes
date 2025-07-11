@@ -2213,11 +2213,11 @@ if st.session_state.aba_ativa == "aba7":
 
     # --- Definições Globais para os Seletores de Tempo de E-mail ---
     # Lista de opções de minutos: de 15 a 295, com intervalo de 10 minutos
-    ALL_MINUTE_OPTIONS = list(range(15, 296, 10)) # Inclui 15, 25, ..., até 295
+    ALL_MINUTE_OPTIONS = list(range(10, 296, 10)) # Inclui 15, 25, ..., até 295
 
     # Valores padrão para mapeamento se os tempos antigos (30/90) não estiverem nas novas opções
-    DEFAULT_FIRST_EMAIL_OPTION = 25 # Mais próximo de 30 na nova lista
-    DEFAULT_SECOND_EMAIL_OPTION = 95 # Mais próximo de 90 na nova lista
+    DEFAULT_FIRST_EMAIL_OPTION = 30 # Mais próximo de 30 na nova lista
+    DEFAULT_SECOND_EMAIL_OPTION = 90 # Mais próximo de 90 na nova lista
 
     # Função auxiliar para encontrar o índice mais próximo em uma lista ordenada
 
