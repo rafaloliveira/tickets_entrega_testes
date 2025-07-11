@@ -2174,6 +2174,20 @@ if st.session_state.aba_ativa == "aba7":
         ["Motoristas", "Cidades", "Clientes"]
     )
 
+    # --- Definições Globais para os Seletores de Tempo de E-mail ---
+    # Lista de opções de minutos: de 15 a 295, com intervalo de 10 minutos
+    ALL_MINUTE_OPTIONS = list(range(15, 296, 10)) # Inclui 15, 25, ..., até 295
+
+    # Valores padrão para mapeamento se os tempos antigos (30/90) não estiverem nas novas opções
+    DEFAULT_FIRST_EMAIL_OPTION = 25 # Mais próximo de 30 na nova lista
+    DEFAULT_SECOND_EMAIL_OPTION = 95 # Mais próximo de 90 na nova lista
+
+    # Função auxiliar para encontrar o índice mais próximo em uma lista ordenada
+    def find_nearest_index(array, value):
+        if not array: return 0
+        idx = (abs(array - value)).argmin()
+        return idx
+    
     # Aba de Cadastro de Motoristas (mantém-se a mesma)
     with cadastro_tab1:
         st.subheader("Cadastro de Motoristas")
@@ -2280,7 +2294,7 @@ if st.session_state.aba_ativa == "aba7":
         # Formulário Unificado para Adicionar e Editar
         # A flag `submit_action_pressed` é usada para controlar o `clear_on_submit`
         submit_action_pressed = False # Inicializa a flag aqui
-        with st.form("form_gerenciar_cliente", clear_on_submit=(mode == "Adicionar Novo Cliente")):
+        with st.form("form_gerenciar_cliente", clear_on_submit=(mode == "Adicionar Novo Cliente" and not selected_client_data)):
             # Definição dos valores iniciais para o formulário
             # Estes valores serão carregados do cliente selecionado para edição, ou serão padrões para novo cliente
             initial_cliente_nome = selected_client_data["cliente"] if selected_client_data is not None else ""
@@ -2291,9 +2305,9 @@ if st.session_state.aba_ativa == "aba7":
             
             # Valores padrão para os checkboxes de e-mail e seus tempos
             initial_enviar_primeiro_email = selected_client_data["enviar_primeiro_email"] if selected_client_data is not None else False
-            initial_tempo_primeiro_email = selected_client_data["tempo_primeiro_email_minutos"] if selected_client_data is not None else 30
+            initial_tempo_primeiro_email = selected_client_data["tempo_primeiro_email_minutos"] if selected_client_data is not None else DEFAULT_FIRST_EMAIL_OPTION
             initial_enviar_segundo_email = selected_client_data["enviar_segundo_email"] if selected_client_data is not None else False
-            initial_tempo_segundo_email = selected_client_data["tempo_segundo_email_minutos"] if selected_client_data is not None else 90
+            initial_tempo_segundo_email = selected_client_data["tempo_segundo_email_minutos"] if selected_client_data is not None else DEFAULT_SECOND_EMAIL_OPTION
 
             # --- Campos de Informações Gerais do Cliente ---
             st.markdown("#### Informações do Cliente")
@@ -2361,15 +2375,22 @@ if st.session_state.aba_ativa == "aba7":
                 key="enviar_primeiro_email_checkbox"
             )
 
-            current_tempo_primeiro_email = initial_tempo_primeiro_email
+            # Define o valor inicial do seletor para o primeiro e-mail
+            current_tempo_primeiro_email_value = initial_tempo_primeiro_email
+            if initial_tempo_primeiro_email not in ALL_MINUTE_OPTIONS:
+                # Se o valor inicial não está nas opções, mapeia para o mais próximo ou padrão
+                import numpy as np # Importar numpy se ainda não o fez
+                array_options = np.array(ALL_MINUTE_OPTIONS)
+                closest_index = find_nearest_index(array_options, initial_tempo_primeiro_email)
+                current_tempo_primeiro_email_value = ALL_MINUTE_OPTIONS[closest_index]
+            
+            current_tempo_primeiro_email = current_tempo_primeiro_email_value # Inicia com o valor já validado
+
             if enviar_primeiro_email and receber_emails: # Só mostra se habilitado
-                current_tempo_primeiro_email = st.number_input(
+                current_tempo_primeiro_email = st.selectbox(
                     "Tempo para o Primeiro E-mail (minutos)",
-                    min_value=1,
-                    max_value=180, # Limite superior flexível
-                    value=initial_tempo_primeiro_email,
-                    step=1,
-                    help="Defina após quantos minutos da abertura da ocorrência o PRIMEIRO e-mail será enviado.",
+                    options=ALL_MINUTE_OPTIONS,
+                    index=ALL_MINUTE_OPTIONS.index(current_tempo_primeiro_email_value),
                     disabled=(mode == "Editar Cliente Existente" and selected_client_data is None),
                     key="tempo_primeiro_email_input"
                 )
@@ -2385,26 +2406,40 @@ if st.session_state.aba_ativa == "aba7":
                 key="enviar_segundo_email_checkbox"
             )
 
-            current_tempo_segundo_email = initial_tempo_segundo_email
-            if enviar_segundo_email and enviar_primeiro_email and receber_emails: # Só mostra e habilita se ambos estiverem marcados e receber emails
-                # Garante que o tempo do segundo e-mail seja sempre maior que o do primeiro
-                min_val_second_email = current_tempo_primeiro_email + 1 if current_tempo_primeiro_email else 1
+            # Filtra as opções para o segundo e-mail com base no tempo do primeiro
+            options_for_second_email = [m for m in ALL_MINUTE_OPTIONS if m > current_tempo_primeiro_email]
+            
+            # Define o valor inicial do seletor para o segundo e-mail
+            current_tempo_segundo_email_value = initial_tempo_segundo_email
+            if initial_tempo_segundo_email not in options_for_second_email and options_for_second_email:
+                 # Se o valor inicial não está nas opções válidas, ou é menor que o primeiro e-mail
+                import numpy as np # Importar numpy se ainda não o fez
+                array_options = np.array(options_for_second_email)
+                closest_index = find_nearest_index(array_options, initial_tempo_segundo_email)
+                current_tempo_segundo_email_value = options_for_second_email[closest_index]
+            elif not options_for_second_email: # Se não há opções válidas (ex: primeiro email muito alto)
+                current_tempo_segundo_email_value = current_tempo_primeiro_email + 10 # Default para algo razoável
+                if current_tempo_segundo_email_value > ALL_MINUTE_OPTIONS[-1]: # Não ultrapassar o máximo
+                    current_tempo_segundo_email_value = ALL_MINUTE_OPTIONS[-1]
                 
-                # Ajusta o valor inicial se ele for menor ou igual ao primeiro e-mail
-                adjusted_initial_tempo_segundo_email = initial_tempo_segundo_email
-                if adjusted_initial_tempo_segundo_email <= current_tempo_primeiro_email:
-                    adjusted_initial_tempo_segundo_email = current_tempo_primeiro_email + 1
+                # Garante que o valor inicial ajustado esteja nas opções finais (pode não estar se o primeiro tempo é muito alto)
+                if current_tempo_segundo_email_value not in ALL_MINUTE_OPTIONS:
+                    current_tempo_segundo_email_value = ALL_MINUTE_OPTIONS[-1] # Ultima opção
 
-                current_tempo_segundo_email = st.number_input(
-                    "Tempo para o Segundo E-mail (minutos)",
-                    min_value=min_val_second_email,
-                    max_value=360, # Limite superior flexível
-                    value=adjusted_initial_tempo_segundo_email,
-                    step=1,
-                    help="Defina após quantos minutos da abertura da ocorrência o SEGUNDO e-mail será enviado. Deve ser maior que o tempo do primeiro e-mail.",
-                    disabled=(mode == "Editar Cliente Existente" and selected_client_data is None),
-                    key="tempo_segundo_email_input"
-                )
+            current_tempo_segundo_email = current_tempo_segundo_email_value # Inicia com o valor já validado
+
+            if enviar_segundo_email and enviar_primeiro_email and receber_emails: # Só mostra e habilita se ambos estiverem marcados e receber emails
+                if not options_for_second_email:
+                    st.warning("Não há opções de tempo disponíveis para o segundo e-mail (primeiro e-mail já está muito próximo do limite máximo).")
+                    current_tempo_segundo_email = 0 # Não permite seleção
+                else:
+                    current_tempo_segundo_email = st.selectbox(
+                        "Tempo para o Segundo E-mail (minutos)",
+                        options=options_for_second_email,
+                        index=options_for_second_email.index(current_tempo_segundo_email_value),
+                        disabled=(mode == "Editar Cliente Existente" and selected_client_data is None),
+                        key="tempo_segundo_email_input"
+                    )
             else:
                 current_tempo_segundo_email = 0 # Define como 0 se não for para enviar
 
@@ -2440,8 +2475,10 @@ if st.session_state.aba_ativa == "aba7":
                 if enviar_primeiro_email and current_tempo_primeiro_email <= 0:
                     erros.append("O tempo para o primeiro e-mail deve ser maior que 0.")
 
-                if enviar_segundo_email and current_tempo_segundo_email <= current_tempo_primeiro_email:
+                if enviar_segundo_email and current_tempo_segundo_email <= current_tempo_primeiro_email and enviar_primeiro_email: # Apenas se o primeiro estiver ativado
                     erros.append("O tempo do segundo e-mail deve ser maior que o tempo do primeiro e-mail.")
+                elif enviar_segundo_email and not enviar_primeiro_email:
+                    erros.append("O segundo e-mail não pode ser enviado se o primeiro não estiver ativado.")
             
             if erros:
                 for erro in erros:
@@ -2455,9 +2492,9 @@ if st.session_state.aba_ativa == "aba7":
                     "enviar_para_email": email_principal if receber_emails else "",
                     "email_copia": email_copia if receber_emails else "",
                     "enviar_primeiro_email": enviar_primeiro_email if receber_emails else False,
-                    "tempo_primeiro_email_minutos": current_tempo_primeiro_email, # Passa o valor atual, 0 se desabilitado
+                    "tempo_primeiro_email_minutos": current_tempo_primeiro_email, # Passa o valor selecionado
                     "enviar_segundo_email": enviar_segundo_email if receber_emails and enviar_primeiro_email else False,
-                    "tempo_segundo_email_minutos": current_tempo_segundo_email, # Passa o valor atual, 0 se desabilitado
+                    "tempo_segundo_email_minutos": current_tempo_segundo_email, # Passa o valor selecionado
                 }
 
                 if mode == "Adicionar Novo Cliente":
@@ -2478,7 +2515,7 @@ if st.session_state.aba_ativa == "aba7":
                         if "selected_client_edit_name" in st.session_state:
                             del st.session_state["selected_client_edit_name"]
                     else:
-                        # Para o modo "Editar Cliente Existente", mantemos a seleção ou resetamos se o cliente foi removido
+                        # Para o modo "Editar Cliente Existente", mantemos a seleção
                         st.session_state["client_management_mode"] = "Editar Cliente Existente"
                         st.session_state["selected_client_edit_name"] = selected_client_name # Mantém o nome do cliente selecionado
 
