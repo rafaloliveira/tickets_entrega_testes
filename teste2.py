@@ -872,12 +872,6 @@ def obter_ocorrencias_abertas_90min():
         st.error(f"Erro ao obter ocorrências de 90min: {e}")
         return []
 
-
-
-
-
-
-
 def marcar_email_como_enviado(ocorrencia_id, tipo="abertura"):
     """Marca a ocorrência como tendo recebido e-mail."""
     try:
@@ -890,6 +884,29 @@ def marcar_email_como_enviado(ocorrencia_id, tipo="abertura"):
     except Exception as e:
         st.error(f"Erro ao atualizar status de e-mail enviado: {e}")
         return False
+
+
+import numpy as np # Certifique-se de que numpy está importado no seu arquivo
+
+def find_nearest_index(array, value):
+    # 1. Verifica se o 'array' é None, uma lista vazia, ou um array NumPy vazio.
+    if array is None:
+        return 0 # Ou retorne None, ou lance um erro, dependendo do comportamento desejado para input nulo
+
+    # Tenta converter para array NumPy. Se não for numérico, levantará ValueError aqui.
+    try:
+        np_array = np.asarray(array)
+    except ValueError:
+        st.error("Erro: A entrada para 'find_nearest_index' contém dados não numéricos ou formato inválido.")
+        return None # Retorna None ou levanta um erro, pois não pode fazer o cálculo
+
+    # 2. Verifica se o array NumPy resultante está vazio
+    if np_array.size == 0:
+        return 0 # Retorna 0 para um array vazio, conforme seu código original
+
+    # ... (seu código restante da função para encontrar o índice mais próximo) ...
+    # Exemplo da linha final que você deve ter:
+    return np.argmin(np.abs(np_array - value))
 
 
 def verificar_e_enviar_email_90min(ocorrencia):
@@ -1073,7 +1090,27 @@ def enviar_email(destinatario, copia, assunto, corpo, imagem_url=None):
         return False, f"Erro ao enviar e-mail: {e}"
 
 
+import numpy as np # Certifique-se de que numpy está importado no seu arquivo
 
+def find_nearest_index(array, value):
+    # 1. Verifica se o 'array' é None, uma lista vazia, ou um array NumPy vazio.
+    if array is None:
+        return 0 # Ou retorne None, ou lance um erro, dependendo do comportamento desejado para input nulo
+
+    # Tenta converter para array NumPy. Se não for numérico, levantará ValueError aqui.
+    try:
+        np_array = np.asarray(array)
+    except ValueError:
+        st.error("Erro: A entrada para 'find_nearest_index' contém dados não numéricos ou formato inválido.")
+        return None # Retorna None ou levanta um erro, pois não pode fazer o cálculo
+
+    # 2. Verifica se o array NumPy resultante está vazio
+    if np_array.size == 0:
+        return 0 # Retorna 0 para um array vazio, conforme seu código original
+
+    # ... (seu código restante da função para encontrar o índice mais próximo) ...
+    # Exemplo da linha final que você deve ter:
+    return np.argmin(np.abs(np_array - value))
 
 def verificar_e_enviar_email_abertura(ocorrencia):
     """Verifica se a ocorrência precisa de e-mail e envia se necessário."""
@@ -2183,10 +2220,7 @@ if st.session_state.aba_ativa == "aba7":
     DEFAULT_SECOND_EMAIL_OPTION = 95 # Mais próximo de 90 na nova lista
 
     # Função auxiliar para encontrar o índice mais próximo em uma lista ordenada
-    def find_nearest_index(array, value):
-        if not array: return 0
-        idx = (abs(array - value)).argmin()
-        return idx
+
     
     # Aba de Cadastro de Motoristas (mantém-se a mesma)
     with cadastro_tab1:
