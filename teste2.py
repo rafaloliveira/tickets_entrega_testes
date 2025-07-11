@@ -2243,7 +2243,7 @@ if st.session_state.aba_ativa == "aba7":
                 else:
                     st.error(mensagem)
 
-        st.subheader("Motoristas Cadastrados")
+        #st.subheader("Motoristas Cadastrados")
         motoristas_atuais = carregar_motoristas_supabase() # Assumindo esta função já está definida
         if motoristas_atuais:
             for motorista in motoristas_atuais:
@@ -2270,7 +2270,7 @@ if st.session_state.aba_ativa == "aba7":
                 else:
                     st.error(mensagem)
 
-        st.subheader("Cidades Cadastradas")
+        #st.subheader("Cidades Cadastradas")
         cidades_atuais = carregar_cidades_supabase() # Assumindo esta função já está definida
         if cidades_atuais:
             for cidade in cidades_atuais:
