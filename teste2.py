@@ -131,7 +131,7 @@ def login():
 
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.markdown("<h1 style='text-align: center;'>📝 Entregas - Tempo de Permanência </h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: center;'> Entregas - Tempo de Permanência </h1>", unsafe_allow_html=True)
 
     # Se o login já foi feito e o cookie não expirou, configura a sessão
     if login_cookie and username_cookie and not is_cookie_expired(expiry_time_cookie):
