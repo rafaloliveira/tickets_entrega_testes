@@ -890,19 +890,20 @@ import numpy as np # Certifique-se de que numpy está importado no seu arquivo
 
 def find_nearest_index(array, value):
     if array is None or value is None:
-        return 0
+        return 0  # retorna índice 0 como fallback seguro
 
     try:
         np_array = np.asarray(array, dtype=float)
         value = float(value)
     except (ValueError, TypeError):
-        st.error("Erro: Os dados fornecidos para encontrar índice não são numéricos.")
+        st.error("Erro: Os dados fornecidos não são numéricos ou estão mal formatados.")
         return 0
 
     if np_array.size == 0:
         return 0
 
     return int(np.argmin(np.abs(np_array - value)))
+
 
 
 
