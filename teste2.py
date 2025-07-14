@@ -2380,7 +2380,7 @@ if st.session_state.aba_ativa == "aba7":
                 # Se o valor inicial não está nas opções, mapeia para o mais próximo ou padrão
                 import numpy as np # Importar numpy se ainda não o fez
                 array_options = np.array(ALL_MINUTE_OPTIONS)
-                closest_index = find_nearest_index(array_options, initial_tempo_primeiro_email)
+               # closest_index = find_nearest_index(array_options, initial_tempo_primeiro_email)
                 current_tempo_primeiro_email_value = ALL_MINUTE_OPTIONS[closest_index]
             
             current_tempo_primeiro_email = current_tempo_primeiro_email_value # Inicia com o valor já validado
