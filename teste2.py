@@ -1090,28 +1090,6 @@ def enviar_email(destinatario, copia, assunto, corpo, imagem_url=None):
         return False, f"Erro ao enviar e-mail: {e}"
 
 
-import numpy as np # Certifique-se de que numpy está importado no seu arquivo
-
-def find_nearest_index(array, value):
-    # 1. Verifica se o 'array' é None, uma lista vazia, ou um array NumPy vazio.
-    if array is None:
-        return 0 # Ou retorne None, ou lance um erro, dependendo do comportamento desejado para input nulo
-
-    # Tenta converter para array NumPy. Se não for numérico, levantará ValueError aqui.
-    try:
-        np_array = np.asarray(array)
-    except ValueError:
-        st.error("Erro: A entrada para 'find_nearest_index' contém dados não numéricos ou formato inválido.")
-        return None # Retorna None ou levanta um erro, pois não pode fazer o cálculo
-
-    # 2. Verifica se o array NumPy resultante está vazio
-    if np_array.size == 0:
-        return 0 # Retorna 0 para um array vazio, conforme seu código original
-
-    # ... (seu código restante da função para encontrar o índice mais próximo) ...
-    # Exemplo da linha final que você deve ter:
-    return np.argmin(np.abs(np_array - value))
-
 def verificar_e_enviar_email_abertura(ocorrencia):
     """Verifica se a ocorrência precisa de e-mail e envia se necessário."""
     try:
