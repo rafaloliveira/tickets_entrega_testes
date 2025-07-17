@@ -563,7 +563,7 @@ def verificar_e_enviar_segundo_email(ocorrencia):
             if ocorrencia.get("email_segundo_enviado", False):
                 return False, "Segundo e-mail já foi enviado."
 
-            tempo_segundo_email = email_info.get("tempo_segundo_email_minutos", 90)
+            tempo_segundo_email = int(email_info.get("tempo_segundo_email_minutos", 90))
             diferenca = calcular_diferenca_tempo(data_hora_abertura, agora)
 
             if diferenca < timedelta(minutes=tempo_segundo_email):
@@ -619,6 +619,7 @@ def verificar_e_enviar_segundo_email(ocorrencia):
         return False, "Data/hora de abertura ausente"
     except Exception as e:
         return False, f"Erro ao enviar segundo e-mail: {e}"
+
 
 
 def atualizar_tempo_envio_email(minutos):
