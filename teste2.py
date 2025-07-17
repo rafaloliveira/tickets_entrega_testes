@@ -1028,7 +1028,7 @@ def verificar_e_enviar_email_abertura(ocorrencia):
             email_principal = email_info['principal']
             email_copia = email_info['copia']
 
-            tempo_disparo_minutos = email_info['tempo_primeiro_email_minutos']
+            tempo_disparo_minutos = int(email_info['tempo_primeiro_email_minutos'])
             st.write(f"DEBUG: Cliente '{cliente}' - Tempo primeiro email: {tempo_disparo_minutos} min") # Para depuração
             
             # Verificar se passou o tempo personalizado
