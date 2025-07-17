@@ -2317,7 +2317,8 @@ if st.session_state.aba_ativa == "aba7":
                             del st.session_state["selected_client_edit_name"]
                     else:
                         # Para o modo "Editar Cliente Existente", mantemos a seleção
-                        st.session_state["client_management_mode"] = "Editar Cliente Existente"
+                        st.session_state.setdefault("client_management_mode", "Editar Cliente Existente")
+
                         st.session_state["selected_client_edit_name"] = selected_client_name # Mantém o nome do cliente selecionado
 
                     st.rerun() # Recarrega a página para refletir as mudanças
