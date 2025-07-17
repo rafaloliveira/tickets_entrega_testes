@@ -228,7 +228,7 @@ abas_admin = {
     "📊 Configurações": "aba4",
     "📧 Notificações por E-mail": "aba6",
     "🔄 Cadastros": "aba7",
-    "📊 Estatística": "aba8"
+    
 }
 
 abas_usuario = {
@@ -237,7 +237,7 @@ abas_usuario = {
     "✅ Ocorrências Finalizadas": "aba3",
     "📊 Configurações": "aba4",
     "🔄 Cadastros": "aba7",
-    "📊 Estatística": "aba8"
+    
 }
 
 abas = abas_admin if st.session_state.is_admin else abas_usuario
@@ -2072,7 +2072,7 @@ if st.session_state.aba_ativa == "aba6" and st.session_state.is_admin:
     - **E-mail principal:** Coluna C (enviar_para_email)
     - **E-mails em cópia (CC):** Coluna D (email_copia), separados por ponto e vírgula
     """)
-    
+
     col1, col2 = st.columns(2)
     
     with col1:
@@ -2090,8 +2090,6 @@ if st.session_state.aba_ativa == "aba6" and st.session_state.is_admin:
         if st.button("Enviar Notificações Agora"):
             with st.spinner("Verificando ocorrências e enviando e-mails..."):
                 resultados = notificar_ocorrencias_abertas()
-                
-                # Exibir resultados
                 for resultado in resultados:
                     if resultado.get("status") == "info":
                         st.info(resultado.get("mensagem"))
@@ -2100,80 +2098,21 @@ if st.session_state.aba_ativa == "aba6" and st.session_state.is_admin:
                     else:
                         st.error(f"❌ Erro ao enviar para {resultado.get('cliente')}: {resultado.get('mensagem')}")
 
-        # Exibir histórico de e-mails enviados
-        st.subheader("Histórico de E-mails Enviados")
+    # 🔻 AGORA FORA DAS COLUNAS: uso total da largura
+    st.subheader("Histórico de E-mails Enviados")
 
-        # Buscar dados da tabela
-        resposta = supabase.table("emails_enviados").select("*").order("data_hora", desc=True).execute()
-        dados = resposta.data
+    resposta = supabase.table("emails_enviados").select("*").order("data_hora", desc=True).execute()
+    dados = resposta.data
 
-        if dados:
-            df_historico = pd.DataFrame(dados)
-            
-            # Formatar coluna de data/hora se necessário
-            if "data_hora" in df_historico.columns:
-                df_historico["data_hora"] = pd.to_datetime(df_historico["data_hora"]).dt.strftime("%d/%m/%Y %H:%M:%S")
-            
-            st.dataframe(df_historico)
-        else:
-            st.info("Nenhum e-mail enviado ainda.")
+    if dados:
+        df_historico = pd.DataFrame(dados)
 
-# Verificar e enviar e-mails para ocorrências abertas há mais de 30 minutos
-ocorrencias_abertas = carregar_ocorrencias_abertas()
-for ocorr in ocorrencias_abertas:
-    if not ocorr.get("email_abertura_enviado", False):
-        verificar_e_enviar_email_abertura(ocorr)
+        if "data_hora" in df_historico.columns:
+            df_historico["data_hora"] = pd.to_datetime(df_historico["data_hora"], format='ISO8601').dt.strftime("%d/%m/%Y %H:%M:%S")
 
-# =========================
-#     ABA 8 - ESTATÍSTICAS
-# =========================
-if st.session_state.aba_ativa == "aba8":
-    st.header("📊 Estatísticas de Ocorrências Finalizadas")
-
-    ocorrencias_finalizadas = carregar_ocorrencias_finalizadas()
-
-    if not ocorrencias_finalizadas:
-        st.info("ℹ️ Nenhuma ocorrência finalizada para gerar estatísticas.")
-        st.stop()
-
-    df_finalizadas = pd.DataFrame(ocorrencias_finalizadas)
-
-    # --- Limpeza e conversões ---
-    df_finalizadas["data_hora_abertura"] = pd.to_datetime(
-        df_finalizadas.get("abertura_ticket") or df_finalizadas.get("abertura_timestamp"), errors="coerce"
-    )
-    df_finalizadas["data_hora_finalizacao"] = pd.to_datetime(df_finalizadas["data_hora_finalizacao"], errors="coerce")
-    df_finalizadas = df_finalizadas.dropna(subset=["data_hora_abertura", "data_hora_finalizacao"])
-
-    # Calcula tempo de permanência
-   # Remove timezone (caso exista)
-    df_finalizadas["data_hora_abertura"] = df_finalizadas["data_hora_abertura"].dt.tz_localize(None)
-    df_finalizadas["data_hora_finalizacao"] = df_finalizadas["data_hora_finalizacao"].dt.tz_localize(None)
-
-    # Calcula permanência
-    df_finalizadas["permanencia_horas"] = (
-        df_finalizadas["data_hora_finalizacao"] - df_finalizadas["data_hora_abertura"]
-    ).dt.total_seconds() / 3600
-
-    # --- Estatísticas Gerais ---
-    st.subheader("⏱️ Tempo Médio de Permanência")
-    tempo_medio = df_finalizadas["permanencia_horas"].mean()
-    st.metric("Tempo Médio de Permanência (h)", f"{tempo_medio:.2f} h")
-
-    # --- Gráfico por Tipo de Ocorrência ---
-    st.subheader("📌 Ocorrências por Tipo")
-    tipo_counts = df_finalizadas["tipo_de_ocorrencia"].value_counts()
-    st.bar_chart(tipo_counts)
-
-    # --- Gráfico por Cliente ---
-    st.subheader("🏢 Ocorrências por Cliente")
-    cliente_counts = df_finalizadas["cliente"].value_counts()
-    st.bar_chart(cliente_counts)
-
-    # --- Gráfico de Tempo Médio por Focal ---
-    st.subheader("👤 Tempo Médio por Focal")
-    tempo_por_focal = df_finalizadas.groupby("focal")["permanencia_horas"].mean().sort_values(ascending=False)
-    st.bar_chart(tempo_por_focal)
+        st.dataframe(df_historico, use_container_width=True)  # 👈 Aqui o ajuste principal
+    else:
+        st.info("Nenhum e-mail enviado ainda.")
 
 
 # =========================
