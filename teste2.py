@@ -1108,14 +1108,14 @@ def verificar_e_enviar_email_abertura(ocorrencia):
                 marcar_email_como_enviado(ocorrencia["id"], "abertura")
 
                 supabase.table("emails_enviados").insert({
-                    "data": obter_data_hora_atual_brasil().strftime("%d-%m-%Y %H:%M:%S"),
-                    "tipo": "Abertura",
+                    "tipo": "Segundo Aviso",
                     "cliente": cliente,
                     "email": email_principal,
                     "ticket": ocorrencia.get('numero_ticket', '-'),
                     "nota_fiscal": ocorrencia.get('nota_fiscal', '-'),
                     "status": "Enviado"
                 }).execute()
+
 
                 return True, "E-mail enviado com sucesso"
             else:
