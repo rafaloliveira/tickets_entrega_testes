@@ -1108,6 +1108,7 @@ def verificar_e_enviar_email_abertura(ocorrencia):
                 marcar_email_como_enviado(ocorrencia["id"], "abertura")
 
                 supabase.table("emails_enviados").insert({
+                    "data_hora": obter_data_hora_atual_brasil().isoformat(),
                     "tipo": "Segundo Aviso",
                     "cliente": cliente,
                     "email": email_principal,
