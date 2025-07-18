@@ -563,11 +563,11 @@ def verificar_e_enviar_segundo_email(ocorrencia):
             if ocorrencia.get("email_segundo_enviado", False):
                 return False, "Segundo e-mail já foi enviado."
 
-            tempo_segundo_email = int(email_info.get("tempo_segundo_email_minutos", 90))
-            diferenca = calcular_diferenca_tempo(data_hora_abertura, agora)
+            #tempo_segundo_email = int(email_info.get("tempo_segundo_email_minutos", 90))
+            #diferenca = calcular_diferenca_tempo(data_hora_abertura, agora)
 
-            if diferenca < timedelta(minutes=tempo_segundo_email):
-                return False, f"Ainda não passou o tempo necessário ({tempo_segundo_email} min)."
+            #if diferenca < timedelta(minutes=tempo_segundo_email):
+                #return False, f"Ainda não passou o tempo necessário ({tempo_segundo_email} min)."
 
             email_principal = email_info["principal"]
             email_copia = email_info["copia"]
