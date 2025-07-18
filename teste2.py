@@ -603,7 +603,7 @@ def verificar_e_enviar_segundo_email(ocorrencia):
                 }).eq("id", ocorrencia["id"]).execute()
 
                 supabase.table("emails_enviados").insert({
-                    "data_hora": obter_data_hora_atual_brasil().strftime("%d-%m-%Y %H:%M:%S"),
+                    "data_hora": obter_data_hora_atual_brasil().isoformat(),
                     "tipo": "Segundo Aviso",
                     "cliente": cliente,
                     "email": email_principal,
@@ -619,7 +619,6 @@ def verificar_e_enviar_segundo_email(ocorrencia):
         return False, "Data/hora de abertura ausente"
     except Exception as e:
         return False, f"Erro ao enviar segundo e-mail: {e}"
-
 
 
 def atualizar_tempo_envio_email(minutos):
