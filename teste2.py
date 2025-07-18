@@ -603,7 +603,7 @@ def verificar_e_enviar_segundo_email(ocorrencia):
                 }).eq("id", ocorrencia["id"]).execute()
 
                 supabase.table("emails_enviados").insert({
-                    "data": obter_data_hora_atual_brasil().strftime("%d-%m-%Y %H:%M:%S"),
+                    "data_hora": obter_data_hora_atual_brasil().strftime("%d-%m-%Y %H:%M:%S"),
                     "tipo": "Segundo Aviso",
                     "cliente": cliente,
                     "email": email_principal,
